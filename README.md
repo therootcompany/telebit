@@ -1,5 +1,47 @@
 # RVPN Server
 
+Build Instructions
+------------------
+Create self-signed certificates:
+```
+$ openssl req -x509 -nodes -newkey rsa:4096 -keyout server.key -out server.crt -days 365
+```
+
+Run the VPN
+```
+$ go build && ./go-rvpn-server
+```
+
+Activate a webbrowser:  https://127.0.0.1:8000/
+
+Open Dev Console
+
+Hit the Start WebSocket --> should turn "Green"
+
+Put some test in the send, and hit the send button.
+
+* observe java console, every 'this is a test' coming from the vpn to client...
+* observe terminal console when pressing "send".
+
+```
+INFO: 2017/02/01 21:22:49 connection_table.go:23: register fired
+INFO: 2017/02/01 21:22:49 connection_table.go:27: &{0xc420120040 0xc420163cc0 0xc4201254a0 [::1]:61392 false 0 0}
+INFO: 2017/02/01 21:22:49 connection.go:71: activate timer &{0xc42027ec00 {2 1486005774583377390 5000000000 0xcf900 0xc42027ec00 0}}
+INFO: 2017/02/01 21:22:49 connection.go:96: activate timer &{0xc420125500 {0 1486005774583361223 5000000000 0xcf900 0xc420125500 0}}
+INFO: 2017/02/01 21:22:53 connection.go:62: [97 115 100 102 97 115 100 102 97 115 100 102 97 115 100 102]
+INFO: 2017/02/01 21:22:53 connection.go:65: &{0xc420120040 0xc420163cc0 0xc4201254a0 [::1]:61392 false 16 0}
+INFO: 2017/02/01 21:22:54 connection.go:103: Dwell Activated
+INFO: 2017/02/01 21:22:56 connection.go:62: [97 115 100 102 97 115 100 102 97 115 100 102 97 115 100 102]
+INFO: 2017/02/01 21:22:56 connection.go:65: &{0xc420120040 0xc420163cc0 0xc4201254a0 [::1]:61392 false 32 14}
+INFO: 2017/02/01 21:22:58 connection.go:62: [97 115 100 102 97 115 100 102 97 115 100 102 97 115 100 102]
+INFO: 2017/02/01 21:22:58 connection.go:65: &{0xc420120040 0xc420163cc0 0xc4201254a0 [::1]:61392 false 48 14}
+INFO: 2017/02/01 21:22:59 connection.go:103: Dwell Activated
+```
+The last two numbers after false are bytes read, bytes written.
+
+
+
+
 A Poor Man's Reverse VPN written in Go
 
 Context
