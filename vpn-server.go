@@ -74,7 +74,7 @@ func launchListener() {
 	go connectionTable.run()
 	http.HandleFunc("/", handlerServeContent)
 
-	err := http.ListenAndServeTLS(*argServerPort, "server.crt", "server.key", nil)
+	err := http.ListenAndServeTLS(*argServerPort, "certs/fullchain.pem", "certs/privkey.pem", nil)
 	if err != nil {
 		logfatal.Println("ListenAndServe: ", err)
 		panic(err)
