@@ -8,6 +8,9 @@ Get the dependencies
 ```bash
 go get github.com/gorilla/websocket
 go get github.com/dgrijalva/jwt-go
+
+git clone git@git.daplie.com:Daplie/localhost.daplie.me-certificates.git 
+ln -s localhost.daplie.me-certificates/certs/localhost.daplie.me certs
 ```
 
 Run the VPN
