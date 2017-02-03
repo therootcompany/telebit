@@ -29,7 +29,7 @@ INFO: 2017/02/02 21:22:24 connection.go:127: access_token valid
 INFO: 2017/02/02 21:22:24 connection.go:130: processing domains [hfc.daplie.me test.hfc.daplie.me]
 ```
 
-Change the key on the command client to test a valid secret
+Change the key on the tunnel client to test a valid secret
 ``` bash
 INFO: 2017/02/02 21:24:13 vpn-server.go:88: startup
 INFO: 2017/02/02 21:24:13 vpn-server.go:90: :8000
