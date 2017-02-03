@@ -2,10 +2,12 @@
 
 Build Instructions
 ------------------
+
 Get the dependencies
 
 ```bash
 go get github.com/gorilla/websocket
+go get github.com/dgrijalva/jwt-go
 ```
 
 Run the VPN
