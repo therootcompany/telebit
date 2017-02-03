@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/hex"
 	"log"
 	"net/http"
 
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/websocket"
 )
 
@@ -59,7 +61,7 @@ func (c *Connection) reader() {
 			}
 			break
 		}
-		loginfo.Println(message)
+		loginfo.Println(hex.Dump(message))
 		c.addIn(int64(len(message)))
 
 		loginfo.Println(c)
@@ -110,6 +112,23 @@ func (c *Connection) sender() {
 func handleConnectionWebSocket(connectionTable *ConnectionTable, w http.ResponseWriter, r *http.Request, admin bool) {
 	loginfo.Println("websocket opening ", r.RemoteAddr)
 
+	tokenString := r.URL.Query().Get("access_token")
+	result, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secretKey), nil
+	})
+
+	if err != nil || !result.Valid {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte("Not Authorized"))
+		loginfo.Println("access_token invalid...closing connection")
+		return
+	}
+
+	loginfo.Println("access_token valid")
+
+	claims := result.Claims.(jwt.MapClaims)
+	loginfo.Println("processing domains", claims["domains"])
+
 	if admin == true {
 		loginfo.Println("Recognized Admin connection, waiting authentication")
 	} else {
@@ -124,6 +143,6 @@ func handleConnectionWebSocket(connectionTable *ConnectionTable, w http.Response
 	connection := &Connection{connectionTable: connectionTable, conn: conn, send: make(chan []byte, 256), source: r.RemoteAddr, admin: admin}
 	connection.connectionTable.register <- connection
 	go connection.writer()
-	go connection.sender()
+	//go connection.sender()
 	connection.reader()
 }

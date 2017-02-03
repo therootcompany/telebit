@@ -13,35 +13,31 @@ Run the VPN
 go build && ./go-rvpn-server
 ```
 
-Activate a webbrowser:  https://127.0.0.1:8000/
-
-Open Dev Console
-
-Hit the Start WebSocket --> should turn "Green"
-
-Put some test in the send, and hit the send button.
-
-* observe java console, every 'this is a test' coming from the vpn to client...
-* observe terminal console when pressing "send".
-
+In another terminal execute the client
+``` bash
+bin/stunnel.js --locals http:hfc.daplie.me:3000,http://test.hfc.daplie.me:3001 --stunneld wss://localhost.daplie.me:8000 --secret abc123
 ```
-INFO: 2017/02/01 21:22:49 connection_table.go:23: register fired
-INFO: 2017/02/01 21:22:49 connection_table.go:27: &{0xc420120040 0xc420163cc0 0xc4201254a0 [::1]:61392 false 0 0}
-INFO: 2017/02/01 21:22:49 connection.go:71: activate timer &{0xc42027ec00 {2 1486005774583377390 5000000000 0xcf900 0xc42027ec00 0}}
-INFO: 2017/02/01 21:22:49 connection.go:96: activate timer &{0xc420125500 {0 1486005774583361223 5000000000 0xcf900 0xc420125500 0}}
-INFO: 2017/02/01 21:22:53 connection.go:62: [97 115 100 102 97 115 100 102 97 115 100 102 97 115 100 102]
-INFO: 2017/02/01 21:22:53 connection.go:65: &{0xc420120040 0xc420163cc0 0xc4201254a0 [::1]:61392 false 16 0}
-INFO: 2017/02/01 21:22:54 connection.go:103: Dwell Activated
-INFO: 2017/02/01 21:22:56 connection.go:62: [97 115 100 102 97 115 100 102 97 115 100 102 97 115 100 102]
-INFO: 2017/02/01 21:22:56 connection.go:65: &{0xc420120040 0xc420163cc0 0xc4201254a0 [::1]:61392 false 32 14}
-INFO: 2017/02/01 21:22:58 connection.go:62: [97 115 100 102 97 115 100 102 97 115 100 102 97 115 100 102]
-INFO: 2017/02/01 21:22:58 connection.go:65: &{0xc420120040 0xc420163cc0 0xc4201254a0 [::1]:61392 false 48 14}
-INFO: 2017/02/01 21:22:59 connection.go:103: Dwell Activated
+
+A good authentication
 ```
-The last two numbers after false are bytes read, bytes written.
+INFO: 2017/02/02 21:22:22 vpn-server.go:88: startup
+INFO: 2017/02/02 21:22:22 vpn-server.go:90: :8000
+INFO: 2017/02/02 21:22:22 vpn-server.go:73: starting Listener
+INFO: 2017/02/02 21:22:22 connection_table.go:19: ConnectionTable starting
+INFO: 2017/02/02 21:22:24 connection.go:113: websocket opening  127.0.0.1:55469
+INFO: 2017/02/02 21:22:24 connection.go:127: access_token valid
+INFO: 2017/02/02 21:22:24 connection.go:130: processing domains [hfc.daplie.me test.hfc.daplie.me]
+```
 
-
-
+Change the key on the command client to test a valid secret
+``` bash
+INFO: 2017/02/02 21:24:13 vpn-server.go:88: startup
+INFO: 2017/02/02 21:24:13 vpn-server.go:90: :8000
+INFO: 2017/02/02 21:24:13 vpn-server.go:73: starting Listener
+INFO: 2017/02/02 21:24:13 connection_table.go:19: ConnectionTable starting
+INFO: 2017/02/02 21:24:15 connection.go:113: websocket opening  127.0.0.1:55487
+INFO: 2017/02/02 21:24:15 connection.go:123: access_token invalid...closing connection
+```
 
 A Poor Man's Reverse VPN written in Go
 

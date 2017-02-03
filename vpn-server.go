@@ -31,6 +31,7 @@ var (
 	logFlags        = log.Ldate | log.Ltime | log.Lshortfile
 	argServerPort   = flag.String("server-port", ":8000", "serverPort listener")
 	connectionTable *ConnectionTable
+	secretKey       = "abc123"
 )
 
 func logInit(infoHandle io.Writer) {
@@ -47,8 +48,9 @@ handlerServeContent -- Handles generic URI paths /
 func handlerServeContent(w http.ResponseWriter, r *http.Request) {
 	switch url := r.URL.Path; url {
 	case "/":
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		template.Must(template.ParseFiles("html/client.html")).Execute(w, r.Host)
+		handleConnectionWebSocket(connectionTable, w, r, false)
+		//w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		//template.Must(template.ParseFiles("html/client.html")).Execute(w, r.Host)
 
 	case "/admin":
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
