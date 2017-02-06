@@ -28,9 +28,11 @@ func (c *ConnectionTable) run() {
 			}
 
 		case connection := <-c.unregister:
+			loginfo.Println("closing connection ", connection)
 			if _, ok := c.connections[connection]; ok {
 				delete(c.connections, connection)
 				close(connection.send)
+
 			}
 		}
 	}

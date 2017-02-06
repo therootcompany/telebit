@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/hex"
-	"log"
 	"net/http"
 
 	"time"
@@ -57,13 +56,12 @@ func (c *Connection) reader() {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				log.Printf("error: %v", err)
+				loginfo.Printf("error: %v", err)
 			}
 			break
 		}
 		loginfo.Println(hex.Dump(message))
 		c.addIn(int64(len(message)))
-
 		loginfo.Println(c)
 	}
 }
@@ -110,7 +108,7 @@ func (c *Connection) sender() {
 
 // handleConnectionWebSocket handles websocket requests from the peer.
 func handleConnectionWebSocket(connectionTable *ConnectionTable, w http.ResponseWriter, r *http.Request, admin bool) {
-	loginfo.Println("websocket opening ", r.RemoteAddr)
+	loginfo.Println("websocket opening ", r.RemoteAddr, " ", r.Host)
 
 	tokenString := r.URL.Query().Get("access_token")
 	result, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {

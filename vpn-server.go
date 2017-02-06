@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
-	"html/template"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"time"
+
+	"git.daplie.com/Daplie/go-rvpn-server/logging"
 )
 
 const (
@@ -26,12 +26,13 @@ const (
 
 var (
 	//Info ..
-	loginfo         *log.Logger
-	logfatal        *log.Logger
-	logFlags        = log.Ldate | log.Ltime | log.Lshortfile
-	argServerPort   = flag.String("server-port", ":8000", "serverPort listener")
-	connectionTable *ConnectionTable
-	secretKey       = "abc123"
+	loginfo               *log.Logger
+	logfatal              *log.Logger
+	logFlags              = log.Ldate | log.Lmicroseconds | log.Lshortfile
+	argServerBinding      = flag.String("server-port", "127.0.0.1:8000", "server Bind listener")
+	argServerAdminBinding = flag.String("admin-server-port", "127.0.0.2:8000", "admin server Bind listener")
+	connectionTable       *ConnectionTable
+	secretKey             = "abc123"
 )
 
 func logInit(infoHandle io.Writer) {
@@ -39,56 +40,15 @@ func logInit(infoHandle io.Writer) {
 	logfatal = log.New(infoHandle, "FATAL : ", logFlags)
 }
 
-/*
-handlerServeContent -- Handles generic URI paths /
-"/" - normal client activities for websocket, marked admin=false
-"/admin" - marks incoming connection as admin, however must authenticate
-"/ws/client" & "/ws/admin" websocket terminations
-*/
-func handlerServeContent(w http.ResponseWriter, r *http.Request) {
-	switch url := r.URL.Path; url {
-	case "/":
-		handleConnectionWebSocket(connectionTable, w, r, false)
-		//w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		//template.Must(template.ParseFiles("html/client.html")).Execute(w, r.Host)
-
-	case "/admin":
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		template.Must(template.ParseFiles("html/admin.html")).Execute(w, r.Host)
-
-	case "/ws/client":
-		handleConnectionWebSocket(connectionTable, w, r, false)
-
-	case "/ws/admin":
-		handleConnectionWebSocket(connectionTable, w, r, true)
-
-	default:
-		http.Error(w, "Not Found", 404)
-
-	}
-}
-
-//launchListener - starts up http listeners and handles various URI paths
-func launchListener() {
-	loginfo.Println("starting Listener")
-
-	connectionTable = newConnectionTable()
-	go connectionTable.run()
-	http.HandleFunc("/", handlerServeContent)
-
-	err := http.ListenAndServeTLS(*argServerPort, "certs/fullchain.pem", "certs/privkey.pem", nil)
-	if err != nil {
-		logfatal.Println("ListenAndServe: ", err)
-		panic(err)
-	}
-}
-
 func main() {
-	logInit(os.Stdout)
+	logging.Init(os.Stdout, logFlags)
+	linfo, lfatal := logging.Get()
+	loginfo = linfo
+	logfatal = lfatal
+
 	loginfo.Println("startup")
 	flag.Parse()
-	loginfo.Println(*argServerPort)
 
-	go launchListener()
-	time.Sleep(600 * time.Second)
+	go launchClientListener()
+	launchAdminListener()
 }
