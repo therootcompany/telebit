@@ -26,13 +26,14 @@ const (
 
 var (
 	//Info ..
-	loginfo               *log.Logger
-	logfatal              *log.Logger
-	logFlags              = log.Ldate | log.Lmicroseconds | log.Lshortfile
-	argServerBinding      = flag.String("server-port", "127.0.0.1:8000", "server Bind listener")
-	argServerAdminBinding = flag.String("admin-server-port", "127.0.0.2:8000", "admin server Bind listener")
-	connectionTable       *ConnectionTable
-	secretKey             = "abc123"
+	loginfo                  *log.Logger
+	logfatal                 *log.Logger
+	logFlags                 = log.Ldate | log.Lmicroseconds | log.Lshortfile
+	argServerBinding         = flag.String("server-port", "127.0.0.1:3502", "server Bind listener")
+	argServerAdminBinding    = flag.String("admin-server-port", "127.0.0.2:8000", "admin server Bind listener")
+	argServerExternalBinding = flag.String("external-server-port", "127.0.0.1:8080", "external server Bind listener")
+	connectionTable          *ConnectionTable
+	secretKey                = "abc123"
 )
 
 func logInit(infoHandle io.Writer) {
@@ -49,6 +50,9 @@ func main() {
 	loginfo.Println("startup")
 	flag.Parse()
 
+	connectionTable = newConnectionTable()
+	go connectionTable.run()
 	go launchClientListener()
+	go launchWebRequestExternalListener()
 	launchAdminListener()
 }

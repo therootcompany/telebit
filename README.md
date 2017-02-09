@@ -50,6 +50,12 @@ INFO: 2017/02/02 21:24:15 connection.go:113: websocket opening  127.0.0.1:55487
 INFO: 2017/02/02 21:24:15 connection.go:123: access_token invalid...closing connection
 ```
 
+Connection to the External Interface.
+http://127.0.0.1:8080
+
+The request is dumped to stdio.  This is in preparation of taking that request and sending it back to the designated WSS connection
+The system needs to track the response coming back, decouple it, and place it back on the wire in the form of a response stream.  Since
+
 A Poor Man's Reverse VPN written in Go
 
 Context
