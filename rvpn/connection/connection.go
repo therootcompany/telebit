@@ -3,8 +3,6 @@ package connection
 import (
 	"encoding/hex"
 
-	"time"
-
 	"github.com/gorilla/websocket"
 )
 
@@ -31,10 +29,16 @@ type Connection struct {
 
 	// bytes out
 	bytesOut int64
+
+	// communications channel between go routines
+	commCh chan bool
+
+	//initialDomains - a list of domains from the JWT
+	initialDomains []interface{}
 }
 
 //NewConnection -- Constructor
-func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress string) (p *Connection) {
+func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress string, initialDomains []interface{}) (p *Connection) {
 	p = new(Connection)
 	p.connectionTable = connectionTable
 	p.conn = conn
@@ -42,6 +46,8 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	p.bytesIn = 0
 	p.bytesOut = 0
 	p.send = make(chan []byte, 256)
+	p.commCh = make(chan bool)
+	p.initialDomains = initialDomains
 	return
 }
 
@@ -57,6 +63,11 @@ func (c *Connection) addOut(num int64) {
 func (c *Connection) ConnectionTable() (table *Table) {
 	table = c.connectionTable
 	return
+}
+
+//CommCh -- Property
+func (c *Connection) CommCh() chan bool {
+	return c.commCh
 }
 
 //Reader -- export the reader function
@@ -82,8 +93,6 @@ func (c *Connection) Reader() {
 
 //Writer -- expoer the writer function
 func (c *Connection) Writer() {
-	dwell := time.NewTicker(5 * time.Second)
-	loginfo.Println("activate timer", dwell)
 	defer func() {
 		c.conn.Close()
 	}()
@@ -102,21 +111,6 @@ func (c *Connection) Writer() {
 			}
 
 			c.addOut(int64(len(message)))
-		}
-	}
-}
-
-func (c *Connection) sender() {
-	dwell := time.NewTicker(5 * time.Second)
-	loginfo.Println("activate timer", dwell)
-	defer func() {
-		c.conn.Close()
-	}()
-	for {
-		select {
-		case <-dwell.C:
-			loginfo.Println("Dwell Activated")
-			c.send <- []byte("This is a test")
 		}
 	}
 }

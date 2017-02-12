@@ -21,9 +21,7 @@ func LaunchClientListener(connectionTable *connection.Table, secretKey *string, 
 
 		default:
 			http.Error(w, "Not Found", 404)
-
 		}
-
 	})
 
 	s := &http.Server{
@@ -54,16 +52,10 @@ func handleConnectionWebSocket(connectionTable *connection.Table, w http.Respons
 		return
 	}
 
-	loginfo.Println("access_token valid")
+	loginfo.Println("help access_token valid")
 
 	claims := result.Claims.(jwt.MapClaims)
-	loginfo.Println("processing domains", claims["domains"])
-
-	if admin == true {
-		loginfo.Println("Recognized Admin connection, waiting authentication")
-	} else {
-		loginfo.Println("Recognized connection, waiting authentication")
-	}
+	domains, ok := claims["domains"].([]interface{})
 
 	var upgrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -75,12 +67,18 @@ func handleConnectionWebSocket(connectionTable *connection.Table, w http.Respons
 		loginfo.Println("WebSocket upgrade failed", err)
 		return
 	}
+
 	loginfo.Println("before connection table")
 
-	//connection := &connection.Connection{connectionTable: connectionTable, conn: conn, send: make(chan []byte, 256), source: r.RemoteAddr, admin: admin}
-
-	connection := connection.NewConnection(connectionTable, conn, r.RemoteAddr)
-	connectionTable.Register() <- connection
-	go connection.Writer()
-	connection.Reader()
+	newConnection := connection.NewConnection(connectionTable, conn, r.RemoteAddr, domains)
+	connectionTable.Register() <- newConnection
+	ok = <-newConnection.CommCh()
+	if !ok {
+		loginfo.Println("connection registration failed ", newConnection)
+		return
+	}
+	loginfo.Println("connection registration accepted ", newConnection)
+	go newConnection.Writer()
+	newConnection.Reader()
+	loginfo.Println("connection closing")
 }

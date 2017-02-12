@@ -11,6 +11,7 @@ import (
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/connection"
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/external"
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/xlate"
 )
 
 var (
@@ -21,6 +22,7 @@ var (
 	argServerAdminBinding    string
 	argServerExternalBinding string
 	connectionTable          *connection.Table
+	wssMapping               *xlate.WssMapping
 	secretKey                = "abc123"
 )
 
@@ -52,6 +54,9 @@ func Run() {
 	fmt.Println(p.Header.Address())
 
 	loginfo.Println(p)
+
+	wssMapping = xlate.NewwssMapping()
+	go wssMapping.Run()
 
 	connectionTable = connection.NewTable()
 	go connectionTable.Run()

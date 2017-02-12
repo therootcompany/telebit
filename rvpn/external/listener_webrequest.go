@@ -7,7 +7,7 @@ import (
 	"net/http/httputil"
 )
 
-//launchWebRequestListener - starts up extern http listeners, gets request and prep's to hand it off inside.
+//LaunchWebRequestExternalListener - starts up extern http listeners, gets request and prep's to hand it off inside.
 func LaunchWebRequestExternalListener(serverBinding *string) {
 
 	loginfo.Println("starting WebRequestExternal Listener ", *serverBinding)
