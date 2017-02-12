@@ -1,3 +1,0 @@
-[submodule "certs"]
-	path = certs
-	url = https://git.daplie.com/Daplie/localhost.daplie.me-certificates.git
