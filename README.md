@@ -8,6 +8,7 @@ Branch: restructured
 * although a test project debugs just fin
 
 listener_client — the WSS client
+--------------------------------
 - removed support for anything admin
 - injected the domains from the claim 
 - domains are now included as initialDomains
@@ -17,11 +18,13 @@ listener_client — the WSS client
 - registration returns a true on the channel if all is well. If it is not, false. Likely will add some text to pass back.
 
 Connection
+----------
 - added support for boolean channel
 - support for initial domains in a slice, these are brought back from the JWT as a interface and then are type asserted into the map
 - removed all the old timer sender dwell stuff as a POC for traffic counts.
 
 ConnectionTable
+---------------
 - added support for domain announcement after the WSS is connection. Not sure if we will need these. They have not been implemented.
 - I assume all domains are registered with JWT unless I hear differently which would require a new WSS session
 - expanded NewTable constructor
@@ -29,15 +32,18 @@ ConnectionTable
 - added support for removing domains when a connection is removed.
 
 Packer
+------
 - added support for a PackerHeader type and PackerData type
 - these are connected in a Packer type
 - support for calculated address family based on ip address property
 - service field is set to "na"
 
 Logging
+-------
 - unified package logging based on a package init.  Will likely need to remove this
 
 Tests
+-----
 - stared to structure project for tests.  
 
 
