@@ -36,7 +36,7 @@ func (c *Table) Run() {
 		select {
 		case connection := <-c.register:
 			loginfo.Println("register fired")
-			c.connections[connection] = make([]string, incrementDomains)
+			c.connections[connection] = make([]string, initialDomains)
 			connection.commCh <- true
 
 			// handle initial domain additions
@@ -52,9 +52,6 @@ func (c *Table) Run() {
 				c.connections[connection] = append(s, newDomain)
 			}
 
-			fmt.Println(c.domains)
-			fmt.Println(c.connections)
-
 			loginfo.Println("register exiting")
 
 		case connection := <-c.unregister:
@@ -69,10 +66,6 @@ func (c *Table) Run() {
 
 				delete(c.connections, connection)
 				close(connection.send)
-
-				fmt.Println(c.domains)
-				fmt.Println(c.connections)
-
 			}
 
 		case domainMapping := <-c.domainAnnounce:
@@ -85,6 +78,8 @@ func (c *Table) Run() {
 			//}
 
 		}
+		fmt.Println("domain ", c.domains)
+		fmt.Println("connections ", c.connections)
 	}
 }
 
