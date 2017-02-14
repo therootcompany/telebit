@@ -49,7 +49,7 @@ func LaunchWebRequestExternalListener(serverBinding *string, connectionTable *co
 			} else {
 				loginfo.Println(conn, rAddr, rPort)
 				p := packer.NewPacker()
-				p.Header.SetAddress("127.0.0.2")
+				p.Header.SetAddress(rAddr)
 				p.Header.Port, err = strconv.Atoi(rPort)
 				p.Data.AppendBytes(dump)
 				buf := p.PackV1()
