@@ -116,6 +116,7 @@ func (c *Connection) Writer() {
 			}
 
 			c.addOut(int64(len(message)))
+			loginfo.Println(c)
 		}
 	}
 }

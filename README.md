@@ -1,5 +1,66 @@
 # RVPN Server
 
+Traffic Testing
+---------------
+* run go-rvpn-server
+* execute stunnel.js
+```bash
+bin/stunnel.js --locals http://hfc.daplie.me:8443,http://test.hfc.daplie.me:3001,http://127.0.0.1:8080 --stunneld wss://localhost.daplie.me:3502 --secret abc123
+```
+
+* Browse to http://127.0.0.1:8080
+
+```
+INFO: connection: 2017/02/13 20:46:07.815340 connection.go:95: &{0xc420017350 0xc420181540 0xc42014acc0 127.0.0.1:49412 91 3390 0xc42014ad20 [hfc.daplie.me test.hfc.daplie.me 127.0.0.1]}
+```
+91, and 3390 are bytes in and bytes out.
+
+```
+INFO: external: 2017/02/13 20:46:07.814294 listener_webrequest.go:75: connState
+&{{0xc42015e690}} 127.0.0.1:8080 127.0.0.1:49416
+active
+INFO: external: 2017/02/13 20:46:07.814327 listener_webrequest.go:24: handlerWebRequestExternal
+INFO: external: 2017/02/13 20:46:07.814358 listener_webrequest.go:30: "GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nAccept: image/webp,image/*,*/*;q=0.8\r\nAccept-Encoding: gzip, deflate, sdch, br\r\nAccept-Language: en-US,en;q=0.8\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\nPragma: no-cache\r\nReferer: http://127.0.0.1:8080/\r\nUser-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36\r\n\r\n"
+INFO: external: 2017/02/13 20:46:07.814372 listener_webrequest.go:50: &{0xc420017350 0xc420181540 0xc42014acc0 127.0.0.1:49412 78 2963 0xc42014ad20 [hfc.daplie.me test.hfc.daplie.me 127.0.0.1]} 127.0.0.1 49416
+header:  ipv4,127.0.0.2,49416,398,na
+meta:  {[254 27] 0 [0 0 0 0] [254 27 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 0}
+Data:  GET /favicon.ico HTTP/1.1
+Host: 127.0.0.1:8080
+Accept: image/webp,image/*,*/*;q=0.8
+Accept-Encoding: gzip, deflate, sdch, br
+Accept-Language: en-US,en;q=0.8
+Cache-Control: no-cache
+Connection: keep-alive
+Pragma: no-cache
+Referer: http://127.0.0.1:8080/
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36
+```
+
+```
+[error] closing ',undefined,undefined' because 'unsupported service 'undefined'' (-1 clients)
+[_onLocalClose]
+<Buffer fe 0a 2c 2c 2c 31 2c 65 72 72 6f 72 00>
+not v1 (or data is corrupt)
+[error] closing ',undefined,undefined' because 'unsupported service 'undefined'' (-1 clients)
+[_onLocalClose]
+<Buffer fe 0a 2c 2c 2c 31 2c 65 72 72 6f 72 00>
+not v1 (or data is corrupt)
+```
+Above is an attempt to connection...
+
+```
+INFO: external: 2017/02/13 20:50:45.883267 listener_webrequest.go:75: connState
+&{{0xc42015e690}} 127.0.0.1:8080 127.0.0.1:49416
+active
+INFO: external: 2017/02/13 20:50:45.883298 listener_webrequest.go:24: handlerWebRequestExternal
+INFO: external: 2017/02/13 20:50:45.883331 listener_webrequest.go:30: "GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nAccept: image/webp,image/*,*/*;q=0.8\r\nAccept-Encoding: gzip, deflate, sdch, br\r\nAccept-Language: en-US,en;q=0.8\r\nConnection: keep-alive\r\nReferer: http://127.0.0.1:8080/\r\nUser-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36\r\n\r\n"
+INFO: external: 2017/02/13 20:50:45.883338 listener_webrequest.go:46: unable to match  127.0.0.1  to an existing connection
+INFO: external: 2017/02/13 20:50:45.883362 listener_webrequest.go:75: connState
+&{{0xc42015e690}} 127.0.0.1:8080 127.0.0.1:49416
+```
+The above is a connection to a domain that was not registered.
+
+
 Branch: restructured
 --------------------
 * restructure into various packages, removing items from package "main"
