@@ -4,11 +4,16 @@ import "bytes"
 
 //packerData -- Contains packer data
 type packerData struct {
-	Buffer *bytes.Buffer
+	buffer *bytes.Buffer
 }
 
 func newPackerData() (p *packerData) {
 	p = new(packerData)
-	p.Buffer = new(bytes.Buffer)
+	p.buffer = new(bytes.Buffer)
+	return
+}
+
+func (p packerData) AppendString(dataString string) (n int, err error) {
+	n, err = p.buffer.WriteString(dataString)
 	return
 }

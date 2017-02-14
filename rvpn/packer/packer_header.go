@@ -3,6 +3,8 @@ package packer
 import "net"
 import "fmt"
 
+type addressFamily int
+
 // packerHeader structure to hold our header information.
 type packerHeader struct {
 	family  addressFamily
@@ -11,14 +13,16 @@ type packerHeader struct {
 	Service string
 }
 
-type addressFamily int
-type addressFamilyString string
-
 //Family -- ENUM for Address Family
 const (
 	FamilyIPv4 addressFamily = iota
 	FamilyIPv6
 )
+
+var addressFamilyText = [...]string{
+	"ipv4",
+	"ipv6",
+}
 
 func newPackerHeader() (p *packerHeader) {
 	p = new(packerHeader)
@@ -45,6 +49,20 @@ func (p *packerHeader) SetAddress(addr string) {
 	}
 }
 
+func (p *packerHeader) AddressBytes() (b []byte) {
+	b = make([]byte, 16)
+
+	switch {
+	case p.address.To4() != nil:
+		b = make([]byte, 4)
+		for pos := range b {
+			b[pos] = p.address[pos+12]
+		}
+		return
+	}
+	return
+}
+
 func (p *packerHeader) Address() (address net.IP) {
 	address = p.address
 	return
@@ -52,5 +70,10 @@ func (p *packerHeader) Address() (address net.IP) {
 
 func (p *packerHeader) Family() (family addressFamily) {
 	family = p.family
+	return
+}
+
+func (p *packerHeader) FamilyText() (familyText string) {
+	familyText = addressFamilyText[p.family]
 	return
 }

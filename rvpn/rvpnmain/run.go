@@ -43,17 +43,12 @@ func Run() {
 	loginfo.Println("startup")
 
 	p := packer.NewPacker()
-	fmt.Println(*p.Header)
-
 	p.Header.SetAddress("127.0.0.2")
-	fmt.Println(*p.Header)
+	p.Header.Port = 32768
+	p.Data.AppendString("A test message")
+	p.PackV1()
 
-	p.Header.SetAddress("2001:db8::1")
-	fmt.Println(*p.Header)
-
-	fmt.Println(p.Header.Address())
-
-	loginfo.Println(p)
+	fmt.Println("-=-=-=-=-=-=-=-=-=-=")
 
 	wssMapping = xlate.NewwssMapping()
 	go wssMapping.Run()
