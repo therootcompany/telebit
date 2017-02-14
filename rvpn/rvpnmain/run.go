@@ -56,7 +56,7 @@ func Run() {
 	connectionTable = connection.NewTable()
 	go connectionTable.Run()
 	go client.LaunchClientListener(connectionTable, &secretKey, &argServerBinding)
-	go external.LaunchWebRequestExternalListener(&argServerExternalBinding)
+	go external.LaunchWebRequestExternalListener(&argServerExternalBinding, connectionTable)
 
 	err := admin.LaunchAdminListener(&argServerAdminBinding)
 	if err != nil {

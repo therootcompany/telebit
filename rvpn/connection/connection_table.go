@@ -29,6 +29,12 @@ func NewTable() (p *Table) {
 	return
 }
 
+//ConnByDomain -- Obtains a connection from a domain announcement.
+func (c *Table) ConnByDomain(domain string) (conn *Connection, ok bool) {
+	conn, ok = c.domains[domain]
+	return
+}
+
 //Run -- Execute
 func (c *Table) Run() {
 	loginfo.Println("ConnectionTable starting")

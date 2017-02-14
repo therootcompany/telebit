@@ -17,3 +17,8 @@ func (p packerData) AppendString(dataString string) (n int, err error) {
 	n, err = p.buffer.WriteString(dataString)
 	return
 }
+
+func (p packerData) AppendBytes(dataBytes []byte) (n int, err error) {
+	n, err = p.buffer.Write(dataBytes)
+	return
+}

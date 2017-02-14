@@ -51,6 +51,11 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	return
 }
 
+//SendCh -- property to sending channel
+func (c *Connection) SendCh() chan []byte {
+	return c.send
+}
+
 func (c *Connection) addIn(num int64) {
 	c.bytesIn = c.bytesIn + num
 }
