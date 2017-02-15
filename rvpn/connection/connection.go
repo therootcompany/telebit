@@ -2,6 +2,7 @@ package connection
 
 import (
 	"encoding/hex"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -33,6 +34,9 @@ type Connection struct {
 	// communications channel between go routines
 	commCh chan bool
 
+	// Connect Time
+	connectTime time.Time
+
 	//initialDomains - a list of domains from the JWT
 	initialDomains []interface{}
 }
@@ -47,7 +51,26 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	p.bytesOut = 0
 	p.send = make(chan []byte, 256)
 	p.commCh = make(chan bool)
+	p.connectTime = time.Now()
 	p.initialDomains = initialDomains
+	return
+}
+
+//ConnectTime -- Property
+func (c *Connection) ConnectTime() (t time.Time) {
+	t = c.connectTime
+	return
+}
+
+//BytesIn -- Property
+func (c *Connection) BytesIn() (b int64) {
+	b = c.bytesIn
+	return
+}
+
+//BytesOut -- Property
+func (c *Connection) BytesOut() (b int64) {
+	b = c.bytesOut
 	return
 }
 

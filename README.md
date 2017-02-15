@@ -1,5 +1,28 @@
 # RVPN Server
 
+Admin Interface
+---------------
+Developing the API calls and buliding the structure behind it.
+- build get mux router package --- 
+```bash 
+go get "github.com/gorilla/mux"
+```
+- run go-rvpn-server
+- execute stunnel (as below)
+- browse to https://127.0.0.2:8000/api/servers
+
+```json
+{"Servers":[{"ServerName":"0xc42005b110","Duration":42.342176121,"BytesIn":91,"BytesOut":3476}]}
+```
+
+The above is telemetry from the RVPN server.
+
+Work is continuing, please review make sure it is what you are looking for.
+
+We will need to deal with server name, I am placing the point address for now, not sure how to handle the name.
+
+
+
 Traffic Testing
 ---------------
 * run go-rvpn-server

@@ -29,6 +29,12 @@ func NewTable() (p *Table) {
 	return
 }
 
+//Connections Property
+func (c *Table) Connections() (table map[*Connection][]string) {
+	table = c.connections
+	return
+}
+
 //ConnByDomain -- Obtains a connection from a domain announcement.
 func (c *Table) ConnByDomain(domain string) (conn *Connection, ok bool) {
 	conn, ok = c.domains[domain]
