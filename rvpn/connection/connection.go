@@ -14,13 +14,17 @@ var upgrader = websocket.Upgrader{
 
 // Connection track websocket and faciliates in and out data
 type Connection struct {
+	// The main connection table (should be just one of these created at startup)
 	connectionTable *Table
+
+	//used to track traffic for a domain.  Not use for lookup or validation only for tracking
+	DomainTrack map[string]*DomainTrack
 
 	// The websocket connection.
 	conn *websocket.Conn
 
 	// Buffered channel of outbound messages.
-	send chan []byte
+	send chan *SendTrack
 
 	// Address of the Remote End Point
 	source string
@@ -49,10 +53,28 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	p.source = remoteAddress
 	p.bytesIn = 0
 	p.bytesOut = 0
-	p.send = make(chan []byte, 256)
+	p.send = make(chan *SendTrack)
 	p.commCh = make(chan bool)
 	p.connectTime = time.Now()
 	p.initialDomains = initialDomains
+	p.DomainTrack = make(map[string]*DomainTrack)
+
+	for _, domain := range initialDomains {
+		p.AddTrackedDomain(string(domain.(string)))
+	}
+	return
+}
+
+//AddTrackedDomain -- Add a tracked domain
+func (c *Connection) AddTrackedDomain(domain string) {
+	p := new(DomainTrack)
+	p.DomainName = domain
+	c.DomainTrack[domain] = p
+}
+
+//InitialDomains -- Property
+func (c *Connection) InitialDomains() (i []interface{}) {
+	i = c.initialDomains
 	return
 }
 
@@ -75,7 +97,7 @@ func (c *Connection) BytesOut() (b int64) {
 }
 
 //SendCh -- property to sending channel
-func (c *Connection) SendCh() chan []byte {
+func (c *Connection) SendCh() chan *SendTrack {
 	return c.send
 }
 
@@ -132,13 +154,25 @@ func (c *Connection) Writer() {
 			if err != nil {
 				return
 			}
-			w.Write(message)
+			w.Write(message.data)
 
 			if err := w.Close(); err != nil {
 				return
 			}
 
-			c.addOut(int64(len(message)))
+			messageLen := int64(len(message.data))
+
+			c.addOut(messageLen)
+
+			//Support for tracking outbound traffic based on domain.
+			if domainTrack, ok := c.DomainTrack[message.domain]; ok {
+				//if ok then add to structure, else warn there is something wrong
+				domainTrack.AddOut(messageLen)
+				loginfo.Println("adding ", messageLen, " to ", message.domain)
+			} else {
+				logdebug.Println("attempting to add bytes to ", message.domain, "it does not exist")
+				logdebug.Println(c.DomainTrack)
+			}
 			loginfo.Println(c)
 		}
 	}

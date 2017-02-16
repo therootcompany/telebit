@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"time"
 
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/connection"
 
@@ -41,40 +40,6 @@ func index(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Welcome!")
 }
 
-//ServerAPI -- Structure to support the server API
-type ServerAPI struct {
-	ServerName string
-	Duration   float64
-	BytesIn    int64
-	BytesOut   int64
-}
-
-//NewServerAPI - Constructor
-func NewServerAPI(c *connection.Connection) (s *ServerAPI) {
-	s = new(ServerAPI)
-	s.ServerName = fmt.Sprintf("%p", c)
-
-	fmt.Println(s.ServerName)
-
-	s.Duration = time.Since(c.ConnectTime()).Seconds()
-	s.BytesIn = c.BytesIn()
-	s.BytesOut = c.BytesOut()
-	return
-
-}
-
-//ServerAPIContainer -- Holder for all the Servers
-type ServerAPIContainer struct {
-	Servers []*ServerAPI
-}
-
-//NewServerAPIContainer -- Constructor
-func NewServerAPIContainer() (p *ServerAPIContainer) {
-	p = new(ServerAPIContainer)
-	p.Servers = make([]*ServerAPI, 0)
-	return p
-}
-
 func apiServers(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("here")
 	serverContainer := NewServerAPIContainer()
@@ -82,6 +47,7 @@ func apiServers(w http.ResponseWriter, r *http.Request) {
 	for c := range connTable.Connections() {
 		serverAPI := NewServerAPI(c)
 		serverContainer.Servers = append(serverContainer.Servers, serverAPI)
+
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")

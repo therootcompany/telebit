@@ -12,10 +12,10 @@ go get "github.com/gorilla/mux"
 - browse to https://127.0.0.2:8000/api/servers
 
 ```json
-{"Servers":[{"ServerName":"0xc42005b110","Duration":42.342176121,"BytesIn":91,"BytesOut":3476}]}
+{"Servers":[{"ServerName":"0xc420019500","Domains":[{"Domain":"127.0.0.1","BytesIn":0,"BytesOut":2607},{"Domain":"hfc.daplie.me","BytesIn":0,"BytesOut":0},{"Domain":"test.hfc.daplie.me","BytesIn":0,"BytesOut":0}],"Duration":372.34454292,"BytesIn":65,"BytesOut":2607}]}
 ```
 
-The above is telemetry from the RVPN server.
+The above is telemetry from the RVPN server. (now supports domain byte tracking)
 
 Work is continuing, please review make sure it is what you are looking for.
 

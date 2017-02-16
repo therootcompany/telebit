@@ -54,7 +54,8 @@ func LaunchWebRequestExternalListener(serverBinding *string, connectionTable *co
 				p.Data.AppendBytes(dump)
 				buf := p.PackV1()
 
-				conn.SendCh() <- buf.Bytes()
+				sendTrack := connection.NewSendTrack(buf.Bytes(), hostname)
+				conn.SendCh() <- sendTrack
 			}
 		}
 	})
