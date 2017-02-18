@@ -3,13 +3,11 @@
 Admin Interface
 ---------------
 Developing the API calls and buliding the structure behind it.
-- build get mux router package --- 
-```bash 
-go get "github.com/gorilla/mux"
-```
-- run go-rvpn-server
+
+- build get mux router package `go get "github.com/gorilla/mux"`
+- run `go-rvpn-server`
 - execute stunnel (as below)
-- browse to https://127.0.0.2:8000/api/servers
+- browse to <https://127.0.0.2:8000/api/servers>
 
 ```json
 {"Servers":[{"ServerName":"0xc420019500","Domains":[{"Domain":"127.0.0.1","BytesIn":0,"BytesOut":2607},{"Domain":"hfc.daplie.me","BytesIn":0,"BytesOut":0},{"Domain":"test.hfc.daplie.me","BytesIn":0,"BytesOut":0}],"Duration":372.34454292,"BytesIn":65,"BytesOut":2607}]}
@@ -27,6 +25,7 @@ Traffic Testing
 ---------------
 * run go-rvpn-server
 * execute stunnel.js
+
 ```bash
 bin/stunnel.js --locals http://hfc.daplie.me:8443,http://test.hfc.daplie.me:3001,http://127.0.0.1:8080 --stunneld wss://localhost.daplie.me:3502 --secret abc123
 ```
