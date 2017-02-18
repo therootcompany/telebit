@@ -2,9 +2,9 @@ package admin
 
 //DomainAPI -- Structure to hold the domain tracking for JSON
 type DomainAPI struct {
-	Domain   string
-	BytesIn  int64
-	BytesOut int64
+	Domain   string `json:"domain"`
+	BytesIn  int64  `json:"bytes_in"`
+	BytesOut int64  `json:"bytes_out"`
 }
 
 //NewDomainAPI - Constructor

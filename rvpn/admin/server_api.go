@@ -9,11 +9,11 @@ import (
 
 //ServerAPI -- Structure to support the server API
 type ServerAPI struct {
-	ServerName string
-	Domains    []*DomainAPI
-	Duration   float64
-	BytesIn    int64
-	BytesOut   int64
+	ServerName string       `json:"server_name"`
+	Domains    []*DomainAPI `json:"domains"`
+	Duration   float64      `json:"duration"`
+	BytesIn    int64        `json:"bytes_in"`
+	BytesOut   int64        `json:"bytes_out"`
 }
 
 //NewServerAPI - Constructor
@@ -35,7 +35,7 @@ func NewServerAPI(c *connection.Connection) (s *ServerAPI) {
 
 //ServerAPIContainer -- Holder for all the Servers
 type ServerAPIContainer struct {
-	Servers []*ServerAPI
+	Servers []*ServerAPI `json:"servers"`
 }
 
 //NewServerAPIContainer -- Constructor

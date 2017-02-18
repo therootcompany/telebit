@@ -47,10 +47,13 @@ func LaunchWebRequestExternalListener(serverBinding *string, connectionTable *co
 				http.Error(w, "Domain not supported", http.StatusBadRequest)
 
 			} else {
+				loginfo.Println("Domain Accepted")
 				loginfo.Println(conn, rAddr, rPort)
 				p := packer.NewPacker()
 				p.Header.SetAddress(rAddr)
 				p.Header.Port, err = strconv.Atoi(rPort)
+				p.Header.Port = 8080
+				p.Header.Service = "http"
 				p.Data.AppendBytes(dump)
 				buf := p.PackV1()
 

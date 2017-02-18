@@ -20,8 +20,8 @@ const (
 )
 
 var addressFamilyText = [...]string{
-	"ipv4",
-	"ipv6",
+	"IPv4",
+	"IPv6",
 }
 
 func newPackerHeader() (p *packerHeader) {

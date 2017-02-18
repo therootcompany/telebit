@@ -56,8 +56,8 @@ func Run() {
 	connectionTable = connection.NewTable()
 	go connectionTable.Run()
 	go client.LaunchClientListener(connectionTable, &secretKey, &argServerBinding)
-	go external.LaunchWebRequestExternalListener(&argServerExternalBinding, connectionTable)
-
+	//go external.LaunchWebRequestExternalListener(&argServerExternalBinding, connectionTable)
+	go external.LaunchExternalServer(argServerExternalBinding, connectionTable)
 	err := admin.LaunchAdminListener(&argServerAdminBinding, connectionTable)
 	if err != nil {
 		loginfo.Println("LauchAdminListener failed: ", err)
