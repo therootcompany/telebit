@@ -11,7 +11,7 @@ const (
 type Table struct {
 	connections    map[*Connection][]string
 	domains        map[string]*Connection
-	register       chan *Connection
+	register       chan *Registration
 	unregister     chan *Connection
 	domainAnnounce chan *DomainMapping
 	domainRevoke   chan *DomainMapping
@@ -22,7 +22,7 @@ func NewTable() (p *Table) {
 	p = new(Table)
 	p.connections = make(map[*Connection][]string)
 	p.domains = make(map[string]*Connection)
-	p.register = make(chan *Connection)
+	p.register = make(chan *Registration)
 	p.unregister = make(chan *Connection)
 	p.domainAnnounce = make(chan *DomainMapping)
 	p.domainRevoke = make(chan *DomainMapping)
@@ -46,10 +46,12 @@ func (c *Table) Run() {
 	loginfo.Println("ConnectionTable starting")
 	for {
 		select {
-		case connection := <-c.register:
+		case registration := <-c.register:
 			loginfo.Println("register fired")
+
+			connection := NewConnection(c, registration.conn, registration.source, registration.initialDomains)
 			c.connections[connection] = make([]string, initialDomains)
-			connection.commCh <- true
+			registration.commCh <- true
 
 			// handle initial domain additions
 			for _, domain := range connection.initialDomains {
@@ -63,7 +65,8 @@ func (c *Table) Run() {
 				s := c.connections[connection]
 				c.connections[connection] = append(s, newDomain)
 			}
-
+			go connection.Writer()
+			go connection.Reader()
 			loginfo.Println("register exiting")
 
 		case connection := <-c.unregister:
@@ -76,8 +79,8 @@ func (c *Table) Run() {
 					}
 				}
 
-				delete(c.connections, connection)
-				close(connection.send)
+				//delete(c.connections, connection)
+				//close(connection.send)
 			}
 
 		case domainMapping := <-c.domainAnnounce:
@@ -96,7 +99,7 @@ func (c *Table) Run() {
 }
 
 //Register -- Property
-func (c *Table) Register() (r chan *Connection) {
+func (c *Table) Register() (r chan *Registration) {
 	r = c.register
 	return
 }

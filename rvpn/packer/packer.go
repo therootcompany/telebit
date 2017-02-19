@@ -2,7 +2,6 @@ package packer
 
 import (
 	"bytes"
-	"encoding/hex"
 	"fmt"
 )
 
@@ -44,12 +43,12 @@ func (p *Packer) PackV1() (b bytes.Buffer) {
 	buf.Write(headerBuf.Bytes())
 	buf.Write(p.Data.buffer.Bytes())
 
-	fmt.Println("header: ", headerBuf.String())
-	fmt.Println("meta: ", metaBuf)
-	fmt.Println("Data: ", p.Data.buffer)
-	fmt.Println("Buffer: ", buf.Bytes())
-	fmt.Println("Buffer: ", hex.Dump(buf.Bytes()))
-	fmt.Printf("Buffer %s", buf.Bytes())
+	//fmt.Println("header: ", headerBuf.String())
+	//fmt.Println("meta: ", metaBuf)
+	//fmt.Println("Data: ", p.Data.buffer)
+	//fmt.Println("Buffer: ", buf.Bytes())
+	//fmt.Println("Buffer: ", hex.Dump(buf.Bytes()))
+	//fmt.Printf("Buffer %s", buf.Bytes())
 
 	b = buf
 

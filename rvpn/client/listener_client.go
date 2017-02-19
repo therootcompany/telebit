@@ -70,15 +70,15 @@ func handleConnectionWebSocket(connectionTable *connection.Table, w http.Respons
 
 	loginfo.Println("before connection table")
 
-	newConnection := connection.NewConnection(connectionTable, conn, r.RemoteAddr, domains)
-	connectionTable.Register() <- newConnection
-	ok = <-newConnection.CommCh()
+	//newConnection := connection.NewConnection(connectionTable, conn, r.RemoteAddr, domains)
+
+	newRegistration := connection.NewRegistration(conn, r.RemoteAddr, domains)
+	connectionTable.Register() <- newRegistration
+	ok = <-newRegistration.CommCh()
 	if !ok {
-		loginfo.Println("connection registration failed ", newConnection)
+		loginfo.Println("connection registration failed ", newRegistration)
 		return
 	}
-	loginfo.Println("connection registration accepted ", newConnection)
-	go newConnection.Writer()
-	newConnection.Reader()
-	loginfo.Println("connection closing")
+
+	loginfo.Println("connection registration accepted ", newRegistration)
 }
