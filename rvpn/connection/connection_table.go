@@ -44,6 +44,7 @@ func (c *Table) ConnByDomain(domain string) (conn *Connection, ok bool) {
 
 //reaper --
 func (c *Table) reaper(delay int, idle int) {
+	_ = "breakpoint"
 	for {
 		loginfo.Println("Reaper waiting for ", delay, " seconds")
 		time.Sleep(time.Duration(delay) * time.Second)
@@ -64,7 +65,7 @@ func (c *Table) reaper(delay int, idle int) {
 func (c *Table) Run() {
 	loginfo.Println("ConnectionTable starting")
 
-	go c.reaper(10, 20)
+	go c.reaper(300, 60)
 
 	for {
 		select {
