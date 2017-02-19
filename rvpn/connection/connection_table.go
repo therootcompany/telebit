@@ -1,6 +1,7 @@
 package connection
 
 import "fmt"
+import "time"
 
 const (
 	initialDomains   = 0
@@ -41,9 +42,30 @@ func (c *Table) ConnByDomain(domain string) (conn *Connection, ok bool) {
 	return
 }
 
+//reaper --
+func (c *Table) reaper(delay int, idle int) {
+	for {
+		loginfo.Println("Reaper waiting for ", delay, " seconds")
+		time.Sleep(time.Duration(delay) * time.Second)
+
+		loginfo.Println("Running scanning ", len(c.connections))
+		for d := range c.connections {
+			if d.GetState() == false {
+				if time.Since(d.lastUpdate).Seconds() > float64(idle) {
+					loginfo.Println("reaper removing ", d.lastUpdate, time.Since(d.lastUpdate).Seconds())
+					delete(c.connections, d)
+				}
+			}
+		}
+	}
+}
+
 //Run -- Execute
 func (c *Table) Run() {
 	loginfo.Println("ConnectionTable starting")
+
+	go c.reaper(10, 20)
+
 	for {
 		select {
 		case registration := <-c.register:

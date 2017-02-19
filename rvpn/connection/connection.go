@@ -44,9 +44,6 @@ type Connection struct {
 	// bytes out
 	bytesOut int64
 
-	// communications channel between go routines
-	commCh chan bool
-
 	// Connect Time
 	connectTime time.Time
 
@@ -70,7 +67,6 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	p.bytesIn = 0
 	p.bytesOut = 0
 	p.send = make(chan *SendTrack)
-	p.commCh = make(chan bool)
 	p.connectTime = time.Now()
 	p.initialDomains = initialDomains
 	p.DomainTrack = make(map[string]*DomainTrack)
@@ -131,11 +127,6 @@ func (c *Connection) addOut(num int64) {
 func (c *Connection) ConnectionTable() (table *Table) {
 	table = c.connectionTable
 	return
-}
-
-//CommCh -- Property
-func (c *Connection) CommCh() chan bool {
-	return c.commCh
 }
 
 //GetState -- Get state of Socket...this is a high level state.
