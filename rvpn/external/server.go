@@ -1,7 +1,6 @@
 package external
 
 import (
-	"encoding/hex"
 	"net"
 	"net/http"
 	"strconv"
@@ -83,8 +82,8 @@ func handleConnection(conn net.Conn, connectionTable *connection.Table) {
 		loginfo.Println("state ", state, " ", state.Protocol)
 		loginfo.Println("conn ", conn)
 		loginfo.Println("byte read", cnt)
-		loginfo.Println("buffer")
-		loginfo.Println(hex.Dump(buffer[0:cnt]))
+		//loginfo.Println("buffer")
+		//loginfo.Println(hex.Dump(buffer[0:cnt]))
 
 		if state.Protocol == 0 {
 			//attempt to discover protocol

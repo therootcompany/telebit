@@ -226,8 +226,6 @@ func (c *Connection) Writer() {
 			if err != nil {
 				return
 			}
-			loginfo.Println(c)
-			loginfo.Println(w)
 
 			c.Update()
 

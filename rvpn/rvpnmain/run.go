@@ -27,7 +27,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&argServerBinding, "server-port", "127.0.0.1:3502", "server Bind listener")
+	flag.StringVar(&argServerBinding, "server-port", ":3502", "server Bind listener")
 	flag.StringVar(&argServerAdminBinding, "admin-server-port", "127.0.0.2:8000", "admin server Bind listener")
 	flag.StringVar(&argServerExternalBinding, "external-server-port", "127.0.0.1:8080", "external server Bind listener")
 
