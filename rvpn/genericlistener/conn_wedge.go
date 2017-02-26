@@ -2,7 +2,6 @@ package genericlistener
 
 import (
 	"bufio"
-	"encoding/hex"
 	"net"
 )
 
@@ -28,16 +27,45 @@ func NewWedgeConnSize(c net.Conn, size int) (p *WedgeConn) {
 	return
 }
 
-//Peek - Get a number of bytes outof the buffer, but allow the buffer to be repled once read
+//Peek - Get a number of bytes outof the buffer, but allow the buffer to be replayed once read
 func (w *WedgeConn) Peek(n int) ([]byte, error) {
+	loginfo.Println("Peek")
+	loginfo.Println("buffered=", w.reader.Buffered())
 	return w.reader.Peek(n)
+
 }
 
 //Read -- A normal reader.
 func (w *WedgeConn) Read(p []byte) (int, error) {
 	loginfo.Println("read", w.Conn)
 	cnt, err := w.reader.Read(p)
-	loginfo.Println("read", hex.Dump(p[0:cnt]))
-	loginfo.Println(cnt, err)
 	return cnt, err
+}
+
+//Buffered --
+func (w *WedgeConn) Buffered() int {
+	return w.reader.Buffered()
+}
+
+//PeekAll --
+// - get all the chars available
+// - pass then back
+func (w *WedgeConn) PeekAll() (buf []byte, err error) {
+	loginfo.Println("PeekAll")
+
+	var peek []byte
+	for {
+		b, err := w.reader.Peek(1)
+		if err != nil {
+			if len(peek) > 0 {
+				return peek, nil
+			}
+
+			var t byte
+			t = b[0]
+
+			peek = append(peek, t)
+			loginfo.Println("len", len(peek))
+		}
+	}
 }

@@ -9,7 +9,23 @@ import (
 	"net"
 	"time"
 
+	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
+	"github.com/gorilla/websocket"
+
+	"net/http"
+
+	"bufio"
+
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/connection"
+)
+
+type contextKey string
+
+const (
+	ctxSecretKey       contextKey = "secretKey"
+	ctxConnectionTable contextKey = "connectionTable"
+	ctxConfig          contextKey = "config"
 )
 
 const (
@@ -28,6 +44,10 @@ const (
 // - else, just pass to the request identififer
 func GenericListenAndServe(ctx context.Context, connectionTable *connection.Table, secretKey string, serverBinding string, certbundle tls.Certificate, deadTime int) {
 	config := &tls.Config{Certificates: []tls.Certificate{certbundle}}
+
+	ctx = context.WithValue(ctx, ctxSecretKey, secretKey)
+	ctx = context.WithValue(ctx, ctxConnectionTable, connectionTable)
+	ctx = context.WithValue(ctx, ctxConfig, config)
 
 	listenAddr, err := net.ResolveTCPAddr("tcp", serverBinding)
 	if nil != err {
@@ -62,7 +82,7 @@ func GenericListenAndServe(ctx context.Context, connectionTable *connection.Tabl
 			}
 
 			wedgeConn := NewWedgeConn(conn)
-			go handleConnection(ctx, wedgeConn, connectionTable, secretKey, config)
+			go handleConnection(ctx, wedgeConn)
 		}
 	}
 }
@@ -70,8 +90,9 @@ func GenericListenAndServe(ctx context.Context, connectionTable *connection.Tabl
 //handleConnection -
 // - accept a wedgeConnection along with all the other required attritvues
 // - peek into the buffer, determine TLS or unencrypted
-
-func handleConnection(ctx context.Context, wConn *WedgeConn, connectionTable *connection.Table, secretKey string, config *tls.Config) {
+// - if TSL, then terminate with a TLS endpoint, pass to handleStream
+// - if clearText, pass to handleStream
+func handleConnection(ctx context.Context, wConn *WedgeConn) {
 	defer wConn.Close()
 	peekCnt := 10
 
@@ -107,6 +128,7 @@ func handleConnection(ctx context.Context, wConn *WedgeConn, connectionTable *co
 	}
 
 	oneConn := &oneConnListener{wConn}
+	config := ctx.Value(ctxConfig).(*tls.Config)
 
 	if encryptMode == encryptSSLV2 {
 		loginfo.Println("SSLv2 is not accepted")
@@ -121,47 +143,150 @@ func handleConnection(ctx context.Context, wConn *WedgeConn, connectionTable *co
 			loginfo.Println(err)
 			return
 		}
-		loginfo.Println(conn)
-		handleStream(conn)
+
+		tlsWedgeConn := NewWedgeConn(conn)
+		handleStream(ctx, tlsWedgeConn)
 		return
 	}
 
 	loginfo.Println("Handle Unencrypted")
-	handleStream(wConn)
+	handleStream(ctx, wConn)
 
 	return
 }
 
-func handleStream(conn net.Conn) {
-	var buf [512]byte
-	cnt, err := conn.Read(buf[0:])
+//handleStream --
+// - we have an unencrypted stream connection with the ability to peek
+// - attempt to identify HTTP
+// - handle http
+// 	- attempt to identify as WSS session
+// 	- attempt to identify as ADMIN/API session
+// 	- else handle as raw https
+// - handle other?
+func handleStream(ctx context.Context, wConn *WedgeConn) {
+	loginfo.Println("handle Stream")
+	loginfo.Println("conn", wConn, wConn.LocalAddr().String(), wConn.RemoteAddr().String())
+
+	//peek for one byte to get the readers to converge
+	//look at buffer
+	//get the realrequest
+	peek, err := wConn.Peek(1)
+	loginfo.Println(hex.Dump(peek[0:]))
+	peek, err = wConn.Peek(wConn.Buffered())
+	loginfo.Println(hex.Dump(peek[0:]))
+
 	if err != nil {
-		loginfo.Println(err)
+		loginfo.Println("error while peeking")
+		loginfo.Println(hex.Dump(peek[0:]))
 		return
 	}
 
-	loginfo.Println(hex.Dump(buf[0:cnt]))
+	// HTTP Identifcation
+	if bytes.Contains(peek[:], []byte{0x0d, 0x0a}) {
+		//string protocol
+		if bytes.ContainsAny(peek[:], "HTTP/") {
+			loginfo.Println("identifed HTTP")
 
+			r, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(peek)))
+			if err != nil {
+				loginfo.Println("identifed as HTTP, failed request", err)
+				return
+			}
+
+			loginfo.Println(r)
+
+			//now we have a request.  Check to see if it is one of our own
+			secretKey := ctx.Value(ctxSecretKey).(string)
+			tokenString := r.URL.Query().Get("access_token")
+			result, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+				return []byte(secretKey), nil
+			})
+
+			if err == nil && result.Valid {
+				loginfo.Println("Valid WSS dected...sending to handler")
+				oneConn := &oneConnListener{wConn}
+				handleWssClient(ctx, oneConn)
+			} else {
+				loginfo.Println("not a valid WSS connection")
+			}
+		}
+	}
+
+	loginfo.Println(hex.Dump(peek[0:]))
 }
 
-//state := NewState()
-//wConn := NewWedgeConnSize(conn, 512)
-//var buffer [512]byte
+//handleWssClient -
+// - expecting an existing oneConnListener with a qualified wss client connected.
+// - auth will happen again since we were just peeking at the token.
+func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
+	secretKey := ctx.Value(ctxSecretKey).(string)
+	connectionTable := ctx.Value(ctxConnectionTable).(*connection.Table)
 
-// Peek for data to figure out what connection we have
-//peekcnt := 32
-//peek, err := wConn.Peek(peekcnt)
+	router := mux.NewRouter().StrictSlash(true)
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		loginfo.Println("HandleFunc /")
+		switch url := r.URL.Path; url {
+		case "/":
+			loginfo.Println("websocket opening ", r.RemoteAddr, " ", r.Host)
 
-//if err != nil {
-//	loginfo.Println("error while peeking")
-//		return
-//	}
-//loginfo.Println(hex.Dump(peek[0:peekcnt]))
-//loginfo.Println("after peek")
+			tokenString := r.URL.Query().Get("access_token")
+			result, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+				return []byte(secretKey), nil
+			})
 
-// assume http websocket.
+			if err != nil || !result.Valid {
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte("Not Authorized"))
+				loginfo.Println("access_token invalid...closing connection")
+				return
+			}
 
-//loginfo.Println("wConn", wConn)
+			loginfo.Println("help access_token valid")
 
-//wedgeListener := &WedgeListener{conn: conn}
-//LaunchWssListener(connectionTable, &secretKey, wedgeListener)
+			claims := result.Claims.(jwt.MapClaims)
+			domains, ok := claims["domains"].([]interface{})
+
+			var upgrader = websocket.Upgrader{
+				ReadBufferSize:  1024,
+				WriteBufferSize: 1024,
+			}
+
+			conn, err := upgrader.Upgrade(w, r, nil)
+			if err != nil {
+				loginfo.Println("WebSocket upgrade failed", err)
+				return
+			}
+
+			loginfo.Println("before connection table")
+
+			//newConnection := connection.NewConnection(connectionTable, conn, r.RemoteAddr, domains)
+
+			newRegistration := connection.NewRegistration(conn, r.RemoteAddr, domains)
+			connectionTable.Register() <- newRegistration
+			ok = <-newRegistration.CommCh()
+			if !ok {
+				loginfo.Println("connection registration failed ", newRegistration)
+				return
+			}
+
+			loginfo.Println("connection registration accepted ", newRegistration)
+		}
+	})
+
+	s := &http.Server{
+		Addr:    ":80",
+		Handler: router,
+	}
+
+	err := s.Serve(oneConn)
+	if err != nil {
+		loginfo.Println("Serve error: ", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		loginfo.Println("Cancel signal hit")
+		return
+	}
+
+}

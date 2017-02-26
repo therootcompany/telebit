@@ -72,7 +72,7 @@ func Run() {
 
 	go genericlistener.GenericListenAndServe(ctx, connectionTable, secretKey, argGenericBinding, certbundle, argDeadTime)
 
-	time.Sleep(300 * time.Second)
+	time.Sleep(20 * time.Second)
 	cancelContext()
 	time.Sleep(60 * time.Second)
 
