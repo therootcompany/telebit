@@ -5,8 +5,12 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"log"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -17,15 +21,19 @@ import (
 
 	"bufio"
 
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/admin"
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/connection"
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
 )
 
 type contextKey string
 
 const (
-	ctxSecretKey       contextKey = "secretKey"
-	ctxConnectionTable contextKey = "connectionTable"
-	ctxConfig          contextKey = "config"
+	ctxSecretKey            contextKey = "secretKey"
+	ctxConnectionTable      contextKey = "connectionTable"
+	ctxConfig               contextKey = "config"
+	ctxDeadTime             contextKey = "deadtime"
+	ctxListenerRegistration contextKey = "listenerRegistration"
 )
 
 const (
@@ -42,14 +50,13 @@ const (
 // - leaverage the wedgeConn to peek into the buffer.
 // - if TLS, consume connection with TLS certbundle, pass to request identifier
 // - else, just pass to the request identififer
-func GenericListenAndServe(ctx context.Context, connectionTable *connection.Table, secretKey string, serverBinding string, certbundle tls.Certificate, deadTime int) {
-	config := &tls.Config{Certificates: []tls.Certificate{certbundle}}
+func GenericListenAndServe(ctx context.Context, listenerRegistration *ListenerRegistration) {
 
-	ctx = context.WithValue(ctx, ctxSecretKey, secretKey)
-	ctx = context.WithValue(ctx, ctxConnectionTable, connectionTable)
-	ctx = context.WithValue(ctx, ctxConfig, config)
+	loginfo.Println(":" + string(listenerRegistration.port))
 
-	listenAddr, err := net.ResolveTCPAddr("tcp", serverBinding)
+	listenAddr, err := net.ResolveTCPAddr("tcp", ":"+strconv.Itoa(listenerRegistration.port))
+	deadTime := ctx.Value(ctxDeadTime).(int)
+
 	if nil != err {
 		loginfo.Println(err)
 		return
@@ -58,8 +65,14 @@ func GenericListenAndServe(ctx context.Context, connectionTable *connection.Tabl
 	ln, err := net.ListenTCP("tcp", listenAddr)
 	if err != nil {
 		loginfo.Println("unable to bind", err)
+		listenerRegistration.status = listenerFault
+		listenerRegistration.err = err
+		listenerRegistration.commCh <- listenerRegistration
 		return
 	}
+
+	listenerRegistration.status = listenerAdded
+	listenerRegistration.commCh <- listenerRegistration
 
 	for {
 		select {
@@ -188,9 +201,7 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 				return
 			}
 
-			loginfo.Println(r)
-
-			//now we have a request.  Check to see if it is one of our own
+			// do we have a valid wss_client?
 			secretKey := ctx.Value(ctxSecretKey).(string)
 			tokenString := r.URL.Query().Get("access_token")
 			result, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
@@ -201,13 +212,150 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 				loginfo.Println("Valid WSS dected...sending to handler")
 				oneConn := &oneConnListener{wConn}
 				handleWssClient(ctx, oneConn)
+
+				//do we have a invalid domain indicating Admin?
+				//if yes, prep the oneConn and send it to the handler
+			} else if strings.Contains(r.Host, "rvpn.daplie.invalid") {
+				loginfo.Println("admin")
+				oneConn := &oneConnListener{wConn}
+				handleAdminClient(ctx, oneConn)
+				return
+
 			} else {
-				loginfo.Println("not a valid WSS connection")
+				loginfo.Println("default connection")
+				handleExternalHTTPRequest(ctx, wConn)
+				return
 			}
 		}
 	}
 
 	loginfo.Println(hex.Dump(peek[0:]))
+}
+
+//handleExternalHTTPRequest -
+// - get a wConn and start processing requests
+func handleExternalHTTPRequest(ctx context.Context, conn net.Conn) {
+	defer conn.Close()
+
+	connectionTable := ctx.Value(ctxConnectionTable).(*connection.Table)
+
+	var buffer [512]byte
+
+	for {
+		cnt, err := conn.Read(buffer[0:])
+		if err != nil {
+			return
+		}
+
+		loginfo.Println("conn ", conn)
+		loginfo.Println("byte read", cnt)
+
+		readBuffer := bytes.NewBuffer(buffer[0:cnt])
+		reader := bufio.NewReader(readBuffer)
+		r, err := http.ReadRequest(reader)
+
+		loginfo.Println(r)
+
+		if err != nil {
+			loginfo.Println("error parsing request")
+			return
+		}
+
+		hostname := r.Host
+		loginfo.Println("Host: ", hostname)
+
+		if strings.Contains(hostname, ":") {
+			arr := strings.Split(hostname, ":")
+			hostname = arr[0]
+		}
+
+		loginfo.Println("Remote: ", conn.RemoteAddr().String())
+
+		remoteSplit := strings.Split(conn.RemoteAddr().String(), ":")
+		rAddr := remoteSplit[0]
+		rPort := remoteSplit[1]
+
+		if conn, ok := connectionTable.ConnByDomain(hostname); !ok {
+			//matching connection can not be found based on ConnByDomain
+			loginfo.Println("unable to match ", hostname, " to an existing connection")
+			//http.Error(, "Domain not supported", http.StatusBadRequest)
+
+		} else {
+
+			loginfo.Println("Domain Accepted")
+			loginfo.Println(conn, rAddr, rPort)
+			p := packer.NewPacker()
+			p.Header.SetAddress(rAddr)
+			p.Header.Port, err = strconv.Atoi(rPort)
+			p.Header.Port = 8080
+			p.Header.Service = "http"
+			p.Data.AppendBytes(buffer[0:cnt])
+			buf := p.PackV1()
+
+			sendTrack := connection.NewSendTrack(buf.Bytes(), hostname)
+			conn.SendCh() <- sendTrack
+		}
+	}
+
+}
+
+//handleAdminClient -
+// - expecting an existing oneConnListener with a qualified wss client connected.
+// - auth will happen again since we were just peeking at the token.
+func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
+	connectionTable := ctx.Value(ctxConnectionTable).(*connection.Table)
+
+	router := mux.NewRouter().StrictSlash(true)
+
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		loginfo.Println("HandleFunc /")
+		switch url := r.URL.Path; url {
+		case "/":
+			// check to see if we are using the administrative Host
+			if strings.Contains(r.Host, "rvpn.daplie.invalid") {
+				http.Redirect(w, r, "/admin", 301)
+			}
+
+		default:
+			http.Error(w, "Not Found", 404)
+		}
+	})
+
+	router.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintln(w, "<html>Welcome..press <a href=/api/servers>Servers</a> to access stats</html>")
+	})
+
+	router.HandleFunc("/api/servers", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("here")
+		serverContainer := admin.NewServerAPIContainer()
+
+		for c := range connectionTable.Connections() {
+			serverAPI := admin.NewServerAPI(c)
+			serverContainer.Servers = append(serverContainer.Servers, serverAPI)
+
+		}
+
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		json.NewEncoder(w).Encode(serverContainer)
+
+	})
+
+	s := &http.Server{
+		Addr:    ":80",
+		Handler: router,
+	}
+
+	err := s.Serve(oneConn)
+	if err != nil {
+		loginfo.Println("Serve error: ", err)
+	}
+
+	select {
+	case <-ctx.Done():
+		loginfo.Println("Cancel signal hit")
+		return
+	}
 }
 
 //handleWssClient -
@@ -240,6 +388,8 @@ func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 
 			claims := result.Claims.(jwt.MapClaims)
 			domains, ok := claims["domains"].([]interface{})
+
+			loginfo.Println("domains", domains)
 
 			var upgrader = websocket.Upgrader{
 				ReadBufferSize:  1024,
@@ -283,5 +433,4 @@ func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 		loginfo.Println("Cancel signal hit")
 		return
 	}
-
 }

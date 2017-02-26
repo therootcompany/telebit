@@ -1,0 +1,123 @@
+package genericlistener
+
+import (
+	"context"
+	"crypto/tls"
+	"net"
+
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/connection"
+)
+
+//ListenerRegistrationStatus - post registration status
+type ListenerRegistrationStatus int
+
+const (
+	listenerAdded ListenerRegistrationStatus = iota
+	listenerExists
+	listenerFault
+)
+
+//ListenerRegistration -- A connection registration structure used to bring up a connection
+//connection table will then handle additing and sdtarting up the various readers
+//else error.
+type ListenerRegistration struct {
+	// The websocket connection.
+	listener *net.Listener
+
+	// The listener port
+	port int
+
+	// The status
+	status ListenerRegistrationStatus
+
+	// The error
+	err error
+
+	// communications channel between go routines
+	commCh chan *ListenerRegistration
+}
+
+//NewListenerRegistration -- Constructor
+func NewListenerRegistration(port int) (p *ListenerRegistration) {
+	p = new(ListenerRegistration)
+	p.port = port
+	p.commCh = make(chan *ListenerRegistration)
+	return
+}
+
+//GenericListeners -
+type GenericListeners struct {
+	listeners        map[*net.Listener]int
+	ctx              context.Context
+	connnectionTable *connection.Table
+	secretKey        string
+	certbundle       tls.Certificate
+	deadTime         int
+	register         chan *ListenerRegistration
+	genericListeners *GenericListeners
+}
+
+//NewGenerListeners --
+func NewGenerListeners(ctx context.Context, connectionTable *connection.Table, secretKey string, certbundle tls.Certificate, deadTime int) (p *GenericListeners) {
+	p = new(GenericListeners)
+	p.listeners = make(map[*net.Listener]int)
+	p.ctx = ctx
+	p.connnectionTable = connectionTable
+	p.secretKey = secretKey
+	p.certbundle = certbundle
+	p.deadTime = deadTime
+	p.register = make(chan *ListenerRegistration)
+	return
+}
+
+//Run -- Execute
+// - execute the GenericLister
+// - pass initial port, we'll announce that
+func (gl *GenericListeners) Run(ctx context.Context, initialPort int) {
+	loginfo.Println("ConnectionTable starting")
+
+	config := &tls.Config{Certificates: []tls.Certificate{gl.certbundle}}
+
+	ctx = context.WithValue(ctx, ctxSecretKey, gl.secretKey)
+	ctx = context.WithValue(ctx, ctxConnectionTable, gl.connnectionTable)
+	ctx = context.WithValue(ctx, ctxConfig, config)
+	ctx = context.WithValue(ctx, ctxDeadTime, gl.deadTime)
+	ctx = context.WithValue(ctx, ctxListenerRegistration, gl.register)
+
+	go func(ctx context.Context) {
+		for {
+			select {
+
+			case <-ctx.Done():
+				loginfo.Println("Cancel signal hit")
+				return
+
+			case registration := <-gl.register:
+				loginfo.Println("register fired", registration.port)
+
+				// check to see if port is already running
+				for listener := range gl.listeners {
+					if gl.listeners[listener] == registration.port {
+						loginfo.Println("listener already running")
+						registration.status = listenerExists
+						registration.commCh <- registration
+					}
+				}
+				loginfo.Println("listener starting up ", registration.port)
+				go GenericListenAndServe(ctx, registration)
+
+				status := <-registration.commCh
+				if status.status == listenerAdded {
+					gl.listeners[status.listener] = status.port
+				} else if status.status == listenerFault {
+					loginfo.Println("Unable to create a new listerer", registration.port)
+				}
+
+			}
+		}
+
+	}(ctx)
+
+	newListener := NewListenerRegistration(initialPort)
+	gl.register <- newListener
+}

@@ -1,190 +1,134 @@
 # RVPN Server
 
-Admin Interface
----------------
-Developing the API calls and buliding the structure behind it.
+## restructured-http
 
-- build get mux router package `go get "github.com/gorilla/mux"`
-- run `go-rvpn-server`
-- execute stunnel (as below)
-- browse to <https://127.0.0.2:8000/api/servers>
+- connection handling has been totally rewritten.
+- on a specific port RVPN can determine the following:  
+    - if a connection is encrypted or not encrypted
+    - if a request is a wss_client
+    - if a request is an admin/api request
+    - if a request is a plain (to be forwarded) http request
+    - or if a request is a different protocol (perhaps SSH)
 
-```json
-{"Servers":[{"ServerName":"0xc420019500","Domains":[{"Domain":"127.0.0.1","BytesIn":0,"BytesOut":2607},{"Domain":"hfc.daplie.me","BytesIn":0,"BytesOut":0},{"Domain":"test.hfc.daplie.me","BytesIn":0,"BytesOut":0}],"Duration":372.34454292,"BytesIn":65,"BytesOut":2607}]}
+To accomplish the above RVPN uses raw TCP sockets, buffered readers, and a custom Listener.  This allows protocol detection (multiple services on one port)
+If we expose 443 and 80 to maximize the ability for tunnel clients and south bound traffic, the RVPN is able to deal with this traffic on a limited number of ports, and the most popular ports.
+It is possible now to meter any point of the connection (not Interface Level, rather TCP)
+
+There is now a connection manager that dynamically allows new GenericListeners to start on different ports when needed....
+
+```go
+	newListener := NewListenerRegistration(initialPort)
+	gl.register <- newListener
 ```
 
-The above is telemetry from the RVPN server. (now supports domain byte tracking)
+A new listener is created by sending a NewListenerRegistration on the channel.
 
-Work is continuing, please review make sure it is what you are looking for.
+```go
 
-We will need to deal with server name, I am placing the point address for now, not sure how to handle the name.
+	ln, err := net.ListenTCP("tcp", listenAddr)
+	if err != nil {
+		loginfo.Println("unable to bind", err)
+		listenerRegistration.status = listenerFault
+		listenerRegistration.err = err
+		listenerRegistration.commCh <- listenerRegistration
+		return
+	}
+
+	listenerRegistration.status = listenerAdded
+	listenerRegistration.commCh <- listenerRegistration
+
+```
+
+Once the lister is fired up, I sends back a regisration status to the manager along with the new Listener and status.
 
 
-
-Traffic Testing
----------------
-* run go-rvpn-server
-* execute stunnel.js
+### Build
 
 ```bash
-bin/stunnel.js --locals http://hfc.daplie.me:8443,http://test.hfc.daplie.me:3001,http://127.0.0.1:8080 --stunneld wss://localhost.daplie.me:3502 --secret abc123
-```
 
-* Browse to http://127.0.0.1:8080
+hcamacho@Hanks-MBP:go-rvpn-server $ go get
 
 ```
-INFO: connection: 2017/02/13 20:46:07.815340 connection.go:95: &{0xc420017350 0xc420181540 0xc42014acc0 127.0.0.1:49412 91 3390 0xc42014ad20 [hfc.daplie.me test.hfc.daplie.me 127.0.0.1]}
-```
-91, and 3390 are bytes in and bytes out.
+
+### Execute RVPN
+
+```bash
+
+hcamacho@Hanks-MBP:go-rvpn-server $ ./go-rvpn-server 
+INFO: packer: 2017/02/26 12:43:53.978133 run.go:48: startup
+-=-=-=-=-=-=-=-=-=-=
+INFO: connection: 2017/02/26 12:43:53.978959 connection_table.go:67: ConnectionTable starting
+INFO: connection: 2017/02/26 12:43:53.979000 connection_table.go:50: Reaper waiting for  300  seconds
+
 
 ```
-INFO: external: 2017/02/13 20:46:07.814294 listener_webrequest.go:75: connState
-&{{0xc42015e690}} 127.0.0.1:8080 127.0.0.1:49416
-active
-INFO: external: 2017/02/13 20:46:07.814327 listener_webrequest.go:24: handlerWebRequestExternal
-INFO: external: 2017/02/13 20:46:07.814358 listener_webrequest.go:30: "GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nAccept: image/webp,image/*,*/*;q=0.8\r\nAccept-Encoding: gzip, deflate, sdch, br\r\nAccept-Language: en-US,en;q=0.8\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\nPragma: no-cache\r\nReferer: http://127.0.0.1:8080/\r\nUser-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36\r\n\r\n"
-INFO: external: 2017/02/13 20:46:07.814372 listener_webrequest.go:50: &{0xc420017350 0xc420181540 0xc42014acc0 127.0.0.1:49412 78 2963 0xc42014ad20 [hfc.daplie.me test.hfc.daplie.me 127.0.0.1]} 127.0.0.1 49416
-header:  ipv4,127.0.0.2,49416,398,na
-meta:  {[254 27] 0 [0 0 0 0] [254 27 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0] 0}
-Data:  GET /favicon.ico HTTP/1.1
-Host: 127.0.0.1:8080
-Accept: image/webp,image/*,*/*;q=0.8
+
+### Connect Tunnel client
+
+```bash
+
+hcamacho@Hanks-MBP:node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8443,http://test.hfc.daplie.me:3001,http://127.0.0.1:8080 --stunneld wss://localhost.daplie.me:8443 --secret abc123
+[local proxy] http://hfc.daplie.me:8443
+[local proxy] http://test.hfc.daplie.me:3001
+[local proxy] http://127.0.0.1:8080
+[connect] 'wss://localhost.daplie.me:8443'
+[open] connected to 'wss://localhost.daplie.me:8443'
+
+```
+
+### Connect Admin
+
+- add a host entry
+
+```
+
+127.0.0.1 tunnel.example.com rvpn.daplie.invalid
+
+```
+
+```bash
+browse https://rvpn.daplie.invalid:8443
+
+```
+
+### Send some traffic
+
+- run the RVPN (as above)
+- run the tunnel client (as above)
+- browse http://127.0.0.1:8443 && https://127.0.0.1:8443
+- observe
+
+```bash
+
+hcamacho@Hanks-MBP:node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8443,http://test.hfc.daplie.me:3001,http://127.0.0.1:8080 --stunneld wss://localhost.daplie.me:8443 --secret abc123
+[local proxy] http://hfc.daplie.me:8443
+[local proxy] http://test.hfc.daplie.me:3001
+[local proxy] http://127.0.0.1:8080
+[connect] 'wss://localhost.daplie.me:8443'
+[open] connected to 'wss://localhost.daplie.me:8443'
+hello
+fe1c495076342c3132372e302e302e312c383038302c3431332c68747470474554202f20485454502f312e310d0a486f73743a203132372e302e302e313a383434330d0a436f6e6e656374696f6e3a206b6565702d616c6976650d0a43616368652d436f6e74726f6c3a206d61782d6167653d300d0a557067726164652d496e7365637572652d52657175657374733a20310d0a557365722d4167656e743a204d6f7a696c6c612f352e3020284d6163696e746f73683b20496e74656c204d6163204f5320582031305f31325f3329204170706c655765624b69742f3533372e333620284b48544d4c2c206c696b65204765636b6f29204368726f6d652f35362e302e323932342e3837205361666172692f3533372e33360d0a4163636570743a20746578742f68746d6c2c6170706c69636174696f6e2f7868746d6c2b786d6c2c6170706c69636174696f6e2f786d6c3b713d302e392c696d6167652f776562702c2a2f2a3b713d302e380d0a4163636570742d456e636f64696e673a20677a69702c206465666c6174652c20736463682c2062720d0a4163636570742d4c616e67756167653a20656e2d55532c656e3b713d302e380d0a0d0a
+�IPv4,127.0.0.1,8080,413,httpGET / HTTP/1.1
+Host: 127.0.0.1:8443
+Connection: keep-alive
+Cache-Control: max-age=0
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8
 Accept-Encoding: gzip, deflate, sdch, br
 Accept-Language: en-US,en;q=0.8
-Cache-Control: no-cache
-Connection: keep-alive
-Pragma: no-cache
-Referer: http://127.0.0.1:8080/
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36
-```
+
+
+[exit] loop closed 0
 
 ```
-[error] closing ',undefined,undefined' because 'unsupported service 'undefined'' (-1 clients)
-[_onLocalClose]
-<Buffer fe 0a 2c 2c 2c 31 2c 65 72 72 6f 72 00>
-not v1 (or data is corrupt)
-[error] closing ',undefined,undefined' because 'unsupported service 'undefined'' (-1 clients)
-[_onLocalClose]
-<Buffer fe 0a 2c 2c 2c 31 2c 65 72 72 6f 72 00>
-not v1 (or data is corrupt)
-```
-Above is an attempt to connection...
 
-```
-INFO: external: 2017/02/13 20:50:45.883267 listener_webrequest.go:75: connState
-&{{0xc42015e690}} 127.0.0.1:8080 127.0.0.1:49416
-active
-INFO: external: 2017/02/13 20:50:45.883298 listener_webrequest.go:24: handlerWebRequestExternal
-INFO: external: 2017/02/13 20:50:45.883331 listener_webrequest.go:30: "GET /favicon.ico HTTP/1.1\r\nHost: 127.0.0.1:8080\r\nAccept: image/webp,image/*,*/*;q=0.8\r\nAccept-Encoding: gzip, deflate, sdch, br\r\nAccept-Language: en-US,en;q=0.8\r\nConnection: keep-alive\r\nReferer: http://127.0.0.1:8080/\r\nUser-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36\r\n\r\n"
-INFO: external: 2017/02/13 20:50:45.883338 listener_webrequest.go:46: unable to match  127.0.0.1  to an existing connection
-INFO: external: 2017/02/13 20:50:45.883362 listener_webrequest.go:75: connState
-&{{0xc42015e690}} 127.0.0.1:8080 127.0.0.1:49416
-```
-The above is a connection to a domain that was not registered.
+Looks like it aborts for some reaon.  I have this problem on on a new installation as well.
 
 
-Branch: restructured
---------------------
-* restructure into various packages, removing items from package "main"
-* used caddy source as a guide
-* weird debugging issue introduced, will not halt, break point unverified.
-* although a test project debugs just fin
-
-listener_client — the WSS client
---------------------------------
-- removed support for anything admin
-- injected the domains from the claim 
-- domains are now included as initialDomains
-- registration performans as normal but includes adding the domains to a map of domains, and a collection of domains on the connection.
-- the system now supports look up fast in either direction, not sure if it will be needed.
-- reads a chan during registration before allowing traffic, making sure all is well.
-- registration returns a true on the channel if all is well. If it is not, false. Likely will add some text to pass back.
-
-Connection
-----------
-- added support for boolean channel
-- support for initial domains in a slice, these are brought back from the JWT as a interface and then are type asserted into the map
-- removed all the old timer sender dwell stuff as a POC for traffic counts.
-
-ConnectionTable
----------------
-- added support for domain announcement after the WSS is connection. Not sure if we will need these. They have not been implemented.
-- I assume all domains are registered with JWT unless I hear differently which would require a new WSS session
-- expanded NewTable constructor
-- populating domains into the domain map, and into the connection slice.
-- added support for removing domains when a connection is removed.
-
-Packer
-------
-- added support for a PackerHeader type and PackerData type
-- these are connected in a Packer type
-- support for calculated address family based on ip address property
-- service field is set to "na"
-
-Logging
--------
-- unified package logging based on a package init.  Will likely need to remove this
-
-Tests
------
-- stared to structure project for tests.  
 
 
-Build Instructions
-------------------
-
-Create a subinterface:
-```bash
-sudo ifconfig lo0 alias 127.0.0.2 up
-```
-The above creates an alias the code is able to bind against for admin.  Admin is still in progress.
-
-Get the dependencies
-
-```bash
-go get github.com/gorilla/websocket
-go get github.com/dgrijalva/jwt-go
-
-git clone git@git.daplie.com:Daplie/localhost.daplie.me-certificates.git 
-ln -s localhost.daplie.me-certificates/certs/localhost.daplie.me certs
-```
-
-Run the VPN
-```bash
-go build && ./go-rvpn-server
-```
-
-In another terminal execute the client
-``` bash
-bin/stunnel.js --locals http:hfc.daplie.me:3000,http://test.hfc.daplie.me:3001 --stunneld wss://localhost.daplie.me:8000 --secret abc123
-```
-
-A good authentication
-```
-INFO: 2017/02/02 21:22:22 vpn-server.go:88: startup
-INFO: 2017/02/02 21:22:22 vpn-server.go:90: :8000
-INFO: 2017/02/02 21:22:22 vpn-server.go:73: starting Listener
-INFO: 2017/02/02 21:22:22 connection_table.go:19: ConnectionTable starting
-INFO: 2017/02/02 21:22:24 connection.go:113: websocket opening  127.0.0.1:55469
-INFO: 2017/02/02 21:22:24 connection.go:127: access_token valid
-INFO: 2017/02/02 21:22:24 connection.go:130: processing domains [hfc.daplie.me test.hfc.daplie.me]
-```
-
-Change the key on the tunnel client to test a valid secret
-``` bash
-INFO: 2017/02/02 21:24:13 vpn-server.go:88: startup
-INFO: 2017/02/02 21:24:13 vpn-server.go:90: :8000
-INFO: 2017/02/02 21:24:13 vpn-server.go:73: starting Listener
-INFO: 2017/02/02 21:24:13 connection_table.go:19: ConnectionTable starting
-INFO: 2017/02/02 21:24:15 connection.go:113: websocket opening  127.0.0.1:55487
-INFO: 2017/02/02 21:24:15 connection.go:123: access_token invalid...closing connection
-```
-
-Connection to the External Interface.
-http://127.0.0.1:8080
-
-The request is dumped to stdio.  This is in preparation of taking that request and sending it back to the designated WSS connection
-The system needs to track the response coming back, decouple it, and place it back on the wire in the form of a response stream.  Since
+-=-=-=-=-=-=
 
 A Poor Man's Reverse VPN written in Go
 

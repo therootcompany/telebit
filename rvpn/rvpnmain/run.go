@@ -70,9 +70,12 @@ func Run() {
 	// - if tls, establish, protocol peek buffer, else decrypted
 	// - match protocol
 
-	go genericlistener.GenericListenAndServe(ctx, connectionTable, secretKey, argGenericBinding, certbundle, argDeadTime)
+	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, secretKey, certbundle, argDeadTime)
+	go genericListeners.Run(ctx, 8443)
 
-	time.Sleep(20 * time.Second)
+	//go genericlistener.GenericListenAndServe(ctx, connectionTable, secretKey, argGenericBinding, certbundle, argDeadTime)
+
+	time.Sleep(300 * time.Second)
 	cancelContext()
 	time.Sleep(60 * time.Second)
 
