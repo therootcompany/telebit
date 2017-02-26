@@ -9,6 +9,7 @@ import (
 
 //WedgeListener -- used to hand off connections to other protocols via Listen
 type WedgeListener struct {
+	net.Listener
 	conn net.Conn
 	once sync.Once
 }
