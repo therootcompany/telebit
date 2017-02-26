@@ -167,12 +167,7 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 	loginfo.Println("handle Stream")
 	loginfo.Println("conn", wConn, wConn.LocalAddr().String(), wConn.RemoteAddr().String())
 
-	//peek for one byte to get the readers to converge
-	//look at buffer
-	//get the realrequest
-	peek, err := wConn.Peek(1)
-	loginfo.Println(hex.Dump(peek[0:]))
-	peek, err = wConn.Peek(wConn.Buffered())
+	peek, err := wConn.PeekAll()
 	loginfo.Println(hex.Dump(peek[0:]))
 
 	if err != nil {

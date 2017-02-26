@@ -53,19 +53,11 @@ func (w *WedgeConn) Buffered() int {
 func (w *WedgeConn) PeekAll() (buf []byte, err error) {
 	loginfo.Println("PeekAll")
 
-	var peek []byte
-	for {
-		b, err := w.reader.Peek(1)
-		if err != nil {
-			if len(peek) > 0 {
-				return peek, nil
-			}
-
-			var t byte
-			t = b[0]
-
-			peek = append(peek, t)
-			loginfo.Println("len", len(peek))
-		}
+	_, err = w.Peek(1)
+	if err != nil {
+		return nil, err
 	}
+
+	buf, err = w.Peek(w.Buffered())
+	return
 }
