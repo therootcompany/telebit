@@ -4,7 +4,8 @@ import "bytes"
 
 //packerData -- Contains packer data
 type packerData struct {
-	buffer *bytes.Buffer
+	buffer  *bytes.Buffer
+	DataLen int
 }
 
 func newPackerData() (p *packerData) {

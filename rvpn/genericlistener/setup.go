@@ -12,6 +12,6 @@ var (
 )
 
 func init() {
-	loginfo = log.New(os.Stdout, "INFO: external: ", logFlags)
-	logdebug = log.New(os.Stdout, "DEBUG: external:", logFlags)
+	loginfo = log.New(os.Stdout, "INFO: genericlistener: ", logFlags)
+	logdebug = log.New(os.Stdout, "DEBUG: genericlistener:", logFlags)
 }

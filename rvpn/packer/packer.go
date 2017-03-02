@@ -3,6 +3,13 @@ package packer
 import (
 	"bytes"
 	"fmt"
+	"net"
+	"strconv"
+)
+
+const (
+	packerV1 byte = 255 - 1
+	packerV2 byte = 255 - 2
 )
 
 //Packer -- contains both header and data
@@ -19,9 +26,93 @@ func NewPacker() (p *Packer) {
 	return
 }
 
+//ReadMessage -
+func ReadMessage(b []byte) (p *Packer, err error) {
+	fmt.Println("ReadMessage")
+	var pos int
+
+	err = nil
+	// detect protocol in use
+	if b[0] == packerV1 {
+		p = NewPacker()
+
+		// Handle Header Length
+		pos = pos + 1
+		p.Header.HeaderLen = b[pos]
+
+		//handle address family
+		pos = pos + 1
+		end := bytes.IndexAny(b[pos:], ",")
+		if end == -1 {
+			err = fmt.Errorf("missing , while parsing address family")
+			return nil, err
+		}
+
+		bAddrFamily := b[pos : pos+end]
+		if bytes.ContainsAny(bAddrFamily, addressFamilyText[FamilyIPv4]) {
+			p.Header.family = FamilyIPv4
+		} else if bytes.ContainsAny(bAddrFamily, addressFamilyText[FamilyIPv6]) {
+			p.Header.family = FamilyIPv6
+		} else {
+			err = fmt.Errorf("Address family not supported %d", bAddrFamily)
+		}
+
+		//handle address
+		pos = pos + end + 1
+		end = bytes.IndexAny(b[pos:], ",")
+		if end == -1 {
+			err = fmt.Errorf("missing , while parsing address")
+			return nil, err
+		}
+		p.Header.address = net.ParseIP(string(b[pos : pos+end]))
+
+		//handle import
+		pos = pos + end + 1
+		end = bytes.IndexAny(b[pos:], ",")
+		if end == -1 {
+			err = fmt.Errorf("missing , while parsing address")
+			return nil, err
+		}
+
+		p.Header.Port, err = strconv.Atoi(string(b[pos : pos+end]))
+		if err != nil {
+			err = fmt.Errorf("error converting port %s", err)
+		}
+
+		//handle data length
+		pos = pos + end + 1
+		end = bytes.IndexAny(b[pos:], ",")
+		if end == -1 {
+			err = fmt.Errorf("missing , while parsing address")
+			return nil, err
+		}
+
+		p.Data.DataLen, err = strconv.Atoi(string(b[pos : pos+end]))
+		if err != nil {
+			err = fmt.Errorf("error converting data length %s", err)
+		}
+
+		//handle Service
+		pos = pos + end + 1
+		end = pos + int(p.Header.HeaderLen)
+		p.Header.Service = string(b[pos:end])
+
+		//handle payload
+		pos = pos + end + 1
+
+		loginfo.Println(p.Header.Port)
+
+	} else {
+		err = fmt.Errorf("Version %d not supported", b[0:0])
+	}
+
+	return
+
+}
+
 //PackV1 -- Outputs version 1 of packer
 func (p *Packer) PackV1() (b bytes.Buffer) {
-	version := byte(1)
+	version := packerV1
 
 	var headerBuf bytes.Buffer
 	headerBuf.WriteString(p.Header.FamilyText())
@@ -35,7 +126,7 @@ func (p *Packer) PackV1() (b bytes.Buffer) {
 	headerBuf.WriteString(p.Header.Service)
 
 	var metaBuf bytes.Buffer
-	metaBuf.WriteByte(byte(255) - version)
+	metaBuf.WriteByte(version)
 	metaBuf.WriteByte(byte(headerBuf.Len()))
 
 	var buf bytes.Buffer

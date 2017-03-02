@@ -98,7 +98,7 @@ func (gl *GenericListeners) Run(ctx context.Context, initialPort int) {
 				// check to see if port is already running
 				for listener := range gl.listeners {
 					if gl.listeners[listener] == registration.port {
-						loginfo.Println("listener already running")
+						loginfo.Println("listener already running", registration.port)
 						registration.status = listenerExists
 						registration.commCh <- registration
 					}
@@ -112,7 +112,6 @@ func (gl *GenericListeners) Run(ctx context.Context, initialPort int) {
 				} else if status.status == listenerFault {
 					loginfo.Println("Unable to create a new listerer", registration.port)
 				}
-
 			}
 		}
 

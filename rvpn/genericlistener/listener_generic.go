@@ -174,7 +174,7 @@ func handleConnection(ctx context.Context, wConn *WedgeConn) {
 // - handle http
 // 	- attempt to identify as WSS session
 // 	- attempt to identify as ADMIN/API session
-// 	- else handle as raw https
+// 	- else handle as raw http
 // - handle other?
 func handleStream(ctx context.Context, wConn *WedgeConn) {
 	loginfo.Println("handle Stream")
@@ -197,7 +197,7 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 
 			r, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(peek)))
 			if err != nil {
-				loginfo.Println("identifed as HTTP, failed request", err)
+				loginfo.Println("identifed as HTTP, failed request parsing", err)
 				return
 			}
 
@@ -275,28 +275,32 @@ func handleExternalHTTPRequest(ctx context.Context, conn net.Conn) {
 		rAddr := remoteSplit[0]
 		rPort := remoteSplit[1]
 
-		if conn, ok := connectionTable.ConnByDomain(hostname); !ok {
+		//find the connection by domain name
+		conn, ok := connectionTable.ConnByDomain(hostname)
+		if !ok {
 			//matching connection can not be found based on ConnByDomain
 			loginfo.Println("unable to match ", hostname, " to an existing connection")
 			//http.Error(, "Domain not supported", http.StatusBadRequest)
-
-		} else {
-
-			loginfo.Println("Domain Accepted")
-			loginfo.Println(conn, rAddr, rPort)
-			p := packer.NewPacker()
-			p.Header.SetAddress(rAddr)
-			p.Header.Port, err = strconv.Atoi(rPort)
-			p.Header.Port = 8080
-			p.Header.Service = "http"
-			p.Data.AppendBytes(buffer[0:cnt])
-			buf := p.PackV1()
-
-			sendTrack := connection.NewSendTrack(buf.Bytes(), hostname)
-			conn.SendCh() <- sendTrack
+			return
 		}
-	}
 
+		loginfo.Println("Domain Accepted")
+		loginfo.Println(conn, rAddr, rPort)
+		p := packer.NewPacker()
+		p.Header.SetAddress(rAddr)
+		p.Header.Port, err = strconv.Atoi(rPort)
+		if err != nil {
+			loginfo.Println("Unable to set Remote port", err)
+			return
+		}
+
+		p.Header.Service = "http"
+		p.Data.AppendBytes(buffer[0:cnt])
+		buf := p.PackV1()
+
+		sendTrack := connection.NewSendTrack(buf.Bytes(), hostname)
+		conn.SendCh() <- sendTrack
+	}
 }
 
 //handleAdminClient -

@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"time"
 
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
+
 	"sync"
 
 	"io"
@@ -12,8 +14,8 @@ import (
 )
 
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
 }
 
 // Connection track websocket and faciliates in and out data
@@ -188,24 +190,36 @@ func (c *Connection) Reader() {
 
 	loginfo.Println("Reader Start ", c)
 
-	c.conn.SetReadLimit(1024)
+	c.conn.SetReadLimit(65535)
 	for {
-		_, message, err := c.conn.ReadMessage()
+		msgType, message, err := c.conn.ReadMessage()
 
-		loginfo.Println("ReadMessage")
+		loginfo.Println("ReadMessage", msgType, err)
+		loginfo.Println(hex.Dump(message))
+		loginfo.Println(message)
 		c.Update()
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				c.State(false)
 				loginfo.Printf("error: %v", err)
-				loginfo.Println(c.conn)
+				//loginfo.Println(c.conn)
 			}
 			break
 		}
-		loginfo.Println(hex.Dump(message))
+
+		// unpack the message.
+		_, _ = packer.ReadMessage(message)
+
+		// p.Header.SetAddress(rAddr)
+		// p.Header.Port, err = strconv.Atoi(rPort)
+		// p.Header.Port = 8080
+		// p.Header.Service = "http"
+		// p.Data.AppendBytes(buffer[0:cnt])
+		// buf := p.PackV1()
+
 		c.addIn(int64(len(message)))
-		loginfo.Println(c)
+		loginfo.Println("end of read")
 	}
 }
 
