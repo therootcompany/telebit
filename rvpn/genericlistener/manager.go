@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
-
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/connection"
 )
 
 //ListenerRegistrationStatus - post registration status
@@ -47,22 +45,24 @@ func NewListenerRegistration(port int) (p *ListenerRegistration) {
 
 //GenericListeners -
 type GenericListeners struct {
-	listeners        map[*net.Listener]int
-	ctx              context.Context
-	connnectionTable *connection.Table
-	secretKey        string
-	certbundle       tls.Certificate
-	deadTime         int
-	register         chan *ListenerRegistration
-	genericListeners *GenericListeners
+	listeners          map[*net.Listener]int
+	ctx                context.Context
+	connnectionTable   *Table
+	connectionTracking *Tracking
+	secretKey          string
+	certbundle         tls.Certificate
+	deadTime           int
+	register           chan *ListenerRegistration
+	genericListeners   *GenericListeners
 }
 
 //NewGenerListeners --
-func NewGenerListeners(ctx context.Context, connectionTable *connection.Table, secretKey string, certbundle tls.Certificate, deadTime int) (p *GenericListeners) {
+func NewGenerListeners(ctx context.Context, connectionTable *Table, connectionTrack *Tracking, secretKey string, certbundle tls.Certificate, deadTime int) (p *GenericListeners) {
 	p = new(GenericListeners)
 	p.listeners = make(map[*net.Listener]int)
 	p.ctx = ctx
 	p.connnectionTable = connectionTable
+	p.connectionTracking = connectionTrack
 	p.secretKey = secretKey
 	p.certbundle = certbundle
 	p.deadTime = deadTime
@@ -80,6 +80,10 @@ func (gl *GenericListeners) Run(ctx context.Context, initialPort int) {
 
 	ctx = context.WithValue(ctx, ctxSecretKey, gl.secretKey)
 	ctx = context.WithValue(ctx, ctxConnectionTable, gl.connnectionTable)
+
+	loginfo.Println(gl.connectionTracking)
+
+	ctx = context.WithValue(ctx, ctxConnectionTrack, gl.connectionTracking)
 	ctx = context.WithValue(ctx, ctxConfig, config)
 	ctx = context.WithValue(ctx, ctxDeadTime, gl.deadTime)
 	ctx = context.WithValue(ctx, ctxListenerRegistration, gl.register)
@@ -104,6 +108,7 @@ func (gl *GenericListeners) Run(ctx context.Context, initialPort int) {
 					}
 				}
 				loginfo.Println("listener starting up ", registration.port)
+				loginfo.Println(ctx.Value(ctxConnectionTrack).(*Tracking))
 				go GenericListenAndServe(ctx, registration)
 
 				status := <-registration.commCh

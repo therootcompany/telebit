@@ -1,4 +1,4 @@
-package connection
+package genericlistener
 
 //DomainTrack -- Tracking specifics for domains
 type DomainTrack struct {

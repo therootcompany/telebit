@@ -1,10 +1,8 @@
-package admin
+package genericlistener
 
 import (
 	"fmt"
 	"time"
-
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/connection"
 )
 
 //ServerAPI -- Structure to support the server API
@@ -17,7 +15,7 @@ type ServerAPI struct {
 }
 
 //NewServerAPI - Constructor
-func NewServerAPI(c *connection.Connection) (s *ServerAPI) {
+func NewServerAPI(c *Connection) (s *ServerAPI) {
 	s = new(ServerAPI)
 	s.ServerName = fmt.Sprintf("%p", c)
 	s.Domains = make([]*DomainAPI, 0)

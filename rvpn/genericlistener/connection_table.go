@@ -1,4 +1,4 @@
-package connection
+package genericlistener
 
 import "fmt"
 import "time"
@@ -78,7 +78,7 @@ func (c *Table) Run(ctx context.Context) {
 		case registration := <-c.register:
 			loginfo.Println("register fired")
 
-			connection := NewConnection(c, registration.conn, registration.source, registration.initialDomains)
+			connection := NewConnection(c, registration.conn, registration.source, registration.initialDomains, registration.connectionTrack)
 			c.connections[connection] = make([]string, initialDomains)
 			registration.commCh <- true
 
@@ -87,7 +87,7 @@ func (c *Table) Run(ctx context.Context) {
 				// add to the domains regirstation
 
 				newDomain := string(domain.(string))
-				loginfo.Println("adding domain ", newDomain, " to connection ", connection)
+				loginfo.Println("adding domain ", newDomain, " to connection ", connection.conn.RemoteAddr().String())
 				c.domains[newDomain] = connection
 
 				// add to the connection domain list
@@ -95,11 +95,10 @@ func (c *Table) Run(ctx context.Context) {
 				c.connections[connection] = append(s, newDomain)
 			}
 			go connection.Writer()
-			go connection.Reader()
-			loginfo.Println("register exiting")
+			go connection.Reader(ctx)
 
 		case connection := <-c.unregister:
-			loginfo.Println("closing connection ", connection)
+			loginfo.Println("closing connection ", connection.conn.RemoteAddr().String())
 			if _, ok := c.connections[connection]; ok {
 				for _, domain := range c.connections[connection] {
 					fmt.Println("removing domain ", domain)
@@ -122,8 +121,6 @@ func (c *Table) Run(ctx context.Context) {
 			//}
 
 		}
-		fmt.Println("domain ", c.domains)
-		fmt.Println("connections ", c.connections)
 	}
 }
 

@@ -1,4 +1,4 @@
-package admin
+package genericlistener
 
 //DomainAPI -- Structure to hold the domain tracking for JSON
 type DomainAPI struct {

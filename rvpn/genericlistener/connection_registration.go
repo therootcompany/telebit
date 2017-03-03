@@ -1,4 +1,4 @@
-package connection
+package genericlistener
 
 import "github.com/gorilla/websocket"
 
@@ -17,15 +17,18 @@ type Registration struct {
 
 	//initialDomains - a list of domains from the JWT
 	initialDomains []interface{}
+
+	connectionTrack *Tracking
 }
 
 //NewRegistration -- Constructor
-func NewRegistration(conn *websocket.Conn, remoteAddress string, initialDomains []interface{}) (p *Registration) {
+func NewRegistration(conn *websocket.Conn, remoteAddress string, initialDomains []interface{}, connectionTrack *Tracking) (p *Registration) {
 	p = new(Registration)
 	p.conn = conn
 	p.source = remoteAddress
 	p.commCh = make(chan bool)
 	p.initialDomains = initialDomains
+	p.connectionTrack = connectionTrack
 	return
 }
 

@@ -9,9 +9,6 @@ import (
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/admin"
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/connection"
 )
 
 //LaunchWssListener - obtains a onetime connection from wedge listener

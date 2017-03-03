@@ -95,12 +95,11 @@ func ReadMessage(b []byte) (p *Packer, err error) {
 		//handle Service
 		pos = pos + end + 1
 		end = pos + int(p.Header.HeaderLen)
-		p.Header.Service = string(b[pos:end])
+		p.Header.Service = string(b[pos : p.Header.HeaderLen+2])
 
 		//handle payload
-		pos = pos + end + 1
-
-		loginfo.Println(p.Header.Port)
+		pos = int(p.Header.HeaderLen + 2)
+		p.Data.AppendBytes(b[pos:])
 
 	} else {
 		err = fmt.Errorf("Version %d not supported", b[0:0])

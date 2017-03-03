@@ -14,12 +14,18 @@ func newPackerData() (p *packerData) {
 	return
 }
 
-func (p packerData) AppendString(dataString string) (n int, err error) {
+func (p *packerData) AppendString(dataString string) (n int, err error) {
 	n, err = p.buffer.WriteString(dataString)
 	return
 }
 
-func (p packerData) AppendBytes(dataBytes []byte) (n int, err error) {
+func (p *packerData) AppendBytes(dataBytes []byte) (n int, err error) {
 	n, err = p.buffer.Write(dataBytes)
+	return
+}
+
+//Data --
+func (p *packerData) Data() (b []byte) {
+	b = p.buffer.Bytes()
 	return
 }

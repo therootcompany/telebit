@@ -29,13 +29,11 @@ func NewWedgeConnSize(c net.Conn, size int) (p *WedgeConn) {
 
 //Peek - Get a number of bytes outof the buffer, but allow the buffer to be replayed once read
 func (w *WedgeConn) Peek(n int) ([]byte, error) {
-	loginfo.Println("Peek")
 	return w.reader.Peek(n)
 }
 
 //Read -- A normal reader.
 func (w *WedgeConn) Read(p []byte) (int, error) {
-	loginfo.Println("Read")
 	cnt, err := w.reader.Read(p)
 	return cnt, err
 }
@@ -49,7 +47,6 @@ func (w *WedgeConn) Buffered() int {
 // - get all the chars available
 // - pass then back
 func (w *WedgeConn) PeekAll() (buf []byte, err error) {
-	loginfo.Println("PeekAll")
 
 	_, err = w.Peek(1)
 	if err != nil {

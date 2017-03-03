@@ -47,6 +47,7 @@ Once the lister is fired up, I sends back a regisration status to the manager al
 ```bash
 
 hcamacho@Hanks-MBP:go-rvpn-server $ go get
+hcamacho@Hanks-MBP:go-rvpn-server $ go build
 
 ```
 

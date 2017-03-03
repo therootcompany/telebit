@@ -1,7 +1,7 @@
-package connection
+package genericlistener
 
 import (
-	"encoding/hex"
+	"strconv"
 	"time"
 
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
@@ -9,6 +9,8 @@ import (
 	"sync"
 
 	"io"
+
+	"context"
 
 	"github.com/gorilla/websocket"
 )
@@ -55,12 +57,14 @@ type Connection struct {
 	//initialDomains - a list of domains from the JWT
 	initialDomains []interface{}
 
+	connectionTrack *Tracking
+
 	///wssState tracks a highlevel status of the connection, false means do nothing.
 	wssState bool
 }
 
 //NewConnection -- Constructor
-func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress string, initialDomains []interface{}) (p *Connection) {
+func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress string, initialDomains []interface{}, connectionTrack *Tracking) (p *Connection) {
 	p = new(Connection)
 	p.mutex = &sync.Mutex{}
 	p.connectionTable = connectionTable
@@ -71,6 +75,7 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	p.send = make(chan *SendTrack)
 	p.connectTime = time.Now()
 	p.initialDomains = initialDomains
+	p.connectionTrack = connectionTrack
 	p.DomainTrack = make(map[string]*DomainTrack)
 
 	for _, domain := range initialDomains {
@@ -181,7 +186,9 @@ func (c *Connection) Write(w io.WriteCloser, message []byte) (cnt int, err error
 }
 
 //Reader -- export the reader function
-func (c *Connection) Reader() {
+func (c *Connection) Reader(ctx context.Context) {
+	connectionTrack := c.connectionTrack
+
 	defer func() {
 		c.connectionTable.unregister <- c
 		c.conn.Close()
@@ -195,28 +202,28 @@ func (c *Connection) Reader() {
 		msgType, message, err := c.conn.ReadMessage()
 
 		loginfo.Println("ReadMessage", msgType, err)
-		loginfo.Println(hex.Dump(message))
-		loginfo.Println(message)
+
 		c.Update()
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				c.State(false)
 				loginfo.Printf("error: %v", err)
-				//loginfo.Println(c.conn)
 			}
 			break
 		}
 
 		// unpack the message.
-		_, _ = packer.ReadMessage(message)
+		p, err := packer.ReadMessage(message)
+		key := p.Header.Address().String() + ":" + strconv.Itoa(p.Header.Port)
+		test, err := connectionTrack.Lookup(key)
 
-		// p.Header.SetAddress(rAddr)
-		// p.Header.Port, err = strconv.Atoi(rPort)
-		// p.Header.Port = 8080
-		// p.Header.Service = "http"
-		// p.Data.AppendBytes(buffer[0:cnt])
-		// buf := p.PackV1()
+		if err != nil {
+			loginfo.Println("Unable to locate Tracking for ", key)
+			continue
+		}
+
+		test.Write(p.Data.Data())
 
 		c.addIn(int64(len(message)))
 		loginfo.Println("end of read")

@@ -10,7 +10,6 @@ import (
 
 	"context"
 
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/connection"
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/genericlistener"
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/xlate"
 )
@@ -25,7 +24,7 @@ var (
 	argServerAdminBinding    string
 	argServerExternalBinding string
 	argDeadTime              int
-	connectionTable          *connection.Table
+	connectionTable          *genericlistener.Table
 	wssMapping               *xlate.WssMapping
 	secretKey                = "abc123"
 )
@@ -58,9 +57,6 @@ func Run() {
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
 
-	connectionTable = connection.NewTable()
-	go connectionTable.Run(ctx)
-
 	// Setup for GenericListenServe.
 	// - establish context for the generic listener
 	// - startup listener
@@ -70,7 +66,13 @@ func Run() {
 	// - if tls, establish, protocol peek buffer, else decrypted
 	// - match protocol
 
-	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, secretKey, certbundle, argDeadTime)
+	connectionTracking := genericlistener.NewTracking()
+	go connectionTracking.Run(ctx)
+
+	connectionTable = genericlistener.NewTable()
+	go connectionTable.Run(ctx)
+
+	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, connectionTracking, secretKey, certbundle, argDeadTime)
 	go genericListeners.Run(ctx, 8443)
 
 	//go genericlistener.GenericListenAndServe(ctx, connectionTable, secretKey, argGenericBinding, certbundle, argDeadTime)

@@ -21,19 +21,19 @@ import (
 
 	"bufio"
 
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/admin"
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/connection"
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
 )
 
 type contextKey string
 
+//CtxConnectionTrack
 const (
 	ctxSecretKey            contextKey = "secretKey"
 	ctxConnectionTable      contextKey = "connectionTable"
 	ctxConfig               contextKey = "config"
 	ctxDeadTime             contextKey = "deadtime"
 	ctxListenerRegistration contextKey = "listenerRegistration"
+	ctxConnectionTrack      contextKey = "connectionTrack"
 )
 
 const (
@@ -118,9 +118,6 @@ func handleConnection(ctx context.Context, wConn *WedgeConn) {
 		loginfo.Println("error while peeking")
 		return
 	}
-	loginfo.Println(hex.Dump(peek[0:peekCnt]))
-	loginfo.Println(hex.Dump(peek[2:4]))
-	loginfo.Println("after peek")
 
 	//take a look for a TLS header.
 	if bytes.Contains(peek[0:0], []byte{0x80}) && bytes.Contains(peek[2:4], []byte{0x01, 0x03}) {
@@ -181,8 +178,6 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 	loginfo.Println("conn", wConn, wConn.LocalAddr().String(), wConn.RemoteAddr().String())
 
 	peek, err := wConn.PeekAll()
-	loginfo.Println(hex.Dump(peek[0:]))
-
 	if err != nil {
 		loginfo.Println("error while peeking")
 		loginfo.Println(hex.Dump(peek[0:]))
@@ -228,33 +223,31 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 			}
 		}
 	}
-
-	loginfo.Println(hex.Dump(peek[0:]))
 }
 
 //handleExternalHTTPRequest -
 // - get a wConn and start processing requests
 func handleExternalHTTPRequest(ctx context.Context, conn net.Conn) {
-	defer conn.Close()
+	connectionTracking := ctx.Value(ctxConnectionTrack).(*Tracking)
+	connectionTracking.register <- conn
 
-	connectionTable := ctx.Value(ctxConnectionTable).(*connection.Table)
+	defer func() {
+		connectionTracking.unregister <- conn
+		conn.Close()
+	}()
+
+	connectionTable := ctx.Value(ctxConnectionTable).(*Table)
 
 	var buffer [512]byte
-
 	for {
 		cnt, err := conn.Read(buffer[0:])
 		if err != nil {
 			return
 		}
 
-		loginfo.Println("conn ", conn)
-		loginfo.Println("byte read", cnt)
-
 		readBuffer := bytes.NewBuffer(buffer[0:cnt])
 		reader := bufio.NewReader(readBuffer)
 		r, err := http.ReadRequest(reader)
-
-		loginfo.Println(r)
 
 		if err != nil {
 			loginfo.Println("error parsing request")
@@ -284,8 +277,7 @@ func handleExternalHTTPRequest(ctx context.Context, conn net.Conn) {
 			return
 		}
 
-		loginfo.Println("Domain Accepted")
-		loginfo.Println(conn, rAddr, rPort)
+		loginfo.Println("Domain Accepted", conn, rAddr, rPort)
 		p := packer.NewPacker()
 		p.Header.SetAddress(rAddr)
 		p.Header.Port, err = strconv.Atoi(rPort)
@@ -298,7 +290,7 @@ func handleExternalHTTPRequest(ctx context.Context, conn net.Conn) {
 		p.Data.AppendBytes(buffer[0:cnt])
 		buf := p.PackV1()
 
-		sendTrack := connection.NewSendTrack(buf.Bytes(), hostname)
+		sendTrack := NewSendTrack(buf.Bytes(), hostname)
 		conn.SendCh() <- sendTrack
 	}
 }
@@ -307,7 +299,7 @@ func handleExternalHTTPRequest(ctx context.Context, conn net.Conn) {
 // - expecting an existing oneConnListener with a qualified wss client connected.
 // - auth will happen again since we were just peeking at the token.
 func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
-	connectionTable := ctx.Value(ctxConnectionTable).(*connection.Table)
+	connectionTable := ctx.Value(ctxConnectionTable).(*Table)
 
 	router := mux.NewRouter().StrictSlash(true)
 
@@ -332,10 +324,10 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 
 	router.HandleFunc("/api/servers", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("here")
-		serverContainer := admin.NewServerAPIContainer()
+		serverContainer := NewServerAPIContainer()
 
 		for c := range connectionTable.Connections() {
-			serverAPI := admin.NewServerAPI(c)
+			serverAPI := NewServerAPI(c)
 			serverContainer.Servers = append(serverContainer.Servers, serverAPI)
 
 		}
@@ -367,7 +359,7 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 // - auth will happen again since we were just peeking at the token.
 func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 	secretKey := ctx.Value(ctxSecretKey).(string)
-	connectionTable := ctx.Value(ctxConnectionTable).(*connection.Table)
+	connectionTable := ctx.Value(ctxConnectionTable).(*Table)
 
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -388,12 +380,8 @@ func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 				return
 			}
 
-			loginfo.Println("help access_token valid")
-
 			claims := result.Claims.(jwt.MapClaims)
 			domains, ok := claims["domains"].([]interface{})
-
-			loginfo.Println("domains", domains)
 
 			var upgrader = websocket.Upgrader{
 				ReadBufferSize:  1024,
@@ -410,7 +398,8 @@ func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 
 			//newConnection := connection.NewConnection(connectionTable, conn, r.RemoteAddr, domains)
 
-			newRegistration := connection.NewRegistration(conn, r.RemoteAddr, domains)
+			connectionTrack := ctx.Value(ctxConnectionTrack).(*Tracking)
+			newRegistration := NewRegistration(conn, r.RemoteAddr, domains, connectionTrack)
 			connectionTable.Register() <- newRegistration
 			ok = <-newRegistration.CommCh()
 			if !ok {

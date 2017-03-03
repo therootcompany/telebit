@@ -1,4 +1,4 @@
-package connection
+package genericlistener
 
 //DomainMapping --
 type DomainMapping struct {
