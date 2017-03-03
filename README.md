@@ -1,5 +1,72 @@
 # RVPN Server
 
+## branch: passing-traffic
+
+- code now passes traffic using just daplie tools
+- this will require serve-https and node-tunnel-client to work
+
+
+### Build RVPN
+
+```bash
+hcamacho@Hanks-MBP:go-rvpn-server $ go get
+hcamacho@Hanks-MBP:go-rvpn-server $ go build
+```
+### Setup Some Entries
+
+```bash
+127.0.0.1 tunnel.example.com rvpn.daplie.invalid hfc2.daplie.me hfc.daplie.me
+```
+
+### Start Up Webserver
+```bash
+hcamacho@Hanks-MBP:tmp $ cd /tmp
+hcamacho@Hanks-MBP:tmp $  vi index.html --- Place some index content
+hcamacho@Hanks-MBP:tmp $ serve-https -p 8080 -d /tmp --servername hfc.daplie.me --agree-tos --email henry.f.camacho@gmail.com
+```
+
+### Start Tunnel Client
+```bash
+hcamacho@Hanks-MBP:node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8080,http://test1.hfc.daplie.me:8080 --stunneld wss://localhost.daplie.me:8443 --secret abc123
+```
+
+### Execute RVPN
+
+```bash
+hcamacho@Hanks-MBP:go-rvpn-server $ ./go-rvpn-server 
+INFO: packer: 2017/03/02 19:16:52.652109 run.go:47: startup
+-=-=-=-=-=-=-=-=-=-=
+INFO: genericlistener: 2017/03/02 19:16:52.652777 manager.go:77: ConnectionTable starting
+INFO: genericlistener: 2017/03/02 19:16:52.652806 connection_table.go:67: ConnectionTable starting
+INFO: genericlistener: 2017/03/02 19:16:52.652826 manager.go:84: &{map[] 0xc420072420 0xc420072480}
+INFO: genericlistener: 2017/03/02 19:16:52.652832 connection_table.go:50: Reaper waiting for  300  seconds
+INFO: genericlistener: 2017/03/02 19:16:52.652856 manager.go:100: register fired 8443
+INFO: genericlistener: 2017/03/02 19:16:52.652862 manager.go:110: listener starting up  8443
+INFO: genericlistener: 2017/03/02 19:16:52.652868 manager.go:111: &{map[] 0xc420072420 0xc420072480}
+INFO: genericlistener: 2017/03/02 19:16:52.652869 conn_tracking.go:25: Tracking Running
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## restructured-http
 
 - connection handling has been totally rewritten.

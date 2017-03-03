@@ -12,6 +12,8 @@ import (
 
 	"context"
 
+	"encoding/hex"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -202,6 +204,7 @@ func (c *Connection) Reader(ctx context.Context) {
 		msgType, message, err := c.conn.ReadMessage()
 
 		loginfo.Println("ReadMessage", msgType, err)
+		loginfo.Println(hex.Dump(message))
 
 		c.Update()
 
