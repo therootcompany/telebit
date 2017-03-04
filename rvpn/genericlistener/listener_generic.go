@@ -227,20 +227,20 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 
 //handleExternalHTTPRequest -
 // - get a wConn and start processing requests
-func handleExternalHTTPRequest(ctx context.Context, conn net.Conn) {
+func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn) {
 	connectionTracking := ctx.Value(ctxConnectionTrack).(*Tracking)
-	connectionTracking.register <- conn
+	connectionTracking.register <- extConn
 
 	defer func() {
-		connectionTracking.unregister <- conn
-		conn.Close()
+		connectionTracking.unregister <- extConn
+		extConn.Close()
 	}()
 
 	connectionTable := ctx.Value(ctxConnectionTable).(*Table)
 
 	var buffer [512]byte
 	for {
-		cnt, err := conn.Read(buffer[0:])
+		cnt, err := extConn.Read(buffer[0:])
 		if err != nil {
 			return
 		}
@@ -262,9 +262,9 @@ func handleExternalHTTPRequest(ctx context.Context, conn net.Conn) {
 			hostname = arr[0]
 		}
 
-		loginfo.Println("Remote: ", conn.RemoteAddr().String())
+		loginfo.Println("Remote: ", extConn.RemoteAddr().String())
 
-		remoteSplit := strings.Split(conn.RemoteAddr().String(), ":")
+		remoteSplit := strings.Split(extConn.RemoteAddr().String(), ":")
 		rAddr := remoteSplit[0]
 		rPort := remoteSplit[1]
 

@@ -46,7 +46,45 @@ INFO: genericlistener: 2017/03/02 19:16:52.652868 manager.go:111: &{map[] 0xc420
 INFO: genericlistener: 2017/03/02 19:16:52.652869 conn_tracking.go:25: Tracking Running
 ```
 
+### Browse via tunnel
 
+https://hfc.daplie.me:8443
+
+- You'll notice that the browser is redirected to 8080 after accepting the cert.  I see a meta-refresh coming back from the serve-https
+- The traffic is getting back to the client.
+
+```bash
+
+INFO: genericlistener: 2017/03/02 21:24:48.472312 connection.go:207: 00000000  fe 1d 49 50 76 34 2c 31  32 37 2e 30 2e 30 2e 31  |..IPv4,127.0.0.1|
+00000010  2c 35 33 35 35 39 2c 33  36 38 2c 68 74 74 70 48  |,53559,368,httpH|
+00000020  54 54 50 2f 31 2e 31 20  32 30 30 20 4f 4b 0d 0a  |TTP/1.1 200 OK..|
+00000030  43 6f 6e 74 65 6e 74 2d  54 79 70 65 3a 20 74 65  |Content-Type: te|
+00000040  78 74 2f 68 74 6d 6c 3b  20 63 68 61 72 73 65 74  |xt/html; charset|
+00000050  3d 75 74 66 2d 38 0d 0a  44 61 74 65 3a 20 46 72  |=utf-8..Date: Fr|
+00000060  69 2c 20 30 33 20 4d 61  72 20 32 30 31 37 20 30  |i, 03 Mar 2017 0|
+00000070  33 3a 32 34 3a 34 38 20  47 4d 54 0d 0a 43 6f 6e  |3:24:48 GMT..Con|
+00000080  6e 65 63 74 69 6f 6e 3a  20 6b 65 65 70 2d 61 6c  |nection: keep-al|
+00000090  69 76 65 0d 0a 43 6f 6e  74 65 6e 74 2d 4c 65 6e  |ive..Content-Len|
+000000a0  67 74 68 3a 20 32 32 37  0d 0a 0d 0a 3c 68 74 6d  |gth: 227....<htm|
+000000b0  6c 3e 0a 3c 68 65 61 64  3e 0a 20 20 3c 4d 45 54  |l>.<head>.  <MET|
+000000c0  41 20 68 74 74 70 2d 65  71 75 69 76 3d 22 72 65  |A http-equiv="re|
+000000d0  66 72 65 73 68 22 20 63  6f 6e 74 65 6e 74 3d 22  |fresh" content="|
+000000e0  30 3b 55 52 4c 3d 27 68  74 74 70 73 3a 2f 2f 68  |0;URL='https://h|
+000000f0  66 63 2e 64 61 70 6c 69  65 2e 6d 65 3a 38 30 38  |fc.daplie.me:808|
+00000100  30 2f 27 22 3e 0a 3c 2f  68 65 61 64 3e 0a 3c 62  |0/'">.</head>.<b|
+00000110  6f 64 79 3e 0a 3c 21 2d  2d 20 48 65 6c 6c 6f 20  |ody>.<!-- Hello |
+00000120  4d 72 20 44 65 76 65 6c  6f 70 65 72 21 20 57 65  |Mr Developer! We|
+00000130  20 64 6f 6e 27 74 20 73  65 72 76 65 20 69 6e 73  | don't serve ins|
+00000140  65 63 75 72 65 20 72 65  73 6f 75 72 63 65 73 20  |ecure resources |
+00000150  61 72 6f 75 6e 64 20 68  65 72 65 2e 0a 20 20 20  |around here..   |
+00000160  20 50 6c 65 61 73 65 20  75 73 65 20 48 54 54 50  | Please use HTTP|
+00000170  53 20 69 6e 73 74 65 61  64 2e 20 2d 2d 3e 0a 3c  |S instead. -->.<|
+00000180  2f 62 6f 64 79 3e 0a 3c  2f 68 74 6d 6c 3e 0a     |/body>.</html>.|
+
+```
+
+- this set of code works great if I am running the node-tunnel-client on a different machine with apache as a web server.
+- need to work through why serve-https thinks the traffic is inecure.
 
 
 
