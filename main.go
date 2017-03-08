@@ -11,7 +11,6 @@ import (
 	"context"
 
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/genericlistener"
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/xlate"
 )
 
 var (
@@ -25,7 +24,7 @@ var (
 	argServerExternalBinding string
 	argDeadTime              int
 	connectionTable          *genericlistener.Table
-	wssMapping               *xlate.WssMapping
+	wssMapping               *genericlistener.WssMapping
 	secretKey                = "abc123"
 )
 

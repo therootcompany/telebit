@@ -1,11 +1,6 @@
-package xlate
+package genericlistener
 
 import "golang.org/x/net/websocket"
-
-const (
-	initialDomains   = 10
-	incrementDomains = 10
-)
 
 type domain string
 
