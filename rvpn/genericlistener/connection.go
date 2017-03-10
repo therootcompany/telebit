@@ -204,7 +204,6 @@ func (c *Connection) Reader(ctx context.Context) {
 		msgType, message, err := c.conn.ReadMessage()
 
 		loginfo.Println("ReadMessage", msgType, err)
-		loginfo.Println(hex.Dump(message))
 
 		c.Update()
 
@@ -219,14 +218,22 @@ func (c *Connection) Reader(ctx context.Context) {
 		// unpack the message.
 		p, err := packer.ReadMessage(message)
 		key := p.Header.Address().String() + ":" + strconv.Itoa(p.Header.Port)
-		test, err := connectionTrack.Lookup(key)
+		track, err := connectionTrack.Lookup(key)
+
+		loginfo.Println(hex.Dump(p.Data.Data()))
 
 		if err != nil {
 			loginfo.Println("Unable to locate Tracking for ", key)
 			continue
 		}
 
-		test.Write(p.Data.Data())
+		//Support for tracking outbound traffic based on domain.
+		if domainTrack, ok := c.DomainTrack[track.domain]; ok {
+			//if ok then add to structure, else warn there is something wrong
+			domainTrack.AddIn(int64(len(message)))
+		}
+
+		track.conn.Write(p.Data.Data())
 
 		c.addIn(int64(len(message)))
 		loginfo.Println("end of read")

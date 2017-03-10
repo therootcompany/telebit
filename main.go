@@ -24,7 +24,6 @@ var (
 	argServerExternalBinding string
 	argDeadTime              int
 	connectionTable          *genericlistener.Table
-	wssMapping               *genericlistener.WssMapping
 	secretKey                = "abc123"
 )
 
@@ -72,24 +71,9 @@ func main() {
 	go connectionTable.Run(ctx)
 
 	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, connectionTracking, secretKey, certbundle, argDeadTime)
-	go genericListeners.Run(ctx, 8443)
-
-	//go genericlistener.GenericListenAndServe(ctx, connectionTable, secretKey, argGenericBinding, certbundle, argDeadTime)
+	go genericListeners.Run(ctx, 9999)
 
 	//Run for 10 minutes and then shutdown cleanly
 	time.Sleep(600 * time.Second)
 	cancelContext()
-
-	//wssMapping = xlate.NewwssMapping()
-	//go wssMapping.Run()
-
-	//go client.LaunchClientListener(connectionTable, &secretKey, &argServerBinding)
-	//go external.LaunchWebRequestExternalListener(&argServerExternalBinding, connectionTable)
-	//go external.LaunchExternalServer(argServerExternalBinding, connectionTable)
-	//err = admin.LaunchAdminListener(&argServerAdminBinding, connectionTable)
-	//if err != nil {
-	//	loginfo.Println("LauchAdminListener failed: ", err)
-	//}
-
-	//genericlistener.LaunchWssListener(connectionTable, secretKey, argWssClientListener, "certs/fullchain.pem", "certs/privkey.pem")
 }

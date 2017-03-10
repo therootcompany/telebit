@@ -66,7 +66,7 @@ func (c *Table) reaper(delay int, idle int) {
 func (c *Table) Run(ctx context.Context) {
 	loginfo.Println("ConnectionTable starting")
 
-	go c.reaper(300, 60)
+	go c.reaper(3000, 60)
 
 	for {
 		select {

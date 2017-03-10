@@ -4,18 +4,32 @@ import "net"
 import "context"
 import "fmt"
 
+//Track -- used to track connection + domain
+type Track struct {
+	conn   net.Conn
+	domain string
+}
+
+//NewTrack -- Constructor
+func NewTrack(conn net.Conn, domain string) (p *Track) {
+	p = new(Track)
+	p.conn = conn
+	p.domain = domain
+	return
+}
+
 //Tracking --
 type Tracking struct {
-	connections map[string]net.Conn
-	register    chan net.Conn
+	connections map[string]*Track
+	register    chan *Track
 	unregister  chan net.Conn
 }
 
 //NewTracking -- Constructor
 func NewTracking() (p *Tracking) {
 	p = new(Tracking)
-	p.connections = make(map[string]net.Conn)
-	p.register = make(chan net.Conn)
+	p.connections = make(map[string]*Track)
+	p.register = make(chan *Track)
 	p.unregister = make(chan net.Conn)
 	return
 }
@@ -32,7 +46,7 @@ func (p *Tracking) Run(ctx context.Context) {
 			return
 
 		case connection := <-p.register:
-			key := connection.RemoteAddr().String()
+			key := connection.conn.RemoteAddr().String()
 			loginfo.Println("register fired", key)
 			p.connections[key] = connection
 			p.list()
@@ -40,7 +54,6 @@ func (p *Tracking) Run(ctx context.Context) {
 		case connection := <-p.unregister:
 			key := connection.RemoteAddr().String()
 			loginfo.Println("unregister fired", key)
-			p.connections[key] = connection
 			if _, ok := p.connections[key]; ok {
 				delete(p.connections, key)
 			}
@@ -57,7 +70,7 @@ func (p *Tracking) list() {
 
 //Lookup --
 // - get connection from key
-func (p *Tracking) Lookup(key string) (c net.Conn, err error) {
+func (p *Tracking) Lookup(key string) (c *Track, err error) {
 	if _, ok := p.connections[key]; ok {
 		c = p.connections[key]
 	} else {

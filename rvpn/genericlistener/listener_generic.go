@@ -229,7 +229,6 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 // - get a wConn and start processing requests
 func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn) {
 	connectionTracking := ctx.Value(ctxConnectionTrack).(*Tracking)
-	connectionTracking.register <- extConn
 
 	defer func() {
 		connectionTracking.unregister <- extConn
@@ -276,6 +275,9 @@ func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn) {
 			//http.Error(, "Domain not supported", http.StatusBadRequest)
 			return
 		}
+
+		track := NewTrack(extConn, hostname)
+		connectionTracking.register <- track
 
 		loginfo.Println("Domain Accepted", conn, rAddr, rPort)
 		p := packer.NewPacker()
