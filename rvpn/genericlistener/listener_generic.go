@@ -171,7 +171,7 @@ func handleConnection(ctx context.Context, wConn *WedgeConn) {
 		if wssHostName != sniHostName {
 			//traffic not terminating on the rvpn do not decrypt
 			loginfo.Println("processing non terminating traffic")
-			handleExternalHTTPRequest(ctx, wConn, sniHostName)
+			handleExternalHTTPRequest(ctx, wConn, sniHostName, "https")
 		}
 
 		loginfo.Println("processing traffic terminating on RVPN")
@@ -257,7 +257,7 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 
 //handleExternalHTTPRequest -
 // - get a wConn and start processing requests
-func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn, hostname string) {
+func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn, hostname string, service string) {
 	connectionTracking := ctx.Value(ctxConnectionTrack).(*Tracking)
 
 	defer func() {
@@ -286,7 +286,7 @@ func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn, hostname s
 		return
 	}
 
-	var buffer [512]byte
+	var buffer [1024]byte
 	for {
 		cnt, err := extConn.Read(buffer[0:])
 		if err != nil {
@@ -301,7 +301,7 @@ func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn, hostname s
 			return
 		}
 
-		p.Header.Service = "http"
+		p.Header.Service = service
 		p.Data.AppendBytes(buffer[0:cnt])
 		buf := p.PackV1()
 
