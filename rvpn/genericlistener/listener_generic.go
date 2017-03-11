@@ -34,6 +34,7 @@ const (
 	ctxDeadTime             contextKey = "deadtime"
 	ctxListenerRegistration contextKey = "listenerRegistration"
 	ctxConnectionTrack      contextKey = "connectionTrack"
+	ctxWssHostName          contextKey = "wsshostname"
 )
 
 const (
@@ -146,6 +147,35 @@ func handleConnection(ctx context.Context, wConn *WedgeConn) {
 
 	} else if encryptMode != encryptNone {
 		loginfo.Println("Handle Encryption")
+
+		// check SNI heading
+		// if matched, then looks like a WSS connection
+		// else external don't pull off TLS.
+
+		peek, err := wConn.PeekAll()
+		if err != nil {
+			loginfo.Println("error while peeking")
+			loginfo.Println(hex.Dump(peek[0:]))
+			return
+		}
+
+		wssHostName := ctx.Value(ctxWssHostName).(string)
+		sniHostName, err := getHello(peek)
+		if err != nil {
+			loginfo.Println(err)
+			return
+		}
+
+		loginfo.Println("sni:", sniHostName)
+
+		if wssHostName != sniHostName {
+			//traffic not terminating on the rvpn do not decrypt
+			loginfo.Println("processing non terminating traffic")
+			handleExternalHTTPRequest(ctx, wConn, sniHostName)
+		}
+
+		loginfo.Println("processing traffic terminating on RVPN")
+
 		tlsListener := tls.NewListener(oneConn, config)
 
 		conn, err := tlsListener.Accept()
@@ -175,11 +205,11 @@ func handleConnection(ctx context.Context, wConn *WedgeConn) {
 // - handle other?
 func handleStream(ctx context.Context, wConn *WedgeConn) {
 	loginfo.Println("handle Stream")
-	loginfo.Println("conn", wConn, wConn.LocalAddr().String(), wConn.RemoteAddr().String())
+	loginfo.Println("conn", wConn.LocalAddr().String(), wConn.RemoteAddr().String())
 
 	peek, err := wConn.PeekAll()
 	if err != nil {
-		loginfo.Println("error while peeking")
+		loginfo.Println("error while peeking", err)
 		loginfo.Println(hex.Dump(peek[0:]))
 		return
 	}
@@ -217,8 +247,8 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 				return
 
 			} else {
-				loginfo.Println("default connection")
-				handleExternalHTTPRequest(ctx, wConn)
+				loginfo.Println("unsupported")
+				loginfo.Println(hex.Dump(peek))
 				return
 			}
 		}
@@ -227,7 +257,7 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 
 //handleExternalHTTPRequest -
 // - get a wConn and start processing requests
-func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn) {
+func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn, hostname string) {
 	connectionTracking := ctx.Value(ctxConnectionTrack).(*Tracking)
 
 	defer func() {
@@ -236,6 +266,25 @@ func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn) {
 	}()
 
 	connectionTable := ctx.Value(ctxConnectionTable).(*Table)
+	//find the connection by domain name
+	conn, ok := connectionTable.ConnByDomain(hostname)
+	if !ok {
+		//matching connection can not be found based on ConnByDomain
+		loginfo.Println("unable to match ", hostname, " to an existing connection")
+		//http.Error(, "Domain not supported", http.StatusBadRequest)
+		return
+	}
+
+	track := NewTrack(extConn, hostname)
+	connectionTracking.register <- track
+
+	loginfo.Println("Domain Accepted", hostname, extConn.RemoteAddr().String())
+
+	rAddr, rPort, err := net.SplitHostPort(extConn.RemoteAddr().String())
+	if err != nil {
+		loginfo.Println("unable to decode hostport", extConn.RemoteAddr().String())
+		return
+	}
 
 	var buffer [512]byte
 	for {
@@ -244,42 +293,6 @@ func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn) {
 			return
 		}
 
-		readBuffer := bytes.NewBuffer(buffer[0:cnt])
-		reader := bufio.NewReader(readBuffer)
-		r, err := http.ReadRequest(reader)
-
-		if err != nil {
-			loginfo.Println("error parsing request")
-			return
-		}
-
-		hostname := r.Host
-		loginfo.Println("Host: ", hostname)
-
-		if strings.Contains(hostname, ":") {
-			arr := strings.Split(hostname, ":")
-			hostname = arr[0]
-		}
-
-		loginfo.Println("Remote: ", extConn.RemoteAddr().String())
-
-		remoteSplit := strings.Split(extConn.RemoteAddr().String(), ":")
-		rAddr := remoteSplit[0]
-		rPort := remoteSplit[1]
-
-		//find the connection by domain name
-		conn, ok := connectionTable.ConnByDomain(hostname)
-		if !ok {
-			//matching connection can not be found based on ConnByDomain
-			loginfo.Println("unable to match ", hostname, " to an existing connection")
-			//http.Error(, "Domain not supported", http.StatusBadRequest)
-			return
-		}
-
-		track := NewTrack(extConn, hostname)
-		connectionTracking.register <- track
-
-		loginfo.Println("Domain Accepted", conn, rAddr, rPort)
 		p := packer.NewPacker()
 		p.Header.SetAddress(rAddr)
 		p.Header.Port, err = strconv.Atoi(rPort)
@@ -291,6 +304,8 @@ func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn) {
 		p.Header.Service = "http"
 		p.Data.AppendBytes(buffer[0:cnt])
 		buf := p.PackV1()
+
+		loginfo.Println(hex.Dump(buf.Bytes()))
 
 		sendTrack := NewSendTrack(buf.Bytes(), hostname)
 		conn.SendCh() <- sendTrack

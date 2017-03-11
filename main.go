@@ -25,6 +25,7 @@ var (
 	argDeadTime              int
 	connectionTable          *genericlistener.Table
 	secretKey                = "abc123"
+	wssHostName              = "localhost.daplie.me"
 )
 
 func init() {
@@ -70,7 +71,7 @@ func main() {
 	connectionTable = genericlistener.NewTable()
 	go connectionTable.Run(ctx)
 
-	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, connectionTracking, secretKey, certbundle, argDeadTime)
+	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, connectionTracking, secretKey, certbundle, argDeadTime, wssHostName)
 	go genericListeners.Run(ctx, 9999)
 
 	//Run for 10 minutes and then shutdown cleanly
