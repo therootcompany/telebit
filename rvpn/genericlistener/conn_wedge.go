@@ -27,9 +27,19 @@ func NewWedgeConnSize(c net.Conn, size int) (p *WedgeConn) {
 	return
 }
 
+//Discard - discard a number of bytes, perhaps after peeking at the
+func (w *WedgeConn) Discard(n int) (discarded int, err error) {
+	return w.reader.Discard(n)
+}
+
 //Peek - Get a number of bytes outof the buffer, but allow the buffer to be replayed once read
 func (w *WedgeConn) Peek(n int) ([]byte, error) {
 	return w.reader.Peek(n)
+}
+
+//ReadByte -- A normal reader.
+func (w *WedgeConn) ReadByte() (byte, error) {
+	return w.reader.ReadByte()
 }
 
 //Read -- A normal reader.

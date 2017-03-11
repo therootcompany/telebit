@@ -17,10 +17,12 @@ type Table struct {
 	unregister     chan *Connection
 	domainAnnounce chan *DomainMapping
 	domainRevoke   chan *DomainMapping
+	dwell          int
+	idle           int
 }
 
 //NewTable -- consructor
-func NewTable() (p *Table) {
+func NewTable(dwell int, idle int) (p *Table) {
 	p = new(Table)
 	p.connections = make(map[*Connection][]string)
 	p.domains = make(map[string]*Connection)
@@ -28,6 +30,8 @@ func NewTable() (p *Table) {
 	p.unregister = make(chan *Connection)
 	p.domainAnnounce = make(chan *DomainMapping)
 	p.domainRevoke = make(chan *DomainMapping)
+	p.dwell = dwell
+	p.idle = idle
 	return
 }
 
@@ -66,7 +70,7 @@ func (c *Table) reaper(delay int, idle int) {
 func (c *Table) Run(ctx context.Context) {
 	loginfo.Println("ConnectionTable starting")
 
-	go c.reaper(3000, 60)
+	go c.reaper(c.dwell, c.idle)
 
 	for {
 		select {

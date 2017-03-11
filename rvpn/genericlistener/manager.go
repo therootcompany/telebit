@@ -51,14 +51,15 @@ type GenericListeners struct {
 	connectionTracking *Tracking
 	secretKey          string
 	certbundle         tls.Certificate
-	deadTime           int
 	register           chan *ListenerRegistration
 	genericListeners   *GenericListeners
 	wssHostName        string
+	adminHostName      string
+	cancelCheck        int
 }
 
 //NewGenerListeners --
-func NewGenerListeners(ctx context.Context, connectionTable *Table, connectionTrack *Tracking, secretKey string, certbundle tls.Certificate, deadTime int, wssHostName string) (p *GenericListeners) {
+func NewGenerListeners(ctx context.Context, connectionTable *Table, connectionTrack *Tracking, secretKey string, certbundle tls.Certificate, wssHostName string, adminHostName string, cancelCheck int) (p *GenericListeners) {
 	p = new(GenericListeners)
 	p.listeners = make(map[*net.Listener]int)
 	p.ctx = ctx
@@ -66,9 +67,10 @@ func NewGenerListeners(ctx context.Context, connectionTable *Table, connectionTr
 	p.connectionTracking = connectionTrack
 	p.secretKey = secretKey
 	p.certbundle = certbundle
-	p.deadTime = deadTime
 	p.register = make(chan *ListenerRegistration)
 	p.wssHostName = wssHostName
+	p.adminHostName = adminHostName
+	p.cancelCheck = cancelCheck
 	return
 }
 
@@ -87,9 +89,10 @@ func (gl *GenericListeners) Run(ctx context.Context, initialPort int) {
 
 	ctx = context.WithValue(ctx, ctxConnectionTrack, gl.connectionTracking)
 	ctx = context.WithValue(ctx, ctxConfig, config)
-	ctx = context.WithValue(ctx, ctxDeadTime, gl.deadTime)
 	ctx = context.WithValue(ctx, ctxListenerRegistration, gl.register)
 	ctx = context.WithValue(ctx, ctxWssHostName, gl.wssHostName)
+	ctx = context.WithValue(ctx, ctxAdminHostName, gl.adminHostName)
+	ctx = context.WithValue(ctx, ctxCancelCheck, gl.cancelCheck)
 
 	go func(ctx context.Context) {
 		for {

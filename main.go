@@ -8,6 +8,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/spf13/viper"
+
 	"context"
 
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/genericlistener"
@@ -18,7 +20,7 @@ var (
 	logdebug                 *log.Logger
 	logFlags                 = log.Ldate | log.Lmicroseconds | log.Lshortfile
 	argWssClientListener     string
-	argGenericBinding        string
+	argGenericBinding        int
 	argServerBinding         string
 	argServerAdminBinding    string
 	argServerExternalBinding string
@@ -26,24 +28,42 @@ var (
 	connectionTable          *genericlistener.Table
 	secretKey                = "abc123"
 	wssHostName              = "localhost.daplie.me"
+	adminHostName            = "rvpn.daplie.invalid"
+	idle                     int
+	dwell                    int
+	cancelcheck              int
 )
 
 func init() {
-	flag.IntVar(&argDeadTime, "dead-time-counter", 5, "deadtime counter in seconds")
-	flag.StringVar(&argGenericBinding, "generic-listener", ":8443", "generic SSL Listener")
-	flag.StringVar(&argWssClientListener, "wss-client-listener", ":3502", "wss client listener address:port")
-	flag.StringVar(&argServerAdminBinding, "admin-server-port", "127.0.0.2:8000", "admin server Bind listener")
-	flag.StringVar(&argServerExternalBinding, "external-server-port", "127.0.0.1:8080", "external server Bind listener")
+
 }
 
 //Main -- main entry point
 func main() {
 	flag.Parse()
+	loginfo = log.New(os.Stdout, "INFO: main: ", logFlags)
+	logdebug = log.New(os.Stdout, "DEBUG: main:", logFlags)
+	viper.SetConfigName("go-rvpn-server")
+	viper.AddConfigPath("./")
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(fmt.Errorf("Fatal error config file: %s \n", err))
+	}
 
-	loginfo = log.New(os.Stdout, "INFO: packer: ", logFlags)
-	logdebug = log.New(os.Stdout, "DEBUG: packer:", logFlags)
+	flag.IntVar(&argDeadTime, "dead-time-counter", 5, "deadtime counter in seconds")
+
+	wssHostName = viper.Get("rvpn.wssdomain").(string)
+	adminHostName = viper.Get("rvpn.admindomain").(string)
+	argGenericBinding = viper.GetInt("rvpn.genericlistener")
+	deadtime := viper.Get("rvpn.deadtime")
+	idle = deadtime.(map[string]interface{})["idle"].(int)
+	dwell = deadtime.(map[string]interface{})["dwell"].(int)
+	cancelcheck = deadtime.(map[string]interface{})["cancelcheck"].(int)
 
 	loginfo.Println("startup")
+
+	loginfo.Println(viper.Get("rvpn.genericlisteners"))
+	loginfo.Println(viper.Get("rvpn.domains"))
 
 	fmt.Println("-=-=-=-=-=-=-=-=-=-=")
 
@@ -68,11 +88,11 @@ func main() {
 	connectionTracking := genericlistener.NewTracking()
 	go connectionTracking.Run(ctx)
 
-	connectionTable = genericlistener.NewTable()
+	connectionTable = genericlistener.NewTable(dwell, idle)
 	go connectionTable.Run(ctx)
 
-	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, connectionTracking, secretKey, certbundle, argDeadTime, wssHostName)
-	go genericListeners.Run(ctx, 9999)
+	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, connectionTracking, secretKey, certbundle, wssHostName, adminHostName, cancelcheck)
+	go genericListeners.Run(ctx, argGenericBinding)
 
 	//Run for 10 minutes and then shutdown cleanly
 	time.Sleep(600 * time.Second)

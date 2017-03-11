@@ -31,10 +31,11 @@ const (
 	ctxSecretKey            contextKey = "secretKey"
 	ctxConnectionTable      contextKey = "connectionTable"
 	ctxConfig               contextKey = "config"
-	ctxDeadTime             contextKey = "deadtime"
 	ctxListenerRegistration contextKey = "listenerRegistration"
 	ctxConnectionTrack      contextKey = "connectionTrack"
 	ctxWssHostName          contextKey = "wsshostname"
+	ctxAdminHostName        contextKey = "adminHostName"
+	ctxCancelCheck          contextKey = "cancelcheck"
 )
 
 const (
@@ -52,11 +53,10 @@ const (
 // - if TLS, consume connection with TLS certbundle, pass to request identifier
 // - else, just pass to the request identififer
 func GenericListenAndServe(ctx context.Context, listenerRegistration *ListenerRegistration) {
-
 	loginfo.Println(":" + string(listenerRegistration.port))
+	cancelCheck := ctx.Value(ctxCancelCheck).(int)
 
 	listenAddr, err := net.ResolveTCPAddr("tcp", ":"+strconv.Itoa(listenerRegistration.port))
-	deadTime := ctx.Value(ctxDeadTime).(int)
 
 	if nil != err {
 		loginfo.Println(err)
@@ -81,11 +81,9 @@ func GenericListenAndServe(ctx context.Context, listenerRegistration *ListenerRe
 			loginfo.Println("Cancel signal hit")
 			return
 		default:
-			ln.SetDeadline(time.Now().Add(time.Duration(deadTime) * time.Second))
+			ln.SetDeadline(time.Now().Add(time.Duration(cancelCheck) * time.Second))
 
 			conn, err := ln.Accept()
-
-			loginfo.Println("Deadtime reached")
 
 			if nil != err {
 				if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
@@ -160,6 +158,8 @@ func handleConnection(ctx context.Context, wConn *WedgeConn) {
 		}
 
 		wssHostName := ctx.Value(ctxWssHostName).(string)
+		adminHostName := ctx.Value(ctxAdminHostName).(string)
+
 		sniHostName, err := getHello(peek)
 		if err != nil {
 			loginfo.Println(err)
@@ -168,25 +168,39 @@ func handleConnection(ctx context.Context, wConn *WedgeConn) {
 
 		loginfo.Println("sni:", sniHostName)
 
-		if wssHostName != sniHostName {
+		if sniHostName == wssHostName {
+			//handle WSS Path
+			tlsListener := tls.NewListener(oneConn, config)
+
+			conn, err := tlsListener.Accept()
+			if err != nil {
+				loginfo.Println(err)
+				return
+			}
+
+			tlsWedgeConn := NewWedgeConn(conn)
+			handleStream(ctx, tlsWedgeConn)
+			return
+
+		} else if sniHostName == adminHostName {
+			// handle admin path
+			tlsListener := tls.NewListener(oneConn, config)
+
+			conn, err := tlsListener.Accept()
+			if err != nil {
+				loginfo.Println(err)
+				return
+			}
+
+			tlsWedgeConn := NewWedgeConn(conn)
+			handleStream(ctx, tlsWedgeConn)
+			return
+
+		} else {
 			//traffic not terminating on the rvpn do not decrypt
-			loginfo.Println("processing non terminating traffic")
+			loginfo.Println("processing non terminating traffic", wssHostName, sniHostName)
 			handleExternalHTTPRequest(ctx, wConn, sniHostName, "https")
 		}
-
-		loginfo.Println("processing traffic terminating on RVPN")
-
-		tlsListener := tls.NewListener(oneConn, config)
-
-		conn, err := tlsListener.Accept()
-		if err != nil {
-			loginfo.Println(err)
-			return
-		}
-
-		tlsWedgeConn := NewWedgeConn(conn)
-		handleStream(ctx, tlsWedgeConn)
-		return
 	}
 
 	loginfo.Println("Handle Unencrypted")
@@ -257,7 +271,7 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 
 //handleExternalHTTPRequest -
 // - get a wConn and start processing requests
-func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn, hostname string, service string) {
+func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname string, service string) {
 	connectionTracking := ctx.Value(ctxConnectionTrack).(*Tracking)
 
 	defer func() {
@@ -286,12 +300,16 @@ func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn, hostname s
 		return
 	}
 
-	var buffer [1024]byte
 	for {
-		cnt, err := extConn.Read(buffer[0:])
+		buffer, err := extConn.PeekAll()
 		if err != nil {
+			loginfo.Println("unable to peekAll", err)
 			return
 		}
+
+		loginfo.Println("Before Packer", hex.Dump(buffer))
+
+		cnt := len(buffer)
 
 		p := packer.NewPacker()
 		p.Header.SetAddress(rAddr)
@@ -309,6 +327,13 @@ func handleExternalHTTPRequest(ctx context.Context, extConn net.Conn, hostname s
 
 		sendTrack := NewSendTrack(buf.Bytes(), hostname)
 		conn.SendCh() <- sendTrack
+
+		_, err = extConn.Discard(cnt)
+		if err != nil {
+			loginfo.Println("unable to discard", cnt, err)
+			return
+		}
+
 	}
 }
 
