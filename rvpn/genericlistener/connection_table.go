@@ -66,6 +66,19 @@ func (c *Table) reaper(delay int, idle int) {
 	}
 }
 
+//GetConnection -- find connection by server-id
+func (c *Table) GetConnection(serverID int64) (conn *Connection, err error) {
+	for conn := range c.connections {
+		if conn.ConnectionID() == serverID {
+			return conn, err
+		}
+	}
+
+	err = fmt.Errorf("Server-id %d not found", serverID)
+
+	return nil, err
+}
+
 //Run -- Execute
 func (c *Table) Run(ctx context.Context) {
 	loginfo.Println("ConnectionTable starting")

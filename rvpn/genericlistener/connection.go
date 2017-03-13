@@ -63,10 +63,15 @@ type Connection struct {
 
 	///wssState tracks a highlevel status of the connection, false means do nothing.
 	wssState bool
+
+	//connectionID
+	connectionID int64
 }
 
 //NewConnection -- Constructor
 func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress string, initialDomains []interface{}, connectionTrack *Tracking) (p *Connection) {
+	connectionID = connectionID + 1
+
 	p = new(Connection)
 	p.mutex = &sync.Mutex{}
 	p.connectionTable = connectionTable
@@ -85,6 +90,7 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	}
 
 	p.State(true)
+	p.connectionID = connectionID
 	return
 }
 
@@ -122,6 +128,11 @@ func (c *Connection) BytesOut() (b int64) {
 //SendCh -- property to sending channel
 func (c *Connection) SendCh() chan *SendTrack {
 	return c.send
+}
+
+//Source --
+func (c *Connection) Source() string {
+	return c.source
 }
 
 func (c *Connection) addIn(num int64) {
@@ -165,6 +176,11 @@ func (c *Connection) Update() {
 
 	c.mutex.Lock()
 	c.lastUpdate = time.Now()
+}
+
+//ConnectionID - Get
+func (c *Connection) ConnectionID() int64 {
+	return c.connectionID
 }
 
 //NextWriter -- Wrapper to allow a high level state check before offering NextWriter

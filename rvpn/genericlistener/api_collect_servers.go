@@ -5,23 +5,27 @@ import (
 	"time"
 )
 
-//ServerAPI -- Structure to support the server API
-type ServerAPI struct {
+//ServersAPI -- Structure to support the server API
+type ServersAPI struct {
 	ServerName string       `json:"server_name"`
+	ServerID   int64        `json:"server_id"`
 	Domains    []*DomainAPI `json:"domains"`
 	Duration   float64      `json:"duration"`
 	BytesIn    int64        `json:"bytes_in"`
 	BytesOut   int64        `json:"bytes_out"`
+	Source     string       `json:"source_address"`
 }
 
-//NewServerAPI - Constructor
-func NewServerAPI(c *Connection) (s *ServerAPI) {
-	s = new(ServerAPI)
+//NewServersAPI - Constructor
+func NewServersAPI(c *Connection) (s *ServersAPI) {
+	s = new(ServersAPI)
 	s.ServerName = fmt.Sprintf("%p", c)
+	s.ServerID = c.ConnectionID()
 	s.Domains = make([]*DomainAPI, 0)
 	s.Duration = time.Since(c.ConnectTime()).Seconds()
 	s.BytesIn = c.BytesIn()
 	s.BytesOut = c.BytesOut()
+	s.Source = c.Source()
 
 	for d := range c.DomainTrack {
 		dt := c.DomainTrack[d]
@@ -33,12 +37,12 @@ func NewServerAPI(c *Connection) (s *ServerAPI) {
 
 //ServerAPIContainer -- Holder for all the Servers
 type ServerAPIContainer struct {
-	Servers []*ServerAPI `json:"servers"`
+	Servers []*ServersAPI `json:"servers"`
 }
 
 //NewServerAPIContainer -- Constructor
 func NewServerAPIContainer() (p *ServerAPIContainer) {
 	p = new(ServerAPIContainer)
-	p.Servers = make([]*ServerAPI, 0)
+	p.Servers = make([]*ServersAPI, 0)
 	return p
 }
