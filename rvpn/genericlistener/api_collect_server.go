@@ -27,5 +27,10 @@ func NewServerAPI(c *Connection) (s *ServerAPI) {
 	s.BytesOut = c.BytesOut()
 	s.Source = c.source
 
+	for domainName := range c.DomainTrack {
+
+		domainAPI := NewDomainAPI(c, c.DomainTrack[domainName])
+		s.Domains = append(s.Domains, domainAPI)
+	}
 	return
 }

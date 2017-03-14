@@ -43,7 +43,9 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintln(w, "<html>Welcome..press <a href=/api/com.daplie.rvpn/servers>Servers</a> to access stats</html>")
 	})
-
+	router.HandleFunc(endPointPrefix+"domains", getDomainsEndpoint).Methods("GET")
+	router.HandleFunc(endPointPrefix+"domain/", getDomainEndpoint).Methods("GET")
+	router.HandleFunc(endPointPrefix+"domain/{domain-name}", getDomainEndpoint).Methods("GET")
 	router.HandleFunc(endPointPrefix+"servers", getServersEndpoint).Methods("GET")
 	router.HandleFunc(endPointPrefix+"server/", getServerEndpoint).Methods("GET")
 	router.HandleFunc(endPointPrefix+"server/{server-id}", getServerEndpoint).Methods("GET")
@@ -65,6 +67,54 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 	}
 }
 
+func getDomainsEndpoint(w http.ResponseWriter, r *http.Request) {
+	pc, _, _, _ := runtime.Caller(0)
+	loginfo.Println(runtime.FuncForPC(pc).Name())
+
+	domainsContainer := NewDomainsAPIContainer()
+
+	for domain := range connectionTable.domains {
+		conn := connectionTable.domains[domain]
+		domainAPI := NewDomainsAPI(conn, conn.DomainTrack[domain])
+		domainsContainer.Domains = append(domainsContainer.Domains, domainAPI)
+
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+	env := envelope.NewEnvelope("domains/GET")
+	env.Result = domainsContainer
+	env.GenerateWriter(w)
+
+}
+
+func getDomainEndpoint(w http.ResponseWriter, r *http.Request) {
+	pc, _, _, _ := runtime.Caller(0)
+	loginfo.Println(runtime.FuncForPC(pc).Name())
+
+	env := envelope.NewEnvelope("domain/GET")
+
+	params := mux.Vars(r)
+	if id, ok := params["domain-name"]; !ok {
+		env.Error = "domain-name is missing"
+		env.ErrorURI = r.RequestURI
+		env.ErrorDescription = "domain API requires a domain-name"
+	} else {
+		domainName := id
+		if conn, ok := connectionTable.domains[domainName]; !ok {
+			env.Error = "domain-name was not found"
+			env.ErrorURI = r.RequestURI
+			env.ErrorDescription = "domain-name not found"
+		} else {
+
+			domainAPI := NewDomainAPI(conn, conn.DomainTrack[domainName])
+			env.Result = domainAPI
+		}
+	}
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	env.GenerateWriter(w)
+}
+
 func getServersEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
 	loginfo.Println(runtime.FuncForPC(pc).Name())
@@ -82,9 +132,6 @@ func getServersEndpoint(w http.ResponseWriter, r *http.Request) {
 	env := envelope.NewEnvelope("servers/GET")
 	env.Result = serverContainer
 	env.GenerateWriter(w)
-
-	//json.NewEncoder(w).Encode(serverContainer)
-
 }
 
 func getServerEndpoint(w http.ResponseWriter, r *http.Request) {
