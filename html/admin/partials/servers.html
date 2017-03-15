@@ -1,0 +1,29 @@
+<div class="panel-heading ">Control Plane</div>
+<div class="panel-body">
+
+    <div class="row"> <!-- Auth -->
+        <div class="col-lg-6">
+            <div class="input-group">
+                <span class="input-group-btn">
+                <button class="btn btn-default" type="button" ng-click="startWebSocket()">Start WebSocket</button>
+                </span>
+                <button class="btn btn-default" type="button" ng-class="conn == false && 'btn-danger' || 'btn-success'">
+                    {[{ conn == false && 'False' || 'True' }]}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <br>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="input-group">
+                <span class="input-group-btn">
+                <button class="btn btn-default" type="button">Auth</button>
+                </span>
+                <input type="text" class="form-control" placeholder="Enter auth data here">
+            </div>
+        </div>
+    </div>
+</div>

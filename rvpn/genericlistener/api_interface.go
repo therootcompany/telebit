@@ -2,7 +2,6 @@ package genericlistener
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"runtime"
 	"strconv"
@@ -25,6 +24,8 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 	connectionTable = ctx.Value(ctxConnectionTable).(*Table)
 	router := mux.NewRouter().StrictSlash(true)
 
+	router.PathPrefix("/admin/").Handler(http.StripPrefix("/admin/", http.FileServer(http.Dir("html/admin"))))
+
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		loginfo.Println("HandleFunc /")
 		switch url := r.URL.Path; url {
@@ -39,10 +40,6 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 		}
 	})
 
-	router.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintln(w, "<html>Welcome..press <a href=/api/com.daplie.rvpn/servers>Servers</a> to access stats</html>")
-	})
 	router.HandleFunc(endPointPrefix+"domains", getDomainsEndpoint).Methods("GET")
 	router.HandleFunc(endPointPrefix+"domain/", getDomainEndpoint).Methods("GET")
 	router.HandleFunc(endPointPrefix+"domain/{domain-name}", getDomainEndpoint).Methods("GET")
