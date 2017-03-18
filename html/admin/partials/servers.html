@@ -37,6 +37,7 @@
             <td>
                 {{ s.source_address }}
                 <div ng-hide="checkDetail(s.server_id)">
+                    domains({{ s.domains.length}})
                     <div  ng-repeat="d in s.domains | orderBy:'domain_name'">
                     &nbsp&nbsp&nbsp{{ d.domain_name }}
                     </div>   
@@ -45,8 +46,9 @@
             <td>
                 {{ s.bytes_in | bytes }}/{{ s.bytes_out | bytes }}
                 <div ng-hide="checkDetail(s.server_id)">
+                    domains({{ s.domains.length}})
                     <div  ng-repeat="d in s.domains | orderBy:'domain_name'">
-                    {{ d.bytes_in | bytes }}/{{ d.bytes_out | bytes }}
+                    &nbsp&nbsp&nbsp{{ d.bytes_in | bytes }}/{{ d.bytes_out | bytes }}
                     </div>   
                 </div>
             </td>

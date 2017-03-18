@@ -66,6 +66,7 @@ app.controller('serverController', function ($scope, $http) {
     $scope.servers = [];
     $scope.servers_search = "";
     $scope.servers_trigger_details = [];
+    $scope.filtered
 
     var api = '/api/com.daplie.rvpn/servers'
    
