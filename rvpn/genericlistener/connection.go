@@ -178,6 +178,11 @@ func (c *Connection) Update() {
 	c.lastUpdate = time.Now()
 }
 
+//LastUpdate -- retrieve last update
+func (c *Connection) LastUpdate() time.Time {
+	return c.lastUpdate
+}
+
 //ConnectionID - Get
 func (c *Connection) ConnectionID() int64 {
 	return c.connectionID

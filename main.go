@@ -95,6 +95,6 @@ func main() {
 	go genericListeners.Run(ctx, argGenericBinding)
 
 	//Run for 10 minutes and then shutdown cleanly
-	time.Sleep(600 * time.Second)
+	time.Sleep(6000 * time.Second)
 	cancelContext()
 }

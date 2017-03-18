@@ -11,6 +11,7 @@ type ServersAPI struct {
 	ServerID   int64        `json:"server_id"`
 	Domains    []*DomainAPI `json:"domains"`
 	Duration   float64      `json:"duration"`
+	Idle       float64      `json:"idle"`
 	BytesIn    int64        `json:"bytes_in"`
 	BytesOut   int64        `json:"bytes_out"`
 	Source     string       `json:"source_address"`
@@ -23,6 +24,7 @@ func NewServersAPI(c *Connection) (s *ServersAPI) {
 	s.ServerID = c.ConnectionID()
 	s.Domains = make([]*DomainAPI, 0)
 	s.Duration = time.Since(c.ConnectTime()).Seconds()
+	s.Idle = time.Since(c.LastUpdate()).Seconds()
 	s.BytesIn = c.BytesIn()
 	s.BytesOut = c.BytesOut()
 	s.Source = c.Source()
