@@ -13,4 +13,7 @@ rvpn:
       secret: abc123
     test3.daplie.me:
       secret: abc123
+  loadbalancing:
+    defaultmethod: 'round-robin'
+    
 

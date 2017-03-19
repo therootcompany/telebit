@@ -32,6 +32,7 @@ var (
 	idle                     int
 	dwell                    int
 	cancelcheck              int
+	lbDefaultMethod          string
 )
 
 func init() {
@@ -59,6 +60,7 @@ func main() {
 	idle = deadtime.(map[string]interface{})["idle"].(int)
 	dwell = deadtime.(map[string]interface{})["dwell"].(int)
 	cancelcheck = deadtime.(map[string]interface{})["cancelcheck"].(int)
+	lbDefaultMethod = viper.Get("rvpn.loadbalancing.defaultmethod").(string)
 
 	loginfo.Println("startup")
 
@@ -91,8 +93,10 @@ func main() {
 	connectionTable = genericlistener.NewTable(dwell, idle)
 	go connectionTable.Run(ctx)
 
-	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, connectionTracking, secretKey, certbundle, wssHostName, adminHostName, cancelcheck)
-	go genericListeners.Run(ctx, argGenericBinding)
+	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, connectionTracking, secretKey, certbundle, wssHostName,
+		adminHostName, cancelcheck, lbDefaultMethod)
+
+	genericListeners.Run(ctx, argGenericBinding)
 
 	//Run for 10 minutes and then shutdown cleanly
 	time.Sleep(6000 * time.Second)

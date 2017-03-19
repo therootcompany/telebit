@@ -26,14 +26,15 @@ type contextKey string
 
 //CtxConnectionTrack
 const (
-	ctxSecretKey            contextKey = "secretKey"
-	ctxConnectionTable      contextKey = "connectionTable"
-	ctxConfig               contextKey = "config"
-	ctxListenerRegistration contextKey = "listenerRegistration"
-	ctxConnectionTrack      contextKey = "connectionTrack"
-	ctxWssHostName          contextKey = "wsshostname"
-	ctxAdminHostName        contextKey = "adminHostName"
-	ctxCancelCheck          contextKey = "cancelcheck"
+	ctxSecretKey                contextKey = "secretKey"
+	ctxConnectionTable          contextKey = "connectionTable"
+	ctxConfig                   contextKey = "config"
+	ctxListenerRegistration     contextKey = "listenerRegistration"
+	ctxConnectionTrack          contextKey = "connectionTrack"
+	ctxWssHostName              contextKey = "wsshostname"
+	ctxAdminHostName            contextKey = "adminHostName"
+	ctxCancelCheck              contextKey = "cancelcheck"
+	ctxLoadbalanceDefaultMethod contextKey = "lbdefaultmethod"
 )
 
 const (

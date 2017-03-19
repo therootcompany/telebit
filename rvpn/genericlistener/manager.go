@@ -56,10 +56,12 @@ type GenericListeners struct {
 	wssHostName        string
 	adminHostName      string
 	cancelCheck        int
+	lbDefaultMethod    string
 }
 
 //NewGenerListeners --
-func NewGenerListeners(ctx context.Context, connectionTable *Table, connectionTrack *Tracking, secretKey string, certbundle tls.Certificate, wssHostName string, adminHostName string, cancelCheck int) (p *GenericListeners) {
+func NewGenerListeners(ctx context.Context, connectionTable *Table, connectionTrack *Tracking, secretKey string, certbundle tls.Certificate,
+	wssHostName string, adminHostName string, cancelCheck int, lbDefaultMethod string) (p *GenericListeners) {
 	p = new(GenericListeners)
 	p.listeners = make(map[*net.Listener]int)
 	p.ctx = ctx
@@ -71,6 +73,7 @@ func NewGenerListeners(ctx context.Context, connectionTable *Table, connectionTr
 	p.wssHostName = wssHostName
 	p.adminHostName = adminHostName
 	p.cancelCheck = cancelCheck
+	p.lbDefaultMethod = lbDefaultMethod
 	return
 }
 
@@ -93,6 +96,7 @@ func (gl *GenericListeners) Run(ctx context.Context, initialPort int) {
 	ctx = context.WithValue(ctx, ctxWssHostName, gl.wssHostName)
 	ctx = context.WithValue(ctx, ctxAdminHostName, gl.adminHostName)
 	ctx = context.WithValue(ctx, ctxCancelCheck, gl.cancelCheck)
+	ctx = context.WithValue(ctx, ctxLoadbalanceDefaultMethod, gl.lbDefaultMethod)
 
 	go func(ctx context.Context) {
 		for {
