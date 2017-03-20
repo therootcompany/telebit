@@ -14,6 +14,8 @@ type ServersAPI struct {
 	Idle       float64      `json:"idle"`
 	BytesIn    int64        `json:"bytes_in"`
 	BytesOut   int64        `json:"bytes_out"`
+	Requests   int64        `json:"requests"`
+	Responses  int64        `json:"responses"`
 	Source     string       `json:"source_address"`
 }
 
@@ -27,6 +29,8 @@ func NewServersAPI(c *Connection) (s *ServersAPI) {
 	s.Idle = time.Since(c.LastUpdate()).Seconds()
 	s.BytesIn = c.BytesIn()
 	s.BytesOut = c.BytesOut()
+	s.Requests = c.requests
+	s.Responses = c.responses
 	s.Source = c.Source()
 
 	for d := range c.DomainTrack {

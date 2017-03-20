@@ -1,0 +1,22 @@
+<div class="panel panel-default" data-ng-controller="serverController">
+  <div class="panel-heading">
+      <div class="panel-title">
+          <div class="row">
+            <div class="col-md-6">
+                Status
+            </div>
+            <div class="col-md-6">
+                <form class="form-inline pull-right">
+                    <div class="form-group">
+                        <label for="search">Search:</label>
+                        <input type="text" class="form-control" id="search" data-ng-model="servers_search">
+                    </div>
+                    <button type="button" title="Refresh" class="btn btn-default" aria-label="Refresh">
+                        <span class="glyphicon glyphicon-refresh" title="Refresh" aria-hidden="false" ng-click="updateView()"></span>
+                    </button>
+                </form>
+            </div>
+          </div>
+    </div>
+  </div>
+</div>

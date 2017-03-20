@@ -1,4 +1,5 @@
 rvpn:
+  serverName: rvpn1
   wssdomain: localhost.daplie.me
   admindomain: rvpn.daplie.invalid
   genericlistener: 9999
@@ -14,6 +15,6 @@ rvpn:
     test3.daplie.me:
       secret: abc123
   loadbalancing:
-    defaultmethod: 'round-robin'
+    defaultmethod: round-robin
     
 

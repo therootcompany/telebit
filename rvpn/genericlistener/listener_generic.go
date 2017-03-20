@@ -26,8 +26,11 @@ type contextKey string
 
 //CtxConnectionTrack
 const (
-	ctxSecretKey                contextKey = "secretKey"
-	ctxConnectionTable          contextKey = "connectionTable"
+	ctxSecretKey    contextKey = "secretKey"
+	ctxServerStatus contextKey = "serverstatus"
+
+	//ctxConnectionTable          contextKey = "connectionTable"
+
 	ctxConfig                   contextKey = "config"
 	ctxListenerRegistration     contextKey = "listenerRegistration"
 	ctxConnectionTrack          contextKey = "connectionTrack"
@@ -271,16 +274,16 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 //handleExternalHTTPRequest -
 // - get a wConn and start processing requests
 func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname string, service string) {
-	connectionTracking := ctx.Value(ctxConnectionTrack).(*Tracking)
+	//connectionTracking := ctx.Value(ctxConnectionTrack).(*Tracking)
+	serverStatus := ctx.Value(ctxServerStatus).(*Status)
 
 	defer func() {
-		connectionTracking.unregister <- extConn
+		serverStatus.ExtConnectionUnregister(extConn)
 		extConn.Close()
 	}()
 
-	connectionTable := ctx.Value(ctxConnectionTable).(*Table)
 	//find the connection by domain name
-	conn, ok := connectionTable.ConnByDomain(hostname)
+	conn, ok := serverStatus.ConnectionTable.ConnByDomain(hostname)
 	if !ok {
 		//matching connection can not be found based on ConnByDomain
 		loginfo.Println("unable to match ", hostname, " to an existing connection")
@@ -289,7 +292,7 @@ func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname
 	}
 
 	track := NewTrack(extConn, hostname)
-	connectionTracking.register <- track
+	serverStatus.ExtConnectionRegister(track)
 
 	loginfo.Println("Domain Accepted", hostname, extConn.RemoteAddr().String())
 
@@ -322,10 +325,11 @@ func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname
 		p.Data.AppendBytes(buffer[0:cnt])
 		buf := p.PackV1()
 
-		loginfo.Println(hex.Dump(buf.Bytes()))
+		//loginfo.Println(hex.Dump(buf.Bytes()))
 
+		//Bundle up the send request and dispatch
 		sendTrack := NewSendTrack(buf.Bytes(), hostname)
-		conn.SendCh() <- sendTrack
+		serverStatus.SendExtRequest(conn, sendTrack)
 
 		_, err = extConn.Discard(cnt)
 		if err != nil {
@@ -341,7 +345,9 @@ func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname
 // - auth will happen again since we were just peeking at the token.
 func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 	secretKey := ctx.Value(ctxSecretKey).(string)
-	connectionTable := ctx.Value(ctxConnectionTable).(*Table)
+	serverStatus := ctx.Value(ctxServerStatus).(*Status)
+
+	//connectionTable := ctx.Value(ctxConnectionTable).(*Table)
 
 	router := mux.NewRouter().StrictSlash(true)
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -380,9 +386,10 @@ func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 
 			//newConnection := connection.NewConnection(connectionTable, conn, r.RemoteAddr, domains)
 
-			connectionTrack := ctx.Value(ctxConnectionTrack).(*Tracking)
-			newRegistration := NewRegistration(conn, r.RemoteAddr, domains, connectionTrack)
-			connectionTable.Register() <- newRegistration
+			//connectionTrack := ctx.Value(ctxConnectionTrack).(*Tracking)
+			newRegistration := NewRegistration(conn, r.RemoteAddr, domains, serverStatus.ConnectionTracking)
+			serverStatus.WSSConnectionRegister(newRegistration)
+
 			ok = <-newRegistration.CommCh()
 			if !ok {
 				loginfo.Println("connection registration failed ", newRegistration)

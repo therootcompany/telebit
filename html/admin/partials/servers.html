@@ -26,6 +26,7 @@
         <th width="10%">Name</th>
         <th width="10%">Address</th>
         <th width="10%">Xfer (in/out)</th>
+        <th width="10%">Req/Resp</th>
         <th width="10%">Time</th>
         <th width="10%">Idle</th>
         <th width="1%"><center><span class="glyphicon glyphicon-option-vertical" aria-hidden="true"></span></center></th>
@@ -46,16 +47,34 @@
             <td>
                 {{ s.bytes_in | bytes }}/{{ s.bytes_out | bytes }}
                 <div ng-hide="checkDetail(s.server_id)">
-                    domains({{ s.domains.length}})
+                    &nbsp
                     <div  ng-repeat="d in s.domains | orderBy:'domain_name'">
                     &nbsp&nbsp&nbsp{{ d.bytes_in | bytes }}/{{ d.bytes_out | bytes }}
                     </div>   
                 </div>
             </td>
+            <td>
+                {{ s.requests }}/{{ s.responses }}
+                <div ng-hide="checkDetail(s.server_id)">
+                    &nbsp
+                    <div  ng-repeat="d in s.domains | orderBy:'domain_name'">
+                    &nbsp&nbsp&nbsp{{ d.requests }}/{{ d.responses  }}
+                    </div>   
+                </div>
+            </td>
+
             <td>{{ s.duration | hfcduration }}</td>
             <td>{{ s.idle | hfcduration }}</td>
             <td>
                 <span class="glyphicon glyphicon-zoom-in" title="Detail" aria-hidden="false" ng-click="triggerDetail(s.server_id)"></span>
+                <div ng-hide="checkDetail(s.server_id)">
+                    &nbsp
+                    <div  ng-repeat="d in s.domains | orderBy:'domain_name'">
+                    <span class="glyphicon glyphicon-zoom-in" title="Detail" aria-hidden="false" ng-click="triggerDetail(s.server_id+d.domain_name)"></span>
+                    </div>   
+                </div>
+
+
             </td>
         </tr>
 

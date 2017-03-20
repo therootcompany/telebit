@@ -33,6 +33,7 @@ var (
 	dwell                    int
 	cancelcheck              int
 	lbDefaultMethod          string
+	serverName               string
 )
 
 func init() {
@@ -48,7 +49,7 @@ func main() {
 	viper.AddConfigPath("./")
 	err := viper.ReadInConfig()
 	if err != nil {
-		panic(fmt.Errorf("Fatal error config file: %s \n", err))
+		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
 
 	flag.IntVar(&argDeadTime, "dead-time-counter", 5, "deadtime counter in seconds")
@@ -61,6 +62,7 @@ func main() {
 	dwell = deadtime.(map[string]interface{})["dwell"].(int)
 	cancelcheck = deadtime.(map[string]interface{})["cancelcheck"].(int)
 	lbDefaultMethod = viper.Get("rvpn.loadbalancing.defaultmethod").(string)
+	serverName = viper.Get("rvpn.serverName").(string)
 
 	loginfo.Println("startup")
 
@@ -78,6 +80,14 @@ func main() {
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
 
+	serverStatus := genericlistener.NewStatus(ctx)
+	serverStatus.AdminDomain = adminHostName
+	serverStatus.WssDomain = wssHostName
+	serverStatus.Name = serverName
+	serverStatus.StartTime = time.Now()
+	serverStatus.DeadTime = genericlistener.NewStatusDeadTime(dwell, idle, cancelcheck)
+	serverStatus.LoadbalanceDefaultMethod = lbDefaultMethod
+
 	// Setup for GenericListenServe.
 	// - establish context for the generic listener
 	// - startup listener
@@ -88,17 +98,17 @@ func main() {
 	// - match protocol
 
 	connectionTracking := genericlistener.NewTracking()
+	serverStatus.ConnectionTracking = connectionTracking
 	go connectionTracking.Run(ctx)
 
 	connectionTable = genericlistener.NewTable(dwell, idle)
+	serverStatus.ConnectionTable = connectionTable
 	go connectionTable.Run(ctx)
 
-	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, connectionTracking, secretKey, certbundle, wssHostName,
-		adminHostName, cancelcheck, lbDefaultMethod)
+	genericListeners := genericlistener.NewGenerListeners(ctx, secretKey, certbundle, serverStatus)
+	serverStatus.GenericListeners = genericListeners
 
-	genericListeners.Run(ctx, argGenericBinding)
+	go genericListeners.Run(ctx, argGenericBinding)
 
-	//Run for 10 minutes and then shutdown cleanly
-	time.Sleep(6000 * time.Second)
-	cancelContext()
+	select {}
 }

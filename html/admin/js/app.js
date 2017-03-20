@@ -4,15 +4,23 @@ var app = angular.module("rvpnApp", ["ngRoute", "angular-duration-format"]);
 
 app.config(function($routeProvider, $locationProvider) {
     $routeProvider
+
+    .when("/admin/status/", {
+        templateUrl : "admin/partials/status.html"
+    })
+
     .when("/admin/index.html", {
         templateUrl : "admin/partials/servers.html"
     })
+
     .when("/admin/servers/", {
         templateUrl : "admin/partials/servers.html"
     })
+
     .when("/admin/#domains", {
         templateUrl : "green.htm"
     })
+    
     .when("/blue", {
         templateUrl : "blue.htm"
     });
@@ -81,7 +89,7 @@ app.controller('serverController', function ($scope, $http) {
     }
 
     $scope.triggerDetail = function(id) {
-        console.log("triggerDetail ", id, $scope.servers_trigger_details[id])
+        //console.log("triggerDetail ", id, $scope.servers_trigger_details[id])
         if ($scope.servers_trigger_details[id] == true) {
             $scope.servers_trigger_details[id] = false;
         } else {
@@ -90,7 +98,7 @@ app.controller('serverController', function ($scope, $http) {
     };
 
     $scope.checkDetail = function(id) {
-        console.log("checkDetail ", id, $scope.servers_trigger_details[id])
+        //console.log("checkDetail ", id, $scope.servers_trigger_details[id])
         if ($scope.servers_trigger_details[id] == true) {
             return false;
         } else {

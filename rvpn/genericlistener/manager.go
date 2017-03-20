@@ -57,23 +57,24 @@ type GenericListeners struct {
 	adminHostName      string
 	cancelCheck        int
 	lbDefaultMethod    string
+	serverStatus       *Status
 }
 
 //NewGenerListeners --
-func NewGenerListeners(ctx context.Context, connectionTable *Table, connectionTrack *Tracking, secretKey string, certbundle tls.Certificate,
-	wssHostName string, adminHostName string, cancelCheck int, lbDefaultMethod string) (p *GenericListeners) {
+func NewGenerListeners(ctx context.Context, secretKey string, certbundle tls.Certificate, serverStatus *Status) (p *GenericListeners) {
 	p = new(GenericListeners)
 	p.listeners = make(map[*net.Listener]int)
 	p.ctx = ctx
-	p.connnectionTable = connectionTable
-	p.connectionTracking = connectionTrack
+	p.connnectionTable = serverStatus.ConnectionTable
+	p.connectionTracking = serverStatus.ConnectionTracking
 	p.secretKey = secretKey
 	p.certbundle = certbundle
 	p.register = make(chan *ListenerRegistration)
-	p.wssHostName = wssHostName
-	p.adminHostName = adminHostName
-	p.cancelCheck = cancelCheck
-	p.lbDefaultMethod = lbDefaultMethod
+	p.wssHostName = serverStatus.WssDomain
+	p.adminHostName = serverStatus.AdminDomain
+	p.cancelCheck = serverStatus.DeadTime.cancelcheck
+	p.lbDefaultMethod = serverStatus.LoadbalanceDefaultMethod
+	p.serverStatus = serverStatus
 	return
 }
 
@@ -86,7 +87,6 @@ func (gl *GenericListeners) Run(ctx context.Context, initialPort int) {
 	config := &tls.Config{Certificates: []tls.Certificate{gl.certbundle}}
 
 	ctx = context.WithValue(ctx, ctxSecretKey, gl.secretKey)
-	ctx = context.WithValue(ctx, ctxConnectionTable, gl.connnectionTable)
 
 	loginfo.Println(gl.connectionTracking)
 
@@ -97,6 +97,7 @@ func (gl *GenericListeners) Run(ctx context.Context, initialPort int) {
 	ctx = context.WithValue(ctx, ctxAdminHostName, gl.adminHostName)
 	ctx = context.WithValue(ctx, ctxCancelCheck, gl.cancelCheck)
 	ctx = context.WithValue(ctx, ctxLoadbalanceDefaultMethod, gl.lbDefaultMethod)
+	ctx = context.WithValue(ctx, ctxServerStatus, gl.serverStatus)
 
 	go func(ctx context.Context) {
 		for {

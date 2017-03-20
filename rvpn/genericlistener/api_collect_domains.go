@@ -6,6 +6,8 @@ type DomainsAPI struct {
 	ServerID   int64  `json:"server_id"`
 	BytesIn    int64  `json:"bytes_in"`
 	BytesOut   int64  `json:"bytes_out"`
+	Requests   int64  `json:"requests"`
+	Responses  int64  `json:"responses"`
 }
 
 //NewDomainsAPI - Constructor
@@ -15,6 +17,8 @@ func NewDomainsAPI(c *Connection, d *DomainTrack) (s *DomainsAPI) {
 	s.ServerID = c.ConnectionID()
 	s.BytesIn = d.BytesIn()
 	s.BytesOut = d.BytesOut()
+	s.Requests = d.requests
+	s.Responses = d.responses
 
 	return
 }
@@ -37,16 +41,20 @@ type DomainAPI struct {
 	ServerID   int64  `json:"server_id"`
 	BytesIn    int64  `json:"bytes_in"`
 	BytesOut   int64  `json:"bytes_out"`
+	Requests   int64  `json:"requests"`
+	Responses  int64  `json:"responses"`
 	Source     string `json:"source_addr"`
 }
 
-//NewDomainsAPI - Constructor
+//NewDomainAPI - Constructor
 func NewDomainAPI(c *Connection, d *DomainTrack) (s *DomainAPI) {
 	s = new(DomainAPI)
 	s.DomainName = d.DomainName
 	s.ServerID = c.ConnectionID()
 	s.BytesIn = d.BytesIn()
 	s.BytesOut = d.BytesOut()
+	s.Requests = d.requests
+	s.Responses = d.responses
 	s.Source = c.Source()
 	return
 }

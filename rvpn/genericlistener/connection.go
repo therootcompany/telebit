@@ -50,6 +50,12 @@ type Connection struct {
 	// bytes out
 	bytesOut int64
 
+	// requests
+	requests int64
+
+	// response
+	responses int64
+
 	// Connect Time
 	connectTime time.Time
 
@@ -79,6 +85,8 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	p.source = remoteAddress
 	p.bytesIn = 0
 	p.bytesOut = 0
+	p.requests = 0
+	p.responses = 0
 	p.send = make(chan *SendTrack)
 	p.connectTime = time.Now()
 	p.initialDomains = initialDomains
@@ -141,6 +149,14 @@ func (c *Connection) addIn(num int64) {
 
 func (c *Connection) addOut(num int64) {
 	c.bytesOut = c.bytesOut + num
+}
+
+func (c *Connection) addRequests() {
+	c.requests = c.requests + 1
+}
+
+func (c *Connection) addResponse() {
+	c.responses = c.responses + 1
 }
 
 //ConnectionTable -- property
@@ -251,12 +267,14 @@ func (c *Connection) Reader(ctx context.Context) {
 		//Support for tracking outbound traffic based on domain.
 		if domainTrack, ok := c.DomainTrack[track.domain]; ok {
 			//if ok then add to structure, else warn there is something wrong
-			domainTrack.AddIn(int64(len(message)))
+			domainTrack.AddOut(int64(len(message)))
+			domainTrack.AddResponses()
 		}
 
 		track.conn.Write(p.Data.Data())
 
 		c.addIn(int64(len(message)))
+		c.addResponse()
 		loginfo.Println("end of read")
 	}
 }
@@ -290,11 +308,13 @@ func (c *Connection) Writer() {
 			messageLen := int64(len(message.data))
 
 			c.addOut(messageLen)
+			c.addRequests()
 
 			//Support for tracking outbound traffic based on domain.
 			if domainTrack, ok := c.DomainTrack[message.domain]; ok {
 				//if ok then add to structure, else warn there is something wrong
-				domainTrack.AddOut(messageLen)
+				domainTrack.AddIn(messageLen)
+				domainTrack.AddRequests()
 				loginfo.Println("adding ", messageLen, " to ", message.domain)
 			} else {
 				logdebug.Println("attempting to add bytes to ", message.domain, "it does not exist")

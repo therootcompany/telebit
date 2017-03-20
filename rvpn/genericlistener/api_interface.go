@@ -16,12 +16,16 @@ const (
 )
 
 var connectionTable *Table
+var serverStatusAPI *Status
 
 //handleAdminClient -
 // - expecting an existing oneConnListener with a qualified wss client connected.
 // - auth will happen again since we were just peeking at the token.
 func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
-	connectionTable = ctx.Value(ctxConnectionTable).(*Table)
+	serverStatus := ctx.Value(ctxServerStatus).(*Status)
+
+	connectionTable = serverStatus.ConnectionTable
+	serverStatusAPI = serverStatus
 	router := mux.NewRouter().StrictSlash(true)
 
 	router.PathPrefix("/admin/").Handler(http.StripPrefix("/admin/", http.FileServer(http.Dir("html/admin"))))
@@ -46,6 +50,7 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 	router.HandleFunc(endPointPrefix+"servers", getServersEndpoint).Methods("GET")
 	router.HandleFunc(endPointPrefix+"server/", getServerEndpoint).Methods("GET")
 	router.HandleFunc(endPointPrefix+"server/{server-id}", getServerEndpoint).Methods("GET")
+	router.HandleFunc(endPointPrefix+"status/", getStatusEndpoint).Methods("GET")
 
 	s := &http.Server{
 		Addr:    ":80",
@@ -62,6 +67,20 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 		loginfo.Println("Cancel signal hit")
 		return
 	}
+}
+
+func getStatusEndpoint(w http.ResponseWriter, r *http.Request) {
+	pc, _, _, _ := runtime.Caller(0)
+	loginfo.Println(runtime.FuncForPC(pc).Name())
+
+	statusContainer := NewStatusAPI(serverStatusAPI)
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
+	env := envelope.NewEnvelope("domains/GET")
+	env.Result = statusContainer
+	env.GenerateWriter(w)
+
 }
 
 func getDomainsEndpoint(w http.ResponseWriter, r *http.Request) {
