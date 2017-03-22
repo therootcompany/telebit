@@ -271,7 +271,7 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 
 //handleExternalHTTPRequest -
 // - get a wConn and start processing requests
-func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname string, service string) {
+func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname, service string) {
 	//connectionTracking := ctx.Value(ctxConnectionTrack).(*Tracking)
 	serverStatus := ctx.Value(ctxServerStatus).(*Status)
 

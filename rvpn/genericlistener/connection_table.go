@@ -24,7 +24,7 @@ type Table struct {
 }
 
 //NewTable -- consructor
-func NewTable(dwell int, idle int) (p *Table) {
+func NewTable(dwell, idle int) (p *Table) {
 	p = new(Table)
 	p.connections = make(map[*Connection][]string)
 	p.domains = make(map[string]*Connection)
@@ -38,15 +38,14 @@ func NewTable(dwell int, idle int) (p *Table) {
 }
 
 //Connections Property
-func (c *Table) Connections() (table map[*Connection][]string) {
-	table = c.connections
-	return
+func (c *Table) Connections() map[*Connection][]string {
+	return c.connections
 }
 
 //ConnByDomain -- Obtains a connection from a domain announcement.
-func (c *Table) ConnByDomain(domain string) (conn *Connection, ok bool) {
-	conn, ok = c.domains[domain]
-	return
+func (c *Table) ConnByDomain(domain string) (*Connection, bool) {
+	conn, ok := c.domains[domain]
+	return conn, ok
 }
 
 //reaper --
@@ -69,16 +68,14 @@ func (c *Table) reaper(delay int, idle int) {
 }
 
 //GetConnection -- find connection by server-id
-func (c *Table) GetConnection(serverID int64) (conn *Connection, err error) {
+func (c *Table) GetConnection(serverID int64) (*Connection, error) {
 	for conn := range c.connections {
 		if conn.ConnectionID() == serverID {
-			return conn, err
+			return conn, nil
 		}
 	}
 
-	err = fmt.Errorf("Server-id %d not found", serverID)
-
-	return nil, err
+	return nil, fmt.Errorf("Server-id %d not found", serverID)
 }
 
 //Run -- Execute
@@ -144,7 +141,6 @@ func (c *Table) Run(ctx context.Context) {
 }
 
 //Register -- Property
-func (c *Table) Register() (r chan *Registration) {
-	r = c.register
-	return
+func (c *Table) Register() chan *Registration {
+	return c.register
 }

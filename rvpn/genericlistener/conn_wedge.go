@@ -28,7 +28,7 @@ func NewWedgeConnSize(c net.Conn, size int) (p *WedgeConn) {
 }
 
 //Discard - discard a number of bytes, perhaps after peeking at the
-func (w *WedgeConn) Discard(n int) (discarded int, err error) {
+func (w *WedgeConn) Discard(n int) (int, error) {
 	return w.reader.Discard(n)
 }
 
@@ -44,8 +44,7 @@ func (w *WedgeConn) ReadByte() (byte, error) {
 
 //Read -- A normal reader.
 func (w *WedgeConn) Read(p []byte) (int, error) {
-	cnt, err := w.reader.Read(p)
-	return cnt, err
+	return w.reader.Read(p)
 }
 
 //Buffered --
@@ -56,13 +55,6 @@ func (w *WedgeConn) Buffered() int {
 //PeekAll --
 // - get all the chars available
 // - pass then back
-func (w *WedgeConn) PeekAll() (buf []byte, err error) {
-
-	_, err = w.Peek(1)
-	if err != nil {
-		return nil, err
-	}
-
-	buf, err = w.Peek(w.Buffered())
-	return
+func (w *WedgeConn) PeekAll() ([]byte, error) {
+	return w.Peek(w.Buffered())
 }

@@ -21,15 +21,13 @@ func NewDomainTrack(domainName string) (p *DomainTrack) {
 }
 
 //BytesIn -- Property
-func (c *DomainTrack) BytesIn() (b int64) {
-	b = c.bytesIn
-	return
+func (c *DomainTrack) BytesIn() int64 {
+	return c.bytesIn
 }
 
 //BytesOut -- Property
-func (c *DomainTrack) BytesOut() (b int64) {
-	b = c.bytesOut
-	return
+func (c *DomainTrack) BytesOut() int64 {
+	return c.bytesOut
 }
 
 //AddIn - Property

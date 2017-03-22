@@ -106,27 +106,23 @@ func (c *Connection) AddTrackedDomain(domain string) {
 }
 
 //InitialDomains -- Property
-func (c *Connection) InitialDomains() (i []interface{}) {
-	i = c.initialDomains
-	return
+func (c *Connection) InitialDomains() []interface{} {
+	return c.initialDomains
 }
 
 //ConnectTime -- Property
-func (c *Connection) ConnectTime() (t time.Time) {
-	t = c.connectTime
-	return
+func (c *Connection) ConnectTime() time.Time {
+	return c.connectTime
 }
 
 //BytesIn -- Property
-func (c *Connection) BytesIn() (b int64) {
-	b = c.bytesIn
-	return
+func (c *Connection) BytesIn() int64 {
+	return c.bytesIn
 }
 
 //BytesOut -- Property
-func (c *Connection) BytesOut() (b int64) {
-	b = c.bytesOut
-	return
+func (c *Connection) BytesOut() int64 {
+	return c.bytesOut
 }
 
 //SendCh -- property to sending channel
@@ -156,9 +152,8 @@ func (c *Connection) addResponse() {
 }
 
 //ConnectionTable -- property
-func (c *Connection) ConnectionTable() (table *Table) {
-	table = c.connectionTable
-	return
+func (c *Connection) ConnectionTable() *Table {
+	return c.connectionTable
 }
 
 //GetState -- Get state of Socket...this is a high level state.
@@ -203,21 +198,24 @@ func (c *Connection) ConnectionID() int64 {
 //NextWriter -- Wrapper to allow a high level state check before offering NextWriter
 //The libary failes if client abends during write-cycle.  a fast moving write is not caught before socket state bubbles up
 //A synchronised state is maintained
-func (c Connection) NextWriter(wssMessageType int) (w io.WriteCloser, err error) {
+func (c *Connection) NextWriter(wssMessageType int) (io.WriteCloser, error) {
 	if c.GetState() == true {
-		w, err = c.conn.NextWriter(wssMessageType)
-	} else {
-		loginfo.Println("NextWriter aborted, state is not true")
+		return c.conn.NextWriter(wssMessageType)
 	}
-	return
+
+	// Is returning a nil error actually the proper thing to do here?
+	loginfo.Println("NextWriter aborted, state is not true")
+	return nil, nil
 }
 
 //Write -- Wrapper to allow a high level state check before allowing a write to the socket.
-func (c *Connection) Write(w io.WriteCloser, message []byte) (cnt int, err error) {
+func (c *Connection) Write(w io.WriteCloser, message []byte) (int, error) {
 	if c.GetState() == true {
-		cnt, err = w.Write(message)
+		return w.Write(message)
 	}
-	return
+
+	// Is returning a nil error actually the proper thing to do here?
+	return 0, nil
 }
 
 //Reader -- export the reader function

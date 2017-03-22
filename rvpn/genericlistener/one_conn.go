@@ -9,18 +9,16 @@ type oneConnListener struct {
 	conn net.Conn
 }
 
-func (l *oneConnListener) Accept() (c net.Conn, err error) {
-	c = l.conn
-
-	if c == nil {
-		err = io.EOF
-		loginfo.Println("Accept")
-		return
+func (l *oneConnListener) Accept() (net.Conn, error) {
+	if l.conn == nil {
+		loginfo.Println("Accept EOF")
+		return nil, io.EOF
 	}
-	err = nil
+
+	c := l.conn
 	l.conn = nil
 	loginfo.Println("Accept", c.LocalAddr().String(), c.RemoteAddr().String())
-	return
+	return c, nil
 }
 
 func (l *oneConnListener) Close() error {

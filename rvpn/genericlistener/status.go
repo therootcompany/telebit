@@ -46,7 +46,6 @@ func (p *Status) WSSConnectionRegister(newRegistration *Registration) {
 //unregisters a south facing connection
 //intercept and update global statistics
 func (p *Status) WSSConnectionUnregister() {
-
 }
 
 // External Facing Functions

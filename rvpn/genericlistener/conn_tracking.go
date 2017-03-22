@@ -79,17 +79,14 @@ func (p *Tracking) list() {
 
 //Lookup --
 // - get connection from key
-func (p *Tracking) Lookup(key string) (c *Track, err error) {
+func (p *Tracking) Lookup(key string) (*Track, error) {
 	defer func() {
 		p.mutex.Unlock()
 	}()
 	p.mutex.Lock()
 
 	if _, ok := p.connections[key]; ok {
-		c = p.connections[key]
-	} else {
-		err = fmt.Errorf("Lookup failed for %s", key)
-		c = nil
+		return p.connections[key], nil
 	}
-	return
+	return nil, fmt.Errorf("Lookup failed for %s", key)
 }

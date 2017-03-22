@@ -9,12 +9,12 @@ type TrafficAPI struct {
 }
 
 //NewTrafficStats -- Consttuctor
-func NewTrafficAPI(requests int64, responses int64, bytes_in int64, bytes_out int64) (p *TrafficAPI) {
+func NewTrafficAPI(requests, responses, bytesIn, bytesOut int64) (p *TrafficAPI) {
 	p = new(TrafficAPI)
 	p.Requests = requests
 	p.Responses = responses
-	p.BytesIn = bytes_in
-	p.BytesOut = bytes_out
+	p.BytesIn = bytesIn
+	p.BytesOut = bytesOut
 
 	return
 }

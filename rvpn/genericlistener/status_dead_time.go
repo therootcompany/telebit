@@ -8,7 +8,7 @@ type StatusDeadTime struct {
 }
 
 //NewStatusDeadTime -- constructor
-func NewStatusDeadTime(dwell int, idle int, cancelcheck int) (p *StatusDeadTime) {
+func NewStatusDeadTime(dwell, idle, cancelcheck int) (p *StatusDeadTime) {
 	p = new(StatusDeadTime)
 	p.dwell = dwell
 	p.idle = idle
