@@ -1,7 +1,9 @@
 package packer
 
-import "log"
-import "os"
+import (
+	"log"
+	"os"
+)
 
 var (
 	loginfo  *log.Logger

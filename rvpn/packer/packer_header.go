@@ -1,7 +1,9 @@
 package packer
 
-import "net"
-import "fmt"
+import (
+	"fmt"
+	"net"
+)
 
 type addressFamily int
 
@@ -37,45 +39,36 @@ func newPackerHeader() (p *packerHeader) {
 //SetAddress -- Set Address. which sets address family automatically
 func (p *packerHeader) SetAddress(addr string) {
 	p.address = net.ParseIP(addr)
-	err := p.address.To4()
 
-	if err != nil {
+	if p.address.To4() != nil {
 		p.family = FamilyIPv4
+	} else if p.address.To16() != nil {
+		p.family = FamilyIPv6
 	} else {
-		err := p.address.To16()
-		if err != nil {
-			p.family = FamilyIPv6
-		} else {
-			panic(fmt.Sprintf("setAddress does not support %s", addr))
-		}
+		panic(fmt.Sprintf("setAddress does not support %q", addr))
 	}
 }
 
-func (p *packerHeader) AddressBytes() (b []byte) {
-	b = make([]byte, 16)
-
-	switch {
-	case p.address.To4() != nil:
-		b = make([]byte, 4)
-		for pos := range b {
-			b[pos] = p.address[pos+12]
-		}
-		return
+func (p *packerHeader) AddressBytes() []byte {
+	if ip4 := p.address.To4(); ip4 != nil {
+		p.address = ip4
 	}
-	return
+
+	return []byte(p.address)
 }
 
-func (p *packerHeader) Address() (address net.IP) {
-	address = p.address
-	return
+func (p *packerHeader) AddressString() string {
+	return p.address.String()
 }
 
-func (p *packerHeader) Family() (family addressFamily) {
-	family = p.family
-	return
+func (p *packerHeader) Address() net.IP {
+	return p.address
 }
 
-func (p *packerHeader) FamilyText() (familyText string) {
-	familyText = addressFamilyText[p.family]
-	return
+func (p *packerHeader) Family() addressFamily {
+	return p.family
+}
+
+func (p *packerHeader) FamilyText() string {
+	return addressFamilyText[p.family]
 }

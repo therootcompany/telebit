@@ -1,6 +1,8 @@
 package packer
 
-import "bytes"
+import (
+	"bytes"
+)
 
 //packerData -- Contains packer data
 type packerData struct {
@@ -14,18 +16,15 @@ func newPackerData() (p *packerData) {
 	return
 }
 
-func (p *packerData) AppendString(dataString string) (n int, err error) {
-	n, err = p.buffer.WriteString(dataString)
-	return
+func (p *packerData) AppendString(dataString string) (int, error) {
+	return p.buffer.WriteString(dataString)
 }
 
-func (p *packerData) AppendBytes(dataBytes []byte) (n int, err error) {
-	n, err = p.buffer.Write(dataBytes)
-	return
+func (p *packerData) AppendBytes(dataBytes []byte) (int, error) {
+	return p.buffer.Write(dataBytes)
 }
 
 //Data --
-func (p *packerData) Data() (b []byte) {
-	b = p.buffer.Bytes()
-	return
+func (p *packerData) Data() []byte {
+	return p.buffer.Bytes()
 }
