@@ -1,8 +1,10 @@
 package genericlistener
 
-import "fmt"
-import "time"
-import "context"
+import (
+	"context"
+	"fmt"
+	"time"
+)
 
 const (
 	initialDomains   = 0

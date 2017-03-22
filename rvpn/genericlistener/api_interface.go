@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/envelope"
 	"github.com/gorilla/mux"
+
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/envelope"
 )
 
 const (

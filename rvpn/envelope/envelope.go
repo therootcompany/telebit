@@ -1,9 +1,11 @@
 package envelope
 
-import "time"
-import "encoding/json"
-import "bytes"
-import "io"
+import (
+	"bytes"
+	"encoding/json"
+	"io"
+	"time"
+)
 
 //Envelope -- Standard daplie response structure
 type Envelope struct {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
@@ -9,8 +10,6 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
-
-	"context"
 
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/genericlistener"
 )

@@ -1,6 +1,8 @@
 package genericlistener
 
-import "github.com/gorilla/websocket"
+import (
+	"github.com/gorilla/websocket"
+)
 
 //Registration -- A connection registration structure used to bring up a connection
 //connection table will then handle additing and sdtarting up the various readers

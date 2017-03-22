@@ -1,23 +1,21 @@
 package genericlistener
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/hex"
 	"log"
 	"net"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
-
-	"net/http"
-
-	"bufio"
 
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
 )

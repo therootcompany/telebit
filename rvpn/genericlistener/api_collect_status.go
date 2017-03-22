@@ -1,6 +1,8 @@
 package genericlistener
 
-import "time"
+import (
+	"time"
+)
 
 //StatusAPI -- Structure to support the server API
 type StatusAPI struct {

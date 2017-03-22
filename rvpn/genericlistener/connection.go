@@ -1,20 +1,16 @@
 package genericlistener
 
 import (
+	"context"
+	"encoding/hex"
+	"io"
 	"strconv"
+	"sync"
 	"time"
 
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
-
-	"sync"
-
-	"io"
-
-	"context"
-
-	"encoding/hex"
-
 	"github.com/gorilla/websocket"
+
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
 )
 
 var upgrader = websocket.Upgrader{

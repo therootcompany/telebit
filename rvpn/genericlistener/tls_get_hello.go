@@ -1,6 +1,8 @@
 package genericlistener
 
-import "errors"
+import (
+	"errors"
+)
 
 func getHello(b []byte) (string, error) {
 	rest := b[5:]
