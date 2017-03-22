@@ -57,7 +57,7 @@ func (c *Table) reaper(delay int, idle int) {
 
 		loginfo.Println("Running scanning ", len(c.connections))
 		for d := range c.connections {
-			if d.GetState() == false {
+			if !d.State() {
 				if time.Since(d.lastUpdate).Seconds() > float64(idle) {
 					loginfo.Println("reaper removing ", d.lastUpdate, time.Since(d.lastUpdate).Seconds())
 					delete(c.connections, d)

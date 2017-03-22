@@ -92,7 +92,7 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 		p.AddTrackedDomain(string(domain.(string)))
 	}
 
-	p.State(true)
+	p.SetState(true)
 	p.connectionID = connectionID
 	return
 }
@@ -155,16 +155,16 @@ func (c *Connection) ConnectionTable() *Table {
 	return c.connectionTable
 }
 
-//GetState -- Get state of Socket...this is a high level state.
-func (c *Connection) GetState() bool {
+//State -- Get state of Socket...this is a high level state.
+func (c *Connection) State() bool {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
 	return c.wssState
 }
 
-//State -- Set the set of the high level connection
-func (c *Connection) State(state bool) {
+//SetState -- Set the set of the high level connection
+func (c *Connection) SetState(state bool) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -193,7 +193,7 @@ func (c *Connection) ConnectionID() int64 {
 //The libary failes if client abends during write-cycle.  a fast moving write is not caught before socket state bubbles up
 //A synchronised state is maintained
 func (c *Connection) NextWriter(wssMessageType int) (io.WriteCloser, error) {
-	if c.GetState() == true {
+	if c.State() {
 		return c.conn.NextWriter(wssMessageType)
 	}
 
@@ -204,7 +204,7 @@ func (c *Connection) NextWriter(wssMessageType int) (io.WriteCloser, error) {
 
 //Write -- Wrapper to allow a high level state check before allowing a write to the socket.
 func (c *Connection) Write(w io.WriteCloser, message []byte) (int, error) {
-	if c.GetState() == true {
+	if c.State() {
 		return w.Write(message)
 	}
 
@@ -234,7 +234,7 @@ func (c *Connection) Reader(ctx context.Context) {
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
-				c.State(false)
+				c.SetState(false)
 				loginfo.Printf("error: %v", err)
 			}
 			break
