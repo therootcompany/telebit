@@ -6,14 +6,11 @@ import (
 
 //packerData -- Contains packer data
 type packerData struct {
-	buffer  *bytes.Buffer
-	DataLen int
+	buffer bytes.Buffer
 }
 
-func newPackerData() (p *packerData) {
-	p = new(packerData)
-	p.buffer = new(bytes.Buffer)
-	return
+func newPackerData() *packerData {
+	return new(packerData)
 }
 
 func (p *packerData) AppendString(dataString string) (int, error) {
@@ -27,4 +24,8 @@ func (p *packerData) AppendBytes(dataBytes []byte) (int, error) {
 //Data --
 func (p *packerData) Data() []byte {
 	return p.buffer.Bytes()
+}
+
+func (p *packerData) DataLen() int {
+	return p.buffer.Len()
 }

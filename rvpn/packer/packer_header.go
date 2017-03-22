@@ -9,11 +9,10 @@ type addressFamily int
 
 // packerHeader structure to hold our header information.
 type packerHeader struct {
-	family    addressFamily
-	address   net.IP
-	Port      int
-	Service   string
-	HeaderLen byte
+	family  addressFamily
+	address net.IP
+	Port    int
+	Service string
 }
 
 //Family -- ENUM for Address Family
@@ -32,7 +31,6 @@ func newPackerHeader() (p *packerHeader) {
 	p.SetAddress("127.0.0.1")
 	p.Port = 65535
 	p.Service = "na"
-	p.HeaderLen = 0
 	return
 }
 
