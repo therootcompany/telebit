@@ -20,7 +20,7 @@ var upgrader = websocket.Upgrader{
 
 // Connection track websocket and faciliates in and out data
 type Connection struct {
-	mutex *sync.Mutex
+	mutex sync.Mutex
 
 	// The main connection table (should be just one of these created at startup)
 	connectionTable *Table
@@ -75,7 +75,6 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	connectionID = connectionID + 1
 
 	p = new(Connection)
-	p.mutex = &sync.Mutex{}
 	p.connectionTable = connectionTable
 	p.conn = conn
 	p.source = remoteAddress
@@ -158,30 +157,25 @@ func (c *Connection) ConnectionTable() *Table {
 
 //GetState -- Get state of Socket...this is a high level state.
 func (c *Connection) GetState() bool {
-	defer func() {
-		c.mutex.Unlock()
-	}()
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	return c.wssState
 }
 
 //State -- Set the set of the high level connection
 func (c *Connection) State(state bool) {
-	defer func() {
-		c.mutex.Unlock()
-	}()
-
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	c.wssState = state
 }
 
 //Update -- updates the lastUpdate property tracking idle time
 func (c *Connection) Update() {
-	defer func() {
-		c.mutex.Unlock()
-	}()
-
 	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
 	c.lastUpdate = time.Now()
 }
 
@@ -275,9 +269,7 @@ func (c *Connection) Reader(ctx context.Context) {
 
 //Writer -- expoer the writer function
 func (c *Connection) Writer() {
-	defer func() {
-		c.conn.Close()
-	}()
+	defer c.conn.Close()
 
 	loginfo.Println("Writer Start ", c)
 

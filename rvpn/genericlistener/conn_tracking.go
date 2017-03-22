@@ -23,7 +23,7 @@ func NewTrack(conn net.Conn, domain string) (p *Track) {
 
 //Tracking --
 type Tracking struct {
-	mutex       *sync.Mutex
+	mutex       sync.Mutex
 	connections map[string]*Track
 	register    chan *Track
 	unregister  chan net.Conn
@@ -32,7 +32,6 @@ type Tracking struct {
 //NewTracking -- Constructor
 func NewTracking() (p *Tracking) {
 	p = new(Tracking)
-	p.mutex = &sync.Mutex{}
 	p.connections = make(map[string]*Track)
 	p.register = make(chan *Track)
 	p.unregister = make(chan net.Conn)
@@ -80,10 +79,8 @@ func (p *Tracking) list() {
 //Lookup --
 // - get connection from key
 func (p *Tracking) Lookup(key string) (*Track, error) {
-	defer func() {
-		p.mutex.Unlock()
-	}()
 	p.mutex.Lock()
+	defer p.mutex.Unlock()
 
 	if _, ok := p.connections[key]; ok {
 		return p.connections[key], nil
