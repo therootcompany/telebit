@@ -55,6 +55,13 @@ func (w *WedgeConn) Buffered() int {
 //PeekAll --
 // - get all the chars available
 // - pass then back
-func (w *WedgeConn) PeekAll() ([]byte, error) {
-	return w.Peek(w.Buffered())
+func (w *WedgeConn) PeekAll() (buf []byte, err error) {
+
+	_, err = w.Peek(1)
+	if err != nil {
+		return nil, err
+	}
+
+	buf, err = w.Peek(w.Buffered())
+	return
 }
