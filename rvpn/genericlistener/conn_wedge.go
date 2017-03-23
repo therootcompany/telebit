@@ -56,5 +56,11 @@ func (w *WedgeConn) Buffered() int {
 // - get all the chars available
 // - pass then back
 func (w *WedgeConn) PeekAll() ([]byte, error) {
+	// We first peek with 1 so that if there is no buffered data the reader will
+	// fill the buffer before we read how much data is buffered.
+	if _, err := w.Peek(1); err != nil {
+		return nil, err
+	}
+
 	return w.Peek(w.Buffered())
 }

@@ -35,10 +35,6 @@ var (
 	serverName               string
 )
 
-func init() {
-
-}
-
 //Main -- main entry point
 func main() {
 	flag.Parse()
@@ -56,10 +52,10 @@ func main() {
 	wssHostName = viper.Get("rvpn.wssdomain").(string)
 	adminHostName = viper.Get("rvpn.admindomain").(string)
 	argGenericBinding = viper.GetInt("rvpn.genericlistener")
-	deadtime := viper.Get("rvpn.deadtime")
-	idle = deadtime.(map[string]interface{})["idle"].(int)
-	dwell = deadtime.(map[string]interface{})["dwell"].(int)
-	cancelcheck = deadtime.(map[string]interface{})["cancelcheck"].(int)
+	deadtime := viper.Get("rvpn.deadtime").(map[string]interface{})
+	idle = deadtime["idle"].(int)
+	dwell = deadtime["dwell"].(int)
+	cancelcheck = deadtime["cancelcheck"].(int)
 	lbDefaultMethod = viper.Get("rvpn.loadbalancing.defaultmethod").(string)
 	serverName = viper.Get("rvpn.serverName").(string)
 
