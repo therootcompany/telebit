@@ -70,6 +70,26 @@ app.filter('hfcduration', function() {
 	}
 });
 
+app.controller('statusController', function ($scope, $http) {
+    console.log("statusController");
+    $scope.status_search = "";
+
+    var api = '/api/com.daplie.rvpn/status'
+   
+    $scope.updateView = function() {
+        $http.get(api).then(function(response) {
+            console.log(response);
+            data = response.data;
+            if (data.error == 'ok' ){
+                $scope.status = data.result;
+            }
+        });
+    }
+
+    $scope.updateView()
+
+});
+
 app.controller('serverController', function ($scope, $http) {
     $scope.servers = [];
     $scope.servers_search = "";

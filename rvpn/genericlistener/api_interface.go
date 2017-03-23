@@ -17,13 +17,14 @@ const (
 )
 
 var connectionTable *Table
+var serverStatus *Status
 var serverStatusAPI *Status
 
 //handleAdminClient -
 // - expecting an existing oneConnListener with a qualified wss client connected.
 // - auth will happen again since we were just peeking at the token.
 func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
-	serverStatus := ctx.Value(ctxServerStatus).(*Status)
+	serverStatus = ctx.Value(ctxServerStatus).(*Status)
 
 	connectionTable = serverStatus.ConnectionTable
 	serverStatusAPI = serverStatus
@@ -33,11 +34,16 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		loginfo.Println("HandleFunc /")
+
+		serverStatus.AdminStats.IncRequests()
+
 		switch url := r.URL.Path; url {
 		case "/":
 			// check to see if we are using the administrative Host
 			if strings.Contains(r.Host, "rvpn.daplie.invalid") {
 				http.Redirect(w, r, "/admin", 301)
+				serverStatus.AdminStats.IncResponses()
+
 			}
 
 		default:
@@ -74,6 +80,8 @@ func getStatusEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
 	loginfo.Println(runtime.FuncForPC(pc).Name())
 
+	serverStatus.AdminStats.IncRequests()
+
 	statusContainer := NewStatusAPI(serverStatusAPI)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
@@ -81,12 +89,14 @@ func getStatusEndpoint(w http.ResponseWriter, r *http.Request) {
 	env := envelope.NewEnvelope("domains/GET")
 	env.Result = statusContainer
 	env.GenerateWriter(w)
-
+	serverStatus.AdminStats.IncResponses()
 }
 
 func getDomainsEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
 	loginfo.Println(runtime.FuncForPC(pc).Name())
+
+	serverStatus.AdminStats.IncRequests()
 
 	domainsContainer := NewDomainsAPIContainer()
 
@@ -102,12 +112,14 @@ func getDomainsEndpoint(w http.ResponseWriter, r *http.Request) {
 	env := envelope.NewEnvelope("domains/GET")
 	env.Result = domainsContainer
 	env.GenerateWriter(w)
-
+	serverStatus.AdminStats.IncResponses()
 }
 
 func getDomainEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
 	loginfo.Println(runtime.FuncForPC(pc).Name())
+
+	serverStatus.AdminStats.IncRequests()
 
 	env := envelope.NewEnvelope("domain/GET")
 
@@ -130,11 +142,14 @@ func getDomainEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	env.GenerateWriter(w)
+	serverStatus.AdminStats.IncResponses()
 }
 
 func getServersEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
 	loginfo.Println(runtime.FuncForPC(pc).Name())
+
+	serverStatus.AdminStats.IncRequests()
 
 	serverContainer := NewServerAPIContainer()
 
@@ -149,11 +164,14 @@ func getServersEndpoint(w http.ResponseWriter, r *http.Request) {
 	env := envelope.NewEnvelope("servers/GET")
 	env.Result = serverContainer
 	env.GenerateWriter(w)
+	serverStatus.AdminStats.IncResponses()
 }
 
 func getServerEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
 	loginfo.Println(runtime.FuncForPC(pc).Name())
+
+	serverStatus.AdminStats.IncRequests()
 
 	env := envelope.NewEnvelope("server/GET")
 
@@ -185,4 +203,5 @@ func getServerEndpoint(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	env.GenerateWriter(w)
+	serverStatus.AdminStats.IncResponses()
 }

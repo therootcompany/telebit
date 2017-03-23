@@ -1,4 +1,4 @@
-<div class="panel panel-default" data-ng-controller="serverController">
+<div class="panel panel-default" data-ng-controller="statusController">
   <div class="panel-heading">
       <div class="panel-title">
           <div class="row">
@@ -19,4 +19,28 @@
           </div>
     </div>
   </div>
+    <div class="panel-body">
+        <div class="row">
+            <div class="col-md-4"> </div>
+            <div class="col-md-8">Server Name: {{ status.name }} (Uptime: {{ status.uptime | hfcduration }}</div>
+        </div>
+        <div class="row">
+            <div class="col-md-4"> </div>
+            <div class="col-md-8">Administrative Domain: {{ status.admin_domain }} </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4"> </div>
+            <div class="col-md-8">Server Domain: {{ status.wss_domain }} </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4"> </div>
+            <div class="col-md-8">Default LB Method: {{ status.loadbalance_default_method }} </div>
+        </div>
+        <div class="row">
+            <div class="col-md-4"> </div>
+            <div class="col-md-8">Deadtime: dwell:{{ status.dead_time.dwell}} idle:{{ status.dead_time.idle}} cancel:{{ status.dead_time.cancel_check}}</div>
+        </div>
+    </div>
 </div>
+
+

@@ -18,6 +18,7 @@ type Status struct {
 	GenericListeners         *GenericListeners
 	LoadbalanceDefaultMethod string
 	AdminStats               *TrafficStats
+	AdminReqTyoe             *AdminReqType
 	TrafficStats             *TrafficStats
 	ExtConnections           *ConnectionStats
 	WSSConnections           *ConnectionStats
