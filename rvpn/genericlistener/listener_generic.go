@@ -370,8 +370,8 @@ func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 			domains, ok := claims["domains"].([]interface{})
 
 			var upgrader = websocket.Upgrader{
-				ReadBufferSize:  1024,
-				WriteBufferSize: 1024,
+				ReadBufferSize:  65535,
+				WriteBufferSize: 65535,
 			}
 
 			conn, err := upgrader.Upgrade(w, r, nil)

@@ -2,7 +2,6 @@ package genericlistener
 
 import (
 	"context"
-	"encoding/hex"
 	"io"
 	"strconv"
 	"sync"
@@ -224,11 +223,11 @@ func (c *Connection) Reader(ctx context.Context) {
 
 	loginfo.Println("Reader Start ", c)
 
-	c.conn.SetReadLimit(65535)
+	//c.conn.SetReadLimit(65535)
 	for {
-		msgType, message, err := c.conn.ReadMessage()
+		_, message, err := c.conn.ReadMessage()
 
-		loginfo.Println("ReadMessage", msgType, err)
+		//loginfo.Println("ReadMessage", msgType, err)
 
 		c.Update()
 
@@ -245,10 +244,10 @@ func (c *Connection) Reader(ctx context.Context) {
 		key := p.Header.Address().String() + ":" + strconv.Itoa(p.Header.Port)
 		track, err := connectionTrack.Lookup(key)
 
-		loginfo.Println(hex.Dump(p.Data.Data()))
+		//loginfo.Println(hex.Dump(p.Data.Data()))
 
 		if err != nil {
-			loginfo.Println("Unable to locate Tracking for ", key)
+			//loginfo.Println("Unable to locate Tracking for ", key)
 			continue
 		}
 
@@ -263,7 +262,7 @@ func (c *Connection) Reader(ctx context.Context) {
 
 		c.addIn(int64(len(message)))
 		c.addResponse()
-		loginfo.Println("end of read")
+		//loginfo.Println("end of read")
 	}
 }
 

@@ -45,8 +45,6 @@ func splitHeader(header []byte, names []string) (map[string]string, error) {
 
 //ReadMessage -
 func ReadMessage(b []byte) (*Packer, error) {
-	fmt.Println("ReadMessage")
-
 	// Detect protocol in use
 	if b[0] == packerV1 {
 		// Separate the header and body using the header length in the second byte.
