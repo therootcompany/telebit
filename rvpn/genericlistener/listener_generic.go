@@ -382,10 +382,9 @@ func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 
 			loginfo.Println("before connection table")
 
-			//newConnection := connection.NewConnection(connectionTable, conn, r.RemoteAddr, domains)
+			serverName := domains[0].(string)
 
-			//connectionTrack := ctx.Value(ctxConnectionTrack).(*Tracking)
-			newRegistration := NewRegistration(conn, r.RemoteAddr, domains, serverStatus.ConnectionTracking)
+			newRegistration := NewRegistration(conn, r.RemoteAddr, domains, serverStatus.ConnectionTracking, serverName)
 			serverStatus.WSSConnectionRegister(newRegistration)
 
 			ok = <-newRegistration.CommCh()

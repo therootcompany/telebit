@@ -39,6 +39,9 @@ type Connection struct {
 	// Address of the Remote End Point
 	source string
 
+	// serverName -- Name of the server, at this point 1st domain registered.  Will likely change with JWT
+	serverName string
+
 	// bytes in
 	bytesIn int64
 
@@ -70,13 +73,15 @@ type Connection struct {
 }
 
 //NewConnection -- Constructor
-func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress string, initialDomains []interface{}, connectionTrack *Tracking) (p *Connection) {
+func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress string,
+	initialDomains []interface{}, connectionTrack *Tracking, serverName string) (p *Connection) {
 	connectionID = connectionID + 1
 
 	p = new(Connection)
 	p.connectionTable = connectionTable
 	p.conn = conn
 	p.source = remoteAddress
+	p.serverName = serverName
 	p.bytesIn = 0
 	p.bytesOut = 0
 	p.requests = 0
@@ -101,6 +106,16 @@ func (c *Connection) AddTrackedDomain(domain string) {
 	p := new(DomainTrack)
 	p.DomainName = domain
 	c.DomainTrack[domain] = p
+}
+
+//ServerName -- Property
+func (c *Connection) ServerName() string {
+	return c.serverName
+}
+
+//SetServerName -- Setter
+func (c *Connection) SetServerName(serverName string) {
+	c.serverName = serverName
 }
 
 //InitialDomains -- Property

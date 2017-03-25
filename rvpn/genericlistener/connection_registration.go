@@ -14,6 +14,9 @@ type Registration struct {
 	// Address of the Remote End Point
 	source string
 
+	// serverName
+	serverName string
+
 	// communications channel between go routines
 	commCh chan bool
 
@@ -24,10 +27,11 @@ type Registration struct {
 }
 
 //NewRegistration -- Constructor
-func NewRegistration(conn *websocket.Conn, remoteAddress string, initialDomains []interface{}, connectionTrack *Tracking) (p *Registration) {
+func NewRegistration(conn *websocket.Conn, remoteAddress string, initialDomains []interface{}, connectionTrack *Tracking, serverName string) (p *Registration) {
 	p = new(Registration)
 	p.conn = conn
 	p.source = remoteAddress
+	p.serverName = serverName
 	p.commCh = make(chan bool)
 	p.initialDomains = initialDomains
 	p.connectionTrack = connectionTrack

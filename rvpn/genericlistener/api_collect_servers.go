@@ -1,9 +1,6 @@
 package genericlistener
 
-import (
-	"fmt"
-	"time"
-)
+import "time"
 
 //ServersAPI -- Structure to support the server API
 type ServersAPI struct {
@@ -22,7 +19,7 @@ type ServersAPI struct {
 //NewServersAPI - Constructor
 func NewServersAPI(c *Connection) (s *ServersAPI) {
 	s = new(ServersAPI)
-	s.ServerName = fmt.Sprintf("%p", c)
+	s.ServerName = c.ServerName()
 	s.ServerID = c.ConnectionID()
 	s.Domains = make([]*DomainAPI, 0)
 	s.Duration = time.Since(c.ConnectTime()).Seconds()

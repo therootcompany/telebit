@@ -103,7 +103,8 @@ func (c *Table) Run(ctx context.Context, defaultMethod string) {
 		case registration := <-c.register:
 			loginfo.Println("register fired")
 
-			connection := NewConnection(c, registration.conn, registration.source, registration.initialDomains, registration.connectionTrack)
+			connection := NewConnection(c, registration.conn, registration.source, registration.initialDomains,
+				registration.connectionTrack, registration.serverName)
 			c.connections[connection] = make([]string, initialDomains)
 			registration.commCh <- true
 
