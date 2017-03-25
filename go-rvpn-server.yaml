@@ -2,7 +2,7 @@ rvpn:
   serverName: rvpn1
   wssdomain: localhost.daplie.me
   admindomain: rvpn.daplie.invalid
-  genericlistener: 9999
+  genericlistener: 8443
   deadtime:
     dwell: 120
     idle: 60
