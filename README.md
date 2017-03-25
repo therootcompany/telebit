@@ -28,13 +28,13 @@ tmp $ serve-https -p 8080 -d /tmp --servername hfc.daplie.me --agree-tos --email
 
 ### Start Tunnel Client
 ```bash
-hcamacho@Hanks-MBP:node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8080,http://test1.hfc.daplie.me:8080 --stunneld wss://localhost.daplie.me:8443 --secret abc123
+node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8080,http://test1.hfc.daplie.me:8080 --stunneld wss://localhost.daplie.me:8443 --secret abc123
 ```
 
 ### Execute RVPN
 
 ```bash
-hcamacho@Hanks-MBP:go-rvpn-server $ ./go-rvpn-server 
+go-rvpn-server $ ./go-rvpn-server 
 INFO: packer: 2017/03/02 19:16:52.652109 run.go:47: startup
 -=-=-=-=-=-=-=-=-=-=
 INFO: genericlistener: 2017/03/02 19:16:52.652777 manager.go:77: ConnectionTable starting
