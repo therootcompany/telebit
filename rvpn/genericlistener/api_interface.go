@@ -101,9 +101,13 @@ func getDomainsEndpoint(w http.ResponseWriter, r *http.Request) {
 	domainsContainer := NewDomainsAPIContainer()
 
 	for domain := range connectionTable.domains {
-		conn := connectionTable.domains[domain]
-		domainAPI := NewDomainsAPI(conn, conn.DomainTrack[domain])
-		domainsContainer.Domains = append(domainsContainer.Domains, domainAPI)
+		domainLB := connectionTable.domains[domain]
+		conns := domainLB.Connections()
+		for pos := range conns {
+			conn := conns[pos]
+			domainAPI := NewDomainsAPI(conn, conn.DomainTrack[domain])
+			domainsContainer.Domains = append(domainsContainer.Domains, domainAPI)
+		}
 
 	}
 
@@ -130,14 +134,19 @@ func getDomainEndpoint(w http.ResponseWriter, r *http.Request) {
 		env.ErrorDescription = "domain API requires a domain-name"
 	} else {
 		domainName := id
-		if conn, ok := connectionTable.domains[domainName]; !ok {
+		if domainLB, ok := connectionTable.domains[domainName]; !ok {
 			env.Error = "domain-name was not found"
 			env.ErrorURI = r.RequestURI
 			env.ErrorDescription = "domain-name not found"
 		} else {
-
-			domainAPI := NewDomainAPI(conn, conn.DomainTrack[domainName])
-			env.Result = domainAPI
+			var domainAPIContainer []*DomainAPI
+			conns := domainLB.Connections()
+			for pos := range conns {
+				conn := conns[pos]
+				domainAPI := NewDomainAPI(conn, conn.DomainTrack[domainName])
+				domainAPIContainer = append(domainAPIContainer, domainAPI)
+			}
+			env.Result = domainAPIContainer
 		}
 	}
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")

@@ -14,7 +14,7 @@ const (
 //Table maintains the set of connections
 type Table struct {
 	connections    map[*Connection][]string
-	domains        map[string]*Connection
+	domains        map[string]*DomainLoadBalance
 	register       chan *Registration
 	unregister     chan *Connection
 	domainAnnounce chan *DomainMapping
@@ -27,7 +27,7 @@ type Table struct {
 func NewTable(dwell, idle int) (p *Table) {
 	p = new(Table)
 	p.connections = make(map[*Connection][]string)
-	p.domains = make(map[string]*Connection)
+	p.domains = make(map[string]*DomainLoadBalance)
 	p.register = make(chan *Registration)
 	p.unregister = make(chan *Connection)
 	p.domainAnnounce = make(chan *DomainMapping)
@@ -42,10 +42,19 @@ func (c *Table) Connections() map[*Connection][]string {
 	return c.connections
 }
 
-//ConnByDomain -- Obtains a connection from a domain announcement.
+//ConnByDomain -- Obtains a connection from a domain announcement.  A domain may be announced more than once
+//if that is the case the system stores these connections and then sends traffic back round-robin
+//back to the WSS connections
 func (c *Table) ConnByDomain(domain string) (*Connection, bool) {
-	conn, ok := c.domains[domain]
-	return conn, ok
+	for dn := range c.domains {
+		loginfo.Println(dn, domain)
+	}
+	if domainsLB, ok := c.domains[domain]; ok {
+		loginfo.Println("found")
+		conn := domainsLB.NextMember()
+		return conn, ok
+	}
+	return nil, false
 }
 
 //reaper --
@@ -79,7 +88,7 @@ func (c *Table) GetConnection(serverID int64) (*Connection, error) {
 }
 
 //Run -- Execute
-func (c *Table) Run(ctx context.Context) {
+func (c *Table) Run(ctx context.Context, defaultMethod string) {
 	loginfo.Println("ConnectionTable starting")
 
 	go c.reaper(c.dwell, c.idle)
@@ -104,7 +113,17 @@ func (c *Table) Run(ctx context.Context) {
 
 				newDomain := string(domain.(string))
 				loginfo.Println("adding domain ", newDomain, " to connection ", connection.conn.RemoteAddr().String())
-				c.domains[newDomain] = connection
+
+				//check to see if domain is already present.
+				if _, ok := c.domains[newDomain]; ok {
+
+					//append to a list of connections for that domain
+					c.domains[newDomain].AddConnection(connection)
+				} else {
+					//if not, then add as the 1st to the list of connections
+					c.domains[newDomain] = NewDomainLoadBalance(defaultMethod)
+					c.domains[newDomain].AddConnection(connection)
+				}
 
 				// add to the connection domain list
 				s := c.connections[connection]
@@ -115,11 +134,26 @@ func (c *Table) Run(ctx context.Context) {
 
 		case connection := <-c.unregister:
 			loginfo.Println("closing connection ", connection.conn.RemoteAddr().String())
+
+			//does connection exist in the connection table -- should never be an issue
 			if _, ok := c.connections[connection]; ok {
+
+				//iterate over the connections for the domain
 				for _, domain := range c.connections[connection] {
-					fmt.Println("removing domain ", domain)
+					loginfo.Println("remove domain", domain)
+
+					//removing domain, make sure it is present (should never be a problem)
 					if _, ok := c.domains[domain]; ok {
-						delete(c.domains, domain)
+
+						domainLB := c.domains[domain]
+						domainLB.RemoveConnection(connection)
+
+						//check to see if domain is free of connections, if yes, delete map entry
+						if domainLB.count > 0 {
+							//ignore...perhaps we will do something here dealing wtih the lb method
+						} else {
+							delete(c.domains, domain)
+						}
 					}
 				}
 

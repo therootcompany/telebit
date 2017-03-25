@@ -4,7 +4,7 @@ rvpn:
   admindomain: rvpn.daplie.invalid
   genericlistener: 9999
   deadtime:
-    dwell: 600
+    dwell: 120
     idle: 60
     cancelcheck: 10
   domains:

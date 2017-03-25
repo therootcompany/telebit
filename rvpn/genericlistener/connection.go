@@ -279,6 +279,7 @@ func (c *Connection) Writer() {
 			w, err := c.NextWriter(websocket.BinaryMessage)
 			loginfo.Println("next writer ", w)
 			if err != nil {
+				c.SetState(false)
 				return
 			}
 

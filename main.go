@@ -98,7 +98,7 @@ func main() {
 
 	connectionTable = genericlistener.NewTable(dwell, idle)
 	serverStatus.ConnectionTable = connectionTable
-	go connectionTable.Run(ctx)
+	go connectionTable.Run(ctx, lbDefaultMethod)
 
 	genericListeners := genericlistener.NewGenerListeners(ctx, secretKey, certbundle, serverStatus)
 	serverStatus.GenericListeners = genericListeners
