@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	endPointPrefix = "/api/com.daplie.rvpn/"
+	endPointPrefix = "/api/com.daplie.tunnel/"
 )
 
 var connectionTable *Table

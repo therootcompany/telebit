@@ -5,19 +5,24 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"time"
 
 	"github.com/spf13/viper"
 
+	"io"
+
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/genericlistener"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
 	loginfo                  *log.Logger
 	logdebug                 *log.Logger
 	logFlags                 = log.Ldate | log.Lmicroseconds | log.Lshortfile
+	logfile                  = "stdout"
 	argWssClientListener     string
 	argGenericBinding        int
 	argServerBinding         string
@@ -35,11 +40,37 @@ var (
 	serverName               string
 )
 
+func init() {
+	flag.StringVar(&logfile, "log", logfile, "Log file (or stdout/stderr; empty for none)")
+}
+
+var logoutput io.Writer
+
 //Main -- main entry point
 func main() {
 	flag.Parse()
-	loginfo = log.New(os.Stdout, "INFO: main: ", logFlags)
-	logdebug = log.New(os.Stdout, "DEBUG: main:", logFlags)
+	switch logfile {
+	case "stdout":
+		logoutput = os.Stdout
+	case "stderr":
+		logoutput = os.Stderr
+	case "":
+		logoutput = ioutil.Discard
+	default:
+		logoutput = &lumberjack.Logger{
+			Filename:   logfile,
+			MaxSize:    100,
+			MaxAge:     120,
+			MaxBackups: 10,
+		}
+	}
+
+	// send the output io.Writing to the other packages
+	genericlistener.InitLogging(logoutput)
+
+	loginfo = log.New(logoutput, "INFO: main: ", logFlags)
+	logdebug = log.New(logoutput, "DEBUG: main:", logFlags)
+
 	viper.SetConfigName("go-rvpn-server")
 	viper.AddConfigPath("./")
 	err := viper.ReadInConfig()
@@ -60,11 +91,6 @@ func main() {
 	serverName = viper.Get("rvpn.serverName").(string)
 
 	loginfo.Println("startup")
-
-	loginfo.Println(viper.Get("rvpn.genericlisteners"))
-	loginfo.Println(viper.Get("rvpn.domains"))
-
-	fmt.Println("-=-=-=-=-=-=-=-=-=-=")
 
 	certbundle, err := tls.LoadX509KeyPair("certs/fullchain.pem", "certs/privkey.pem")
 	if err != nil {

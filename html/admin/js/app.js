@@ -74,7 +74,7 @@ app.controller('statusController', function ($scope, $http) {
     console.log("statusController");
     $scope.status_search = "";
 
-    var api = '/api/com.daplie.rvpn/status'
+    var api = '/api/com.daplie.tunnel/status'
    
     $scope.updateView = function() {
         $http.get(api).then(function(response) {
@@ -96,7 +96,7 @@ app.controller('serverController', function ($scope, $http) {
     $scope.servers_trigger_details = [];
     $scope.filtered
 
-    var api = '/api/com.daplie.rvpn/servers'
+    var api = '/api/com.daplie.tunnel/servers'
    
     $scope.updateView = function() {
         $http.get(api).then(function(response) {
