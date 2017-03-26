@@ -12,11 +12,6 @@ import (
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  4096,
-	WriteBufferSize: 4096,
-}
-
 // Connection track websocket and faciliates in and out data
 type Connection struct {
 	mutex sync.Mutex
@@ -91,6 +86,7 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	p.initialDomains = initialDomains
 	p.connectionTrack = connectionTrack
 	p.DomainTrack = make(map[string]*DomainTrack)
+	p.lastUpdate = time.Now()
 
 	for _, domain := range initialDomains {
 		p.AddTrackedDomain(string(domain.(string)))

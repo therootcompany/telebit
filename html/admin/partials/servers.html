@@ -27,8 +27,9 @@
         <th width="10%">Address</th>
         <th width="10%">Xfer (in/out)</th>
         <th width="10%">Req/Resp</th>
-        <th width="10%">Time</th>
-        <th width="10%">Idle</th>
+        <th width="5%">Duration</th>
+        <th width="5%">State</th>
+        <th width="5%">Idle</th>
         <th width="1%"><center><span class="glyphicon glyphicon-option-vertical" aria-hidden="true"></span></center></th>
         
 
@@ -64,6 +65,7 @@
             </td>
 
             <td>{{ s.duration | hfcduration }}</td>
+            <td>{{ s.server_state }}</td>
             <td>{{ s.idle | hfcduration }}</td>
             <td>
                 <span class="glyphicon glyphicon-zoom-in" title="Detail" aria-hidden="false" ng-click="triggerDetail(s.server_id)"></span>

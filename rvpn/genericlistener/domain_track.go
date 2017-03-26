@@ -49,3 +49,13 @@ func (c *DomainTrack) AddRequests() {
 func (c *DomainTrack) AddResponses() {
 	c.responses = c.responses + 1
 }
+
+//Requests -- Property
+func (c *DomainTrack) Requests() int64 {
+	return c.requests
+}
+
+//Responses -- Property
+func (c *DomainTrack) Responses() int64 {
+	return c.responses
+}
