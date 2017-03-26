@@ -26,6 +26,7 @@ func NewDomainServerAPI(domain string, conn *Connection) (p *DomainServerAPI) {
 
 //DomainAPI -- Container for domain and related servers
 type DomainAPI struct {
+	DomainName   string             `json:"domain_name"`
 	TotalServers int                `json:"server_total"`
 	Servers      []*DomainServerAPI `json:"servers"`
 	Traffic      TrafficAPI         `json:"traffic"`
@@ -34,6 +35,7 @@ type DomainAPI struct {
 //NewDomainAPI -- Constructor
 func NewDomainAPI(domain string, domainLoadBalance *DomainLoadBalance) (p *DomainAPI) {
 	p = new(DomainAPI)
+	p.DomainName = domain
 	for pos := range domainLoadBalance.connections {
 		ds := NewDomainServerAPI(domain, domainLoadBalance.connections[pos])
 		p.Servers = append(p.Servers, ds)
