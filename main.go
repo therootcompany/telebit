@@ -19,10 +19,13 @@ import (
 )
 
 var (
+	logfile    = "stdout"
+	configPath = "./"
+	configFile = "go-rvpn-server.yaml"
+
 	loginfo                  *log.Logger
 	logdebug                 *log.Logger
 	logFlags                 = log.Ldate | log.Lmicroseconds | log.Lshortfile
-	logfile                  = "stdout"
 	argWssClientListener     string
 	argGenericBinding        int
 	argServerBinding         string
@@ -42,6 +45,9 @@ var (
 
 func init() {
 	flag.StringVar(&logfile, "log", logfile, "Log file (or stdout/stderr; empty for none)")
+	flag.StringVar(&configPath, "config-path", configPath, "Configuration File Path")
+	flag.StringVar(&configFile, "config-file", configFile, "Configuration File Name")
+
 }
 
 var logoutput io.Writer
@@ -71,7 +77,7 @@ func main() {
 	loginfo = log.New(logoutput, "INFO: main: ", logFlags)
 	logdebug = log.New(logoutput, "DEBUG: main:", logFlags)
 
-	viper.SetConfigName("go-rvpn-server")
+	viper.SetConfigName(configPath)
 	viper.AddConfigPath("./")
 	err := viper.ReadInConfig()
 	if err != nil {
