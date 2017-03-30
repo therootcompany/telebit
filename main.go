@@ -5,23 +5,22 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"time"
 
 	"github.com/spf13/viper"
-
-	"io"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/genericlistener"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
 	logfile    = "stdout"
 	configPath = "./"
-	configFile = "go-rvpn-server.yaml"
+	configFile = "go-rvpn-server"
 
 	loginfo                  *log.Logger
 	logdebug                 *log.Logger
@@ -77,7 +76,8 @@ func main() {
 	loginfo = log.New(logoutput, "INFO: main: ", logFlags)
 	logdebug = log.New(logoutput, "DEBUG: main:", logFlags)
 
-	viper.SetConfigName(configPath)
+	viper.SetConfigName(configFile)
+	viper.AddConfigPath(configPath)
 	viper.AddConfigPath("./")
 	err := viper.ReadInConfig()
 	if err != nil {
