@@ -9,10 +9,6 @@ type packerData struct {
 	buffer bytes.Buffer
 }
 
-func newPackerData() *packerData {
-	return new(packerData)
-}
-
 func (p *packerData) AppendString(dataString string) (int, error) {
 	return p.buffer.WriteString(dataString)
 }

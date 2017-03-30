@@ -16,16 +16,19 @@ const (
 
 //Packer -- contains both header and data
 type Packer struct {
-	Header *packerHeader
-	Data   *packerData
+	Header
+	Data packerData
 }
 
-//NewPacker -- Structre
-func NewPacker() (p *Packer) {
-	p = new(Packer)
-	p.Header = newPackerHeader()
-	p.Data = newPackerData()
-	return
+// NewPacker creates a new Packer struct using the information from the provided header as
+// its own header. (Because the header is stored directly and not as a pointer/reference
+// it should be safe to override items like the service without affecting the template header.)
+func NewPacker(header *Header) *Packer {
+	p := new(Packer)
+	if header != nil {
+		p.Header = *header
+	}
+	return p
 }
 
 func splitHeader(header []byte, names []string) (map[string]string, error) {
@@ -48,7 +51,7 @@ func ReadMessage(b []byte) (*Packer, error) {
 	// Detect protocol in use
 	if b[0] == packerV1 {
 		// Separate the header and body using the header length in the second byte.
-		p := NewPacker()
+		p := NewPacker(nil)
 		header := b[2 : b[1]+2]
 		data := b[b[1]+2:]
 
@@ -69,8 +72,8 @@ func ReadMessage(b []byte) (*Packer, error) {
 		p.Header.address = net.ParseIP(parts["address"])
 		if p.Header.address == nil {
 			return nil, fmt.Errorf("Invalid network address %q", parts["address"])
-		} else if p.Header.Family() == FamilyIPv4 && p.Header.address.To4() == nil {
-			return nil, fmt.Errorf("Address %q is not in address family %s", parts["address"], p.Header.FamilyText())
+		} else if p.Header.family == FamilyIPv4 && p.Header.address.To4() == nil {
+			return nil, fmt.Errorf("Address %q is not in address family %s", parts["address"], p.Header.Family())
 		}
 
 		//handle port
@@ -79,7 +82,7 @@ func ReadMessage(b []byte) (*Packer, error) {
 		} else if port <= 0 || port > 65535 {
 			return nil, fmt.Errorf("Port %d out of range", port)
 		} else {
-			p.Header.Port = port
+			p.Header.port = port
 		}
 
 		//handle data length
@@ -90,7 +93,7 @@ func ReadMessage(b []byte) (*Packer, error) {
 		}
 
 		//handle Service
-		p.Header.Service = parts["service"]
+		p.Header.service = parts["service"]
 
 		//handle payload
 		p.Data.AppendBytes(data)
@@ -103,11 +106,11 @@ func ReadMessage(b []byte) (*Packer, error) {
 //PackV1 -- Outputs version 1 of packer
 func (p *Packer) PackV1() bytes.Buffer {
 	header := strings.Join([]string{
-		p.Header.FamilyText(),
-		p.Header.AddressString(),
-		strconv.Itoa(p.Header.Port),
+		p.Header.Family(),
+		p.Header.Address(),
+		strconv.Itoa(p.Header.Port()),
 		strconv.Itoa(p.Data.DataLen()),
-		p.Header.Service,
+		p.Header.Service(),
 	}, ",")
 
 	var buf bytes.Buffer

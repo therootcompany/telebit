@@ -292,11 +292,19 @@ func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname
 	track := NewTrack(extConn, hostname)
 	serverStatus.ExtConnectionRegister(track)
 
-	loginfo.Println("Domain Accepted", hostname, extConn.RemoteAddr().String())
+	remoteStr := extConn.RemoteAddr().String()
+	loginfo.Println("Domain Accepted", hostname, remoteStr)
 
-	rAddr, rPort, err := net.SplitHostPort(extConn.RemoteAddr().String())
-	if err != nil {
-		loginfo.Println("unable to decode hostport", extConn.RemoteAddr().String())
+	var header *packer.Header
+	if rAddr, rPort, err := net.SplitHostPort(remoteStr); err != nil {
+		loginfo.Println("unable to decode hostport", remoteStr, err)
+	} else if port, err := strconv.Atoi(rPort); err != nil {
+		loginfo.Printf("unable to parse port string %q: %v\n", rPort, err)
+	} else if header, err = packer.NewHeader(rAddr, port, service); err != nil {
+		loginfo.Println("unable to create packer header", err)
+	}
+
+	if header == nil {
 		return
 	}
 
@@ -309,18 +317,8 @@ func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname
 
 		loginfo.Println("Before Packer", hex.Dump(buffer))
 
-		cnt := len(buffer)
-
-		p := packer.NewPacker()
-		p.Header.SetAddress(rAddr)
-		p.Header.Port, err = strconv.Atoi(rPort)
-		if err != nil {
-			loginfo.Println("Unable to set Remote port", err)
-			return
-		}
-
-		p.Header.Service = service
-		p.Data.AppendBytes(buffer[0:cnt])
+		p := packer.NewPacker(header)
+		p.Data.AppendBytes(buffer)
 		buf := p.PackV1()
 
 		//loginfo.Println(hex.Dump(buf.Bytes()))
@@ -329,8 +327,8 @@ func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname
 		sendTrack := NewSendTrack(buf.Bytes(), hostname)
 		serverStatus.SendExtRequest(conn, sendTrack)
 
-		_, err = extConn.Discard(cnt)
-		if err != nil {
+		cnt := len(buffer)
+		if _, err = extConn.Discard(cnt); err != nil {
 			loginfo.Println("unable to discard", cnt, err)
 			return
 		}

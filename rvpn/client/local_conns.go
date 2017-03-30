@@ -31,7 +31,7 @@ func (l *localConns) Write(p *packer.Packer) error {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
 
-	key := fmt.Sprintf("%s:%d", p.Header.Address(), p.Header.Port)
+	key := fmt.Sprintf("%s:%d", p.Address(), p.Port())
 	if conn := l.locals[key]; conn != nil {
 		_, err := conn.Write(p.Data.Data())
 		return err
@@ -42,8 +42,8 @@ func (l *localConns) Write(p *packer.Packer) error {
 }
 
 func (l *localConns) startConnection(orig *packer.Packer) {
-	key := fmt.Sprintf("%s:%d", orig.Header.Address(), orig.Header.Port)
-	addr := fmt.Sprintf("127.0.0.1:%d", l.services[orig.Header.Service])
+	key := fmt.Sprintf("%s:%d", orig.Address(), orig.Port())
+	addr := fmt.Sprintf("127.0.0.1:%d", l.services[orig.Service()])
 	conn, err := net.Dial("tcp", addr)
 	if err != nil {
 		loginfo.Println("failed to open connection to", addr, err)
@@ -74,8 +74,7 @@ func (l *localConns) startConnection(orig *packer.Packer) {
 			return
 		}
 
-		p := packer.NewPacker()
-		p.Header = orig.Header
+		p := packer.NewPacker(&orig.Header)
 		p.Data.AppendBytes(buf[:size])
 		packed := p.PackV1()
 		l.remote.WriteMessage(websocket.BinaryMessage, packed.Bytes())
