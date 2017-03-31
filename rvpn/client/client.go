@@ -1,12 +1,11 @@
 package client
 
 import (
+	"context"
 	"crypto/tls"
+	"fmt"
 	"net/url"
 
-	"fmt"
-
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
 	"github.com/gorilla/websocket"
 )
 
@@ -17,7 +16,7 @@ type Config struct {
 	Insecure bool
 }
 
-func Run(config *Config) error {
+func Run(ctx context.Context, config *Config) error {
 	serverURL, err := url.Parse(config.Server)
 	if err != nil {
 		return fmt.Errorf("Invalid server URL: %v", err)
@@ -36,26 +35,13 @@ func Run(config *Config) error {
 		dialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
+	handler := NewWsHandler(config.Services)
+
 	conn, _, err := dialer.Dial(serverURL.String(), nil)
 	if err != nil {
 		return fmt.Errorf("First connection to server failed - check auth: %v", err)
 	}
 
-	localConns := newLocalConns(conn, config.Services)
-	for {
-		_, message, err := conn.ReadMessage()
-		if err != nil {
-			return fmt.Errorf("websocket read errored: %v", err)
-		}
-
-		p, err := packer.ReadMessage(message)
-		if err != nil {
-			return fmt.Errorf("packer read failed: %v", err)
-		}
-
-		err = localConns.Write(p)
-		if err != nil {
-			return fmt.Errorf("failed to write data: %v", err)
-		}
-	}
+	handler.HandleConn(ctx, conn)
+	return nil
 }
