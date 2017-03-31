@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/url"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -37,11 +38,22 @@ func Run(ctx context.Context, config *Config) error {
 
 	handler := NewWsHandler(config.Services)
 
-	conn, _, err := dialer.Dial(serverURL.String(), nil)
-	if err != nil {
-		return fmt.Errorf("First connection to server failed - check auth: %v", err)
-	}
+	authenticated := false
+	for {
+		if conn, _, err := dialer.Dial(serverURL.String(), nil); err == nil {
+			authenticated = true
+			handler.HandleConn(ctx, conn)
+		} else if !authenticated {
+			return fmt.Errorf("First connection to server failed - check auth: %v", err)
+		}
+		loginfo.Println("disconnected from remote server")
 
-	handler.HandleConn(ctx, conn)
-	return nil
+		// Sleep for a few seconds before trying again, but only if the context is still active
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-time.After(5 * time.Second):
+		}
+		loginfo.Println("attempting reconnect to remote server")
+	}
 }
