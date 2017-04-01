@@ -1,21 +1,27 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"time"
 
 	"github.com/spf13/viper"
+	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
-	"context"
-
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/genericlistener"
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/server"
 )
 
 var (
+	logfile    = "stdout"
+	configPath = "./"
+	configFile = "go-rvpn-server"
+
 	loginfo                  *log.Logger
 	logdebug                 *log.Logger
 	logFlags                 = log.Ldate | log.Lmicroseconds | log.Lshortfile
@@ -25,29 +31,57 @@ var (
 	argServerAdminBinding    string
 	argServerExternalBinding string
 	argDeadTime              int
-	connectionTable          *genericlistener.Table
+	connectionTable          *server.Table
 	secretKey                = "abc123"
 	wssHostName              = "localhost.daplie.me"
 	adminHostName            = "rvpn.daplie.invalid"
 	idle                     int
 	dwell                    int
 	cancelcheck              int
+	lbDefaultMethod          string
+	serverName               string
 )
 
 func init() {
+	flag.StringVar(&logfile, "log", logfile, "Log file (or stdout/stderr; empty for none)")
+	flag.StringVar(&configPath, "config-path", configPath, "Configuration File Path")
+	flag.StringVar(&configFile, "config-file", configFile, "Configuration File Name")
 
 }
+
+var logoutput io.Writer
 
 //Main -- main entry point
 func main() {
 	flag.Parse()
-	loginfo = log.New(os.Stdout, "INFO: main: ", logFlags)
-	logdebug = log.New(os.Stdout, "DEBUG: main:", logFlags)
-	viper.SetConfigName("go-rvpn-server")
+	switch logfile {
+	case "stdout":
+		logoutput = os.Stdout
+	case "stderr":
+		logoutput = os.Stderr
+	case "":
+		logoutput = ioutil.Discard
+	default:
+		logoutput = &lumberjack.Logger{
+			Filename:   logfile,
+			MaxSize:    100,
+			MaxAge:     120,
+			MaxBackups: 10,
+		}
+	}
+
+	// send the output io.Writing to the other packages
+	server.InitLogging(logoutput)
+
+	loginfo = log.New(logoutput, "INFO: main: ", logFlags)
+	logdebug = log.New(logoutput, "DEBUG: main:", logFlags)
+
+	viper.SetConfigName(configFile)
+	viper.AddConfigPath(configPath)
 	viper.AddConfigPath("./")
 	err := viper.ReadInConfig()
 	if err != nil {
-		panic(fmt.Errorf("Fatal error config file: %s \n", err))
+		panic(fmt.Errorf("fatal error config file: %s", err))
 	}
 
 	flag.IntVar(&argDeadTime, "dead-time-counter", 5, "deadtime counter in seconds")
@@ -55,17 +89,14 @@ func main() {
 	wssHostName = viper.Get("rvpn.wssdomain").(string)
 	adminHostName = viper.Get("rvpn.admindomain").(string)
 	argGenericBinding = viper.GetInt("rvpn.genericlistener")
-	deadtime := viper.Get("rvpn.deadtime")
-	idle = deadtime.(map[string]interface{})["idle"].(int)
-	dwell = deadtime.(map[string]interface{})["dwell"].(int)
-	cancelcheck = deadtime.(map[string]interface{})["cancelcheck"].(int)
+	deadtime := viper.Get("rvpn.deadtime").(map[string]interface{})
+	idle = deadtime["idle"].(int)
+	dwell = deadtime["dwell"].(int)
+	cancelcheck = deadtime["cancelcheck"].(int)
+	lbDefaultMethod = viper.Get("rvpn.loadbalancing.defaultmethod").(string)
+	serverName = viper.Get("rvpn.serverName").(string)
 
 	loginfo.Println("startup")
-
-	loginfo.Println(viper.Get("rvpn.genericlisteners"))
-	loginfo.Println(viper.Get("rvpn.domains"))
-
-	fmt.Println("-=-=-=-=-=-=-=-=-=-=")
 
 	certbundle, err := tls.LoadX509KeyPair("certs/fullchain.pem", "certs/privkey.pem")
 	if err != nil {
@@ -76,6 +107,14 @@ func main() {
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
 
+	serverStatus := server.NewStatus(ctx)
+	serverStatus.AdminDomain = adminHostName
+	serverStatus.WssDomain = wssHostName
+	serverStatus.Name = serverName
+	serverStatus.StartTime = time.Now()
+	serverStatus.DeadTime = server.NewStatusDeadTime(dwell, idle, cancelcheck)
+	serverStatus.LoadbalanceDefaultMethod = lbDefaultMethod
+
 	// Setup for GenericListenServe.
 	// - establish context for the generic listener
 	// - startup listener
@@ -85,16 +124,18 @@ func main() {
 	// - if tls, establish, protocol peek buffer, else decrypted
 	// - match protocol
 
-	connectionTracking := genericlistener.NewTracking()
+	connectionTracking := server.NewTracking()
+	serverStatus.ConnectionTracking = connectionTracking
 	go connectionTracking.Run(ctx)
 
-	connectionTable = genericlistener.NewTable(dwell, idle)
-	go connectionTable.Run(ctx)
+	connectionTable = server.NewTable(dwell, idle)
+	serverStatus.ConnectionTable = connectionTable
+	go connectionTable.Run(ctx, lbDefaultMethod)
 
-	genericListeners := genericlistener.NewGenerListeners(ctx, connectionTable, connectionTracking, secretKey, certbundle, wssHostName, adminHostName, cancelcheck)
+	genericListeners := server.NewGenerListeners(ctx, secretKey, certbundle, serverStatus)
+	//serverStatus.GenericListeners = genericListeners
+
 	go genericListeners.Run(ctx, argGenericBinding)
 
-	//Run for 10 minutes and then shutdown cleanly
-	time.Sleep(600 * time.Second)
-	cancelContext()
+	select {}
 }

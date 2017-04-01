@@ -1,9 +1,10 @@
 rvpn:
+  serverName: rvpn1
   wssdomain: localhost.daplie.me
   admindomain: rvpn.daplie.invalid
-  genericlistener: 9999
+  genericlistener: 8443
   deadtime:
-    dwell: 600
+    dwell: 120
     idle: 60
     cancelcheck: 10
   domains:
@@ -13,4 +14,7 @@ rvpn:
       secret: abc123
     test3.daplie.me:
       secret: abc123
+  loadbalancing:
+    defaultmethod: round-robin
+    
 
