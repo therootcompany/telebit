@@ -1,4 +1,4 @@
-package genericlistener
+package server
 
 import (
 	"context"
@@ -43,8 +43,8 @@ func NewListenerRegistration(port int) (p *ListenerRegistration) {
 	return
 }
 
-//GenericListeners -
-type GenericListeners struct {
+//servers -
+type servers struct {
 	listeners          map[*net.Listener]int
 	ctx                context.Context
 	connnectionTable   *Table
@@ -52,7 +52,7 @@ type GenericListeners struct {
 	secretKey          string
 	certbundle         tls.Certificate
 	register           chan *ListenerRegistration
-	genericListeners   *GenericListeners
+	servers   *servers
 	wssHostName        string
 	adminHostName      string
 	cancelCheck        int
@@ -61,8 +61,8 @@ type GenericListeners struct {
 }
 
 //NewGenerListeners --
-func NewGenerListeners(ctx context.Context, secretKey string, certbundle tls.Certificate, serverStatus *Status) (p *GenericListeners) {
-	p = new(GenericListeners)
+func NewGenerListeners(ctx context.Context, secretKey string, certbundle tls.Certificate, serverStatus *Status) (p *servers) {
+	p = new(servers)
 	p.listeners = make(map[*net.Listener]int)
 	p.ctx = ctx
 	p.connnectionTable = serverStatus.ConnectionTable
@@ -81,7 +81,7 @@ func NewGenerListeners(ctx context.Context, secretKey string, certbundle tls.Cer
 //Run -- Execute
 // - execute the GenericLister
 // - pass initial port, we'll announce that
-func (gl *GenericListeners) Run(ctx context.Context, initialPort int) {
+func (gl *servers) Run(ctx context.Context, initialPort int) {
 	loginfo.Println("ConnectionTable starting")
 
 	config := &tls.Config{Certificates: []tls.Certificate{gl.certbundle}}

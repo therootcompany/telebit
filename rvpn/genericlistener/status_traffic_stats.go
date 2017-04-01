@@ -1,4 +1,4 @@
-package genericlistener
+package server
 
 //TrafficStats --
 type TrafficStats struct {

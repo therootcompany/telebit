@@ -1,4 +1,4 @@
-package genericlistener
+package server
 
 import (
 	"io"
@@ -15,8 +15,8 @@ var (
 )
 
 func init() {
-	loginfo = log.New(os.Stdout, "INFO: genericlistener: ", logFlags)
-	logdebug = log.New(os.Stdout, "DEBUG: genericlistener:", logFlags)
+	loginfo = log.New(os.Stdout, "INFO: server: ", logFlags)
+	logdebug = log.New(os.Stdout, "DEBUG: server:", logFlags)
 	connectionID = 0
 }
 
