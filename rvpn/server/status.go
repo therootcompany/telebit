@@ -15,7 +15,7 @@ type Status struct {
 	DeadTime                 *StatusDeadTime
 	ConnectionTracking       *Tracking
 	ConnectionTable          *Table
-	servers         *servers
+	servers                  *servers
 	LoadbalanceDefaultMethod string
 	AdminStats               *TrafficStats
 	AdminReqTyoe             *AdminReqType
