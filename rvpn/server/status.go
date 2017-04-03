@@ -1,4 +1,4 @@
-package genericlistener
+package server
 
 import (
 	"context"
@@ -15,7 +15,7 @@ type Status struct {
 	DeadTime                 *StatusDeadTime
 	ConnectionTracking       *Tracking
 	ConnectionTable          *Table
-	GenericListeners         *GenericListeners
+	servers                  *servers
 	LoadbalanceDefaultMethod string
 	AdminStats               *TrafficStats
 	AdminReqTyoe             *AdminReqType

@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/genericlistener"
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/server"
 )
 
 var (
@@ -31,7 +31,7 @@ var (
 	argServerAdminBinding    string
 	argServerExternalBinding string
 	argDeadTime              int
-	connectionTable          *genericlistener.Table
+	connectionTable          *server.Table
 	secretKey                = "abc123"
 	wssHostName              = "localhost.daplie.me"
 	adminHostName            = "rvpn.daplie.invalid"
@@ -71,7 +71,7 @@ func main() {
 	}
 
 	// send the output io.Writing to the other packages
-	genericlistener.InitLogging(logoutput)
+	server.InitLogging(logoutput)
 
 	loginfo = log.New(logoutput, "INFO: main: ", logFlags)
 	logdebug = log.New(logoutput, "DEBUG: main:", logFlags)
@@ -107,12 +107,12 @@ func main() {
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
 
-	serverStatus := genericlistener.NewStatus(ctx)
+	serverStatus := server.NewStatus(ctx)
 	serverStatus.AdminDomain = adminHostName
 	serverStatus.WssDomain = wssHostName
 	serverStatus.Name = serverName
 	serverStatus.StartTime = time.Now()
-	serverStatus.DeadTime = genericlistener.NewStatusDeadTime(dwell, idle, cancelcheck)
+	serverStatus.DeadTime = server.NewStatusDeadTime(dwell, idle, cancelcheck)
 	serverStatus.LoadbalanceDefaultMethod = lbDefaultMethod
 
 	// Setup for GenericListenServe.
@@ -124,16 +124,16 @@ func main() {
 	// - if tls, establish, protocol peek buffer, else decrypted
 	// - match protocol
 
-	connectionTracking := genericlistener.NewTracking()
+	connectionTracking := server.NewTracking()
 	serverStatus.ConnectionTracking = connectionTracking
 	go connectionTracking.Run(ctx)
 
-	connectionTable = genericlistener.NewTable(dwell, idle)
+	connectionTable = server.NewTable(dwell, idle)
 	serverStatus.ConnectionTable = connectionTable
 	go connectionTable.Run(ctx, lbDefaultMethod)
 
-	genericListeners := genericlistener.NewGenerListeners(ctx, secretKey, certbundle, serverStatus)
-	serverStatus.GenericListeners = genericListeners
+	genericListeners := server.NewGenerListeners(ctx, secretKey, certbundle, serverStatus)
+	//serverStatus.GenericListeners = genericListeners
 
 	go genericListeners.Run(ctx, argGenericBinding)
 

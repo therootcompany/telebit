@@ -1,4 +1,4 @@
-package genericlistener
+package server
 
 //ServerDomainsAPI -- Structure to support the server API
 type ServerDomainsAPI struct {

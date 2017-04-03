@@ -1,4 +1,4 @@
-package genericlistener
+package server
 
 //ConnectionStatsAPI --
 type ConnectionStatsAPI struct {

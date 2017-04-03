@@ -1,4 +1,4 @@
-package genericlistener
+package server
 
 //StatusDeadTimeAPI -- structure for deadtime configuration
 type StatusDeadTimeAPI struct {
