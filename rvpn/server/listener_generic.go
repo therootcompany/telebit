@@ -18,6 +18,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/sni"
 )
 
 type contextKey string
@@ -160,7 +161,7 @@ func handleConnection(ctx context.Context, wConn *WedgeConn) {
 		wssHostName := ctx.Value(ctxWssHostName).(string)
 		adminHostName := ctx.Value(ctxAdminHostName).(string)
 
-		sniHostName, err := getHello(peek)
+		sniHostName, err := sni.GetHostname(peek)
 		if err != nil {
 			loginfo.Println(err)
 			return
