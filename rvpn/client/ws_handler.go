@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -100,11 +101,16 @@ func (h *WsHandler) writeRemote(conn *websocket.Conn) {
 	}
 }
 
-func (h *WsHandler) sendSpecial(header *packer.Header, service string) {
+func (h *WsHandler) sendPackedMessage(header *packer.Header, data []byte, service string) {
 	p := packer.NewPacker(header)
-	p.SetService(service)
+	if len(data) > 0 {
+		p.Data.AppendBytes(data)
+	}
+	if service != "" {
+		p.SetService(service)
+	}
 
-	// Avoid blocking on the data channel if the websocket is already closed
+	// Avoid blocking on the data channel if the websocket closes or is already closed
 	select {
 	case h.dataChan <- p:
 	case <-h.ctx.Done():
@@ -142,7 +148,7 @@ func (h *WsHandler) getLocalConn(p *packer.Packer) net.Conn {
 func (h *WsHandler) writeLocal(p *packer.Packer) {
 	conn := h.getLocalConn(p)
 	if conn == nil {
-		h.sendSpecial(&p.Header, "error")
+		h.sendPackedMessage(&p.Header, nil, "error")
 		return
 	}
 
@@ -152,7 +158,7 @@ func (h *WsHandler) writeLocal(p *packer.Packer) {
 	}
 
 	if _, err := conn.Write(p.Data.Data()); err != nil {
-		h.sendSpecial(&p.Header, "error")
+		h.sendPackedMessage(&p.Header, nil, "error")
 		loginfo.Println("failed to write to local connection", err)
 	}
 }
@@ -174,18 +180,16 @@ func (h *WsHandler) readLocal(key string, header *packer.Header) {
 	for {
 		size, err := conn.Read(buf)
 		if err != nil {
-			if err == io.EOF {
-				h.sendSpecial(header, "end")
+			if err == io.EOF || strings.Contains(err.Error(), "use of closed network connection") {
+				h.sendPackedMessage(header, nil, "end")
 			} else {
 				loginfo.Println("failed to read from local connection for", key, err)
-				h.sendSpecial(header, "error")
+				h.sendPackedMessage(header, nil, "error")
 			}
 			return
 		}
 
-		p := packer.NewPacker(header)
-		p.Data.AppendBytes(buf[:size])
-		h.dataChan <- p
+		h.sendPackedMessage(header, buf[:size], "")
 	}
 }
 
