@@ -10,13 +10,19 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// The Config struct holds all of the information needed to establish and handle a connection
+// with the RVPN server.
 type Config struct {
 	Server   string
 	Token    string
-	Services map[string]int
 	Insecure bool
+	Services map[string]map[string]int
 }
 
+// Run establishes a connection with the RVPN server specified in the config. If the first attempt
+// to connect fails it is assumed that something is wrong with the authentication and it will
+// return an error. Otherwise it will continuously attempt to reconnect whenever the connection
+// is broken.
 func Run(ctx context.Context, config *Config) error {
 	serverURL, err := url.Parse(config.Server)
 	if err != nil {
@@ -36,11 +42,17 @@ func Run(ctx context.Context, config *Config) error {
 		dialer.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 
+	for name, portList := range config.Services {
+		if _, ok := portList["*"]; !ok {
+			return fmt.Errorf(`service %s missing port for "*"`, name)
+		}
+	}
 	handler := NewWsHandler(config.Services)
 
 	authenticated := false
 	for {
 		if conn, _, err := dialer.Dial(serverURL.String(), nil); err == nil {
+			loginfo.Println("connected to remote server")
 			authenticated = true
 			handler.HandleConn(ctx, conn)
 		} else if !authenticated {

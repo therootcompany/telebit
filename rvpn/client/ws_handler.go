@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -12,7 +13,10 @@ import (
 	"github.com/gorilla/websocket"
 
 	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
+	"git.daplie.com/Daplie/go-rvpn-server/rvpn/sni"
 )
+
+var hostRegexp = regexp.MustCompile(`(?im)(?:^|[\r\n])Host: *([^\r\n]+)[\r\n]`)
 
 // WsHandler handles all of reading and writing for the websocket connection to the RVPN server
 // and the TCP connections to the local servers.
@@ -20,7 +24,7 @@ type WsHandler struct {
 	lock       sync.Mutex
 	localConns map[string]net.Conn
 
-	servicePorts map[string]int
+	servicePorts map[string]map[string]int
 
 	ctx      context.Context
 	dataChan chan *packer.Packer
@@ -28,7 +32,7 @@ type WsHandler struct {
 
 // NewWsHandler creates a new handler ready to be given a websocket connection. The services
 // argument specifies what port each service type should be directed to on the local interface.
-func NewWsHandler(services map[string]int) *WsHandler {
+func NewWsHandler(services map[string]map[string]int) *WsHandler {
 	h := new(WsHandler)
 	h.servicePorts = services
 	h.localConns = make(map[string]net.Conn)
@@ -127,9 +131,35 @@ func (h *WsHandler) getLocalConn(p *packer.Packer) net.Conn {
 		return conn
 	}
 
-	port := h.servicePorts[p.Service()]
+	service := strings.ToLower(p.Service())
+	portList := h.servicePorts[service]
+	if portList == nil {
+		loginfo.Println("cannot open connection for invalid service", service)
+		return nil
+	}
+
+	var hostname string
+	if service == "http" {
+		if match := hostRegexp.FindSubmatch(p.Data.Data()); match != nil {
+			hostname = strings.Split(string(match[1]), ":")[0]
+		}
+	} else if service == "https" {
+		hostname, _ = sni.GetHostname(p.Data.Data())
+	} else {
+		hostname = "*"
+	}
+	if hostname == "" {
+		loginfo.Println("missing servername for", service, key)
+		return nil
+	}
+	hostname = strings.ToLower(hostname)
+
+	port := portList[hostname]
 	if port == 0 {
-		loginfo.Println("cannot open connection for invalid service", p.Service())
+		port = portList["*"]
+	}
+	if port == 0 {
+		loginfo.Println("unable to determine local port for", service, hostname)
 		return nil
 	}
 
@@ -139,8 +169,8 @@ func (h *WsHandler) getLocalConn(p *packer.Packer) net.Conn {
 		return nil
 	}
 
-	loginfo.Println("opened new connection to port", port, "for", key)
 	h.localConns[key] = conn
+	loginfo.Printf("new client %q for %s:%d (%d clients)\n", key, hostname, port, len(h.localConns))
 	go h.readLocal(key, &p.Header)
 	return conn
 }
@@ -172,9 +202,9 @@ func (h *WsHandler) readLocal(key string, header *packer.Header) {
 	defer func() {
 		h.lock.Lock()
 		delete(h.localConns, key)
+		loginfo.Printf("closing client %q: (%d clients)\n", key, len(h.localConns))
 		h.lock.Unlock()
 	}()
-	defer loginfo.Println("finished with client", key)
 
 	buf := make([]byte, 4096)
 	for {

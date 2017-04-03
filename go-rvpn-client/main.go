@@ -24,8 +24,17 @@ func main() {
 	defer quit()
 
 	config := client.Config{
-		Server:   "wss://localhost.daplie.me:9999",
-		Services: map[string]int{"https": 8443},
+		Server: "wss://localhost.daplie.me:9999",
+		Services: map[string]map[string]int{
+			"https": map[string]int{
+				"*": 8443,
+				"localhost.foo.daplie.me": 4443,
+			},
+			"http": map[string]int{
+				"*": 8443,
+				"localhost.foo.daplie.me": 4443,
+			},
+		},
 		Token:    tokenStr,
 		Insecure: true,
 	}
