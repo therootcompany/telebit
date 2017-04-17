@@ -2,8 +2,8 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"io"
-	"strconv"
 	"sync"
 	"time"
 
@@ -252,7 +252,7 @@ func (c *Connection) Reader(ctx context.Context) {
 
 		// unpack the message.
 		p, err := packer.ReadMessage(message)
-		key := p.Header.Address().String() + ":" + strconv.Itoa(p.Header.Port)
+		key := fmt.Sprintf("%s:%d", p.Address(), p.Port())
 		track, err := connectionTrack.Lookup(key)
 
 		//loginfo.Println(hex.Dump(p.Data.Data()))
