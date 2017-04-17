@@ -1,10 +1,11 @@
-package server
+package sni
 
 import (
 	"errors"
 )
 
-func getHello(b []byte) (string, error) {
+// GetHostname uses SNI to determine the intended target of a new TLS connection.
+func GetHostname(b []byte) (string, error) {
 	rest := b[5:]
 	current := 0
 	handshakeType := rest[0]

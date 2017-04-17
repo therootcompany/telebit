@@ -7,12 +7,15 @@ import (
 
 type addressFamily int
 
-// packerHeader structure to hold our header information.
-type packerHeader struct {
+// The Header struct holds most of the information contained in the header for packets
+// between the client and the server (the length of the data is not included here). It
+// is used to uniquely identify remote connections on the servers end and to communicate
+// which service the remote client is trying to connect to.
+type Header struct {
 	family  addressFamily
 	address net.IP
-	Port    int
-	Service string
+	port    int
+	service string
 }
 
 //Family -- ENUM for Address Family
@@ -26,16 +29,19 @@ var addressFamilyText = [...]string{
 	"IPv6",
 }
 
-func newPackerHeader() (p *packerHeader) {
-	p = new(packerHeader)
-	p.SetAddress("127.0.0.1")
-	p.Port = 65535
-	p.Service = "na"
-	return
+// NewHeader create a new Header object.
+func NewHeader(address string, port int, service string) (*Header, error) {
+	h := new(Header)
+	if err := h.setAddress(address); err != nil {
+		return nil, err
+	}
+	h.port = port
+	h.service = service
+	return h, nil
 }
 
-//SetAddress -- Set Address. which sets address family automatically
-func (p *packerHeader) SetAddress(addr string) {
+// setAddress parses the provided address string and automatically sets the IP family.
+func (p *Header) setAddress(addr string) error {
 	p.address = net.ParseIP(addr)
 
 	if p.address.To4() != nil {
@@ -43,30 +49,33 @@ func (p *packerHeader) SetAddress(addr string) {
 	} else if p.address.To16() != nil {
 		p.family = FamilyIPv6
 	} else {
-		panic(fmt.Sprintf("setAddress does not support %q", addr))
+		return fmt.Errorf("invalid IP address %q", addr)
 	}
+	return nil
 }
 
-func (p *packerHeader) AddressBytes() []byte {
-	if ip4 := p.address.To4(); ip4 != nil {
-		p.address = ip4
-	}
-
-	return []byte(p.address)
+// Family returns the string corresponding to the address's IP family.
+func (p *Header) Family() string {
+	return addressFamilyText[p.family]
 }
 
-func (p *packerHeader) AddressString() string {
+// Address returns the string form of the header's remote address.
+func (p *Header) Address() string {
 	return p.address.String()
 }
 
-func (p *packerHeader) Address() net.IP {
-	return p.address
+// Port returns the connected port of the remote connection.
+func (p *Header) Port() int {
+	return p.port
 }
 
-func (p *packerHeader) Family() addressFamily {
-	return p.family
+// SetService overrides the header's original service. This is primarily useful
+// for sending 'error' and 'end' messages.
+func (p *Header) SetService(service string) {
+	p.service = service
 }
 
-func (p *packerHeader) FamilyText() string {
-	return addressFamilyText[p.family]
+// Service returns the service stored in the header.
+func (p *Header) Service() string {
+	return p.service
 }

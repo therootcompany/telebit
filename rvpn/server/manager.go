@@ -52,7 +52,7 @@ type servers struct {
 	secretKey          string
 	certbundle         tls.Certificate
 	register           chan *ListenerRegistration
-	servers   *servers
+	servers            *servers
 	wssHostName        string
 	adminHostName      string
 	cancelCheck        int
