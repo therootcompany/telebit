@@ -17,8 +17,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/packer"
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/sni"
+	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/packer"
+	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/sni"
 )
 
 type contextKey string
@@ -255,7 +255,7 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 
 				//do we have a invalid domain indicating Admin?
 				//if yes, prep the oneConn and send it to the handler
-			} else if strings.Contains(r.Host, "rvpn.daplie.invalid") {
+			} else if strings.Contains(r.Host, "rvpn.rootprojects.invalid") {
 				loginfo.Println("admin")
 				oneConn := &oneConnListener{wConn}
 				handleAdminClient(ctx, oneConn)

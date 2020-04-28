@@ -2,39 +2,46 @@
 
 ## branch: load-balancing
 
-- code now passes traffic using just daplie tools
-- this will require serve-https and node-tunnel-client to work
-- the system supports round-robin load balancing
-
+-   code now passes traffic using just Root tools
+-   this will require serve-https and node-tunnel-client to work
+-   the system supports round-robin load balancing
 
 ### Build RVPN
 
 ```bash
-go-rvpn-server $ go get
-go-rvpn-server $ go build
+go build -mod vendor ./cmd/telebit/
+go build -mod vendor ./cmd/telebitd/
 ```
+
 ### Setup Some Entries
 
-```bash
-127.0.0.1 tunnel.example.com rvpn.daplie.invalid hfc2.daplie.me hfc.daplie.me
+`/etc/hosts`:
+
+```txt
+127.0.0.1 tunnel.example.com rvpn.rootprojects.invalid hfc2.rootprojects.org hfc.rootprojects.org
 ```
 
 ### Start Up Webserver
+
 ```bash
 tmp $ cd /tmp
-tmp $  vi index.html --- Place some index content
-tmp $ serve-https -p 8080 -d /tmp --servername hfc.daplie.me --agree-tos --email henry.f.camacho@gmail.com
+tmp $ vim index.html --- Place some index content
+tmp $ serve-https -p 8080 -d /tmp --servername hfc.rootprojects.org --agree-tos --email henry.f.camacho@gmail.com
 ```
 
 ### Start Tunnel Client
+
 ```bash
-node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8080,http://test1.hfc.daplie.me:8080 --stunneld wss://localhost.daplie.me:8443 --secret abc123
+node-tunnel-client $ bin/stunnel.js --locals http://hfc.rootprojects.org:8080,http://test1.hfc.rootprojects.org:8080 --stunneld wss://localhost.rootprojects.org:8443 --secret abc123
 ```
 
 ### Execute RVPN
 
 ```bash
-go-rvpn-server $ ./go-rvpn-server 
+./telebitd
+```
+
+```txt
 INFO: packer: 2017/03/02 19:16:52.652109 run.go:47: startup
 -=-=-=-=-=-=-=-=-=-=
 INFO: genericlistener: 2017/03/02 19:16:52.652777 manager.go:77: ConnectionTable starting
@@ -49,19 +56,20 @@ INFO: genericlistener: 2017/03/02 19:16:52.652869 conn_tracking.go:25: Tracking 
 
 ### Browse via tunnel
 
-https://hfc.daplie.me:8443
+https://hfc.rootprojects.org:8443
 
 ### Test Load Balancing
 
 In a new terminal
 
 ```bash
-node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8080,http://test1.hfc.daplie.me:8080 --stunneld wss://localhost.daplie.me:8443 --secret abc123
+node-tunnel-client $ bin/stunnel.js --locals http://hfc.rootprojects.org:8080,http://test1.hfc.rootprojects.org:8080 --stunneld wss://localhost.rootprojects.org:8443 --secret abc123
 ```
 
 ### Check Results
-- you should see traffic going to both node-clients hitting the single webserver on the back end.
-- Browse: https://rvpn.daplie.invalid:8443/api/com.daplie.rvpn/servers
+
+-   you should see traffic going to both node-clients hitting the single webserver on the back end.
+-   Browse: https://rvpn.rootprojects.invalid:8443/api/org.rootprojects.rvpn/servers
 
 ```javascript
 {
@@ -77,7 +85,7 @@ node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8080,http://te
 			"server_name": "0xc42014a0c0",
 			"server_id": 1,
 			"domains": [{
-				"domain_name": "hfc.daplie.me",
+				"domain_name": "hfc.rootprojects.org",
 				"server_id": 1,
 				"bytes_in": 4055,
 				"bytes_out": 8119,
@@ -85,7 +93,7 @@ node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8080,http://te
 				"responses": 12,
 				"source_addr": "127.0.0.1:55875"
 			}, {
-				"domain_name": "test1.hfc.daplie.me",
+				"domain_name": "test1.hfc.rootprojects.org",
 				"server_id": 1,
 				"bytes_in": 0,
 				"bytes_out": 0,
@@ -104,7 +112,7 @@ node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8080,http://te
 			"server_name": "0xc4200ea3c0",
 			"server_id": 2,
 			"domains": [{
-				"domain_name": "hfc.daplie.me",
+				"domain_name": "hfc.rootprojects.org",
 				"server_id": 2,
 				"bytes_in": 1098,
 				"bytes_out": 62,
@@ -112,7 +120,7 @@ node-tunnel-client $ bin/stunnel.js --locals http://hfc.daplie.me:8080,http://te
 				"responses": 2,
 				"source_addr": "127.0.0.1:56318"
 			}, {
-				"domain_name": "test1.hfc.daplie.me",
+				"domain_name": "test1.hfc.rootprojects.org",
 				"server_id": 2,
 				"bytes_in": 0,
 				"bytes_out": 0,

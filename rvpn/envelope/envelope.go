@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-//Envelope -- Standard daplie response structure
+//Envelope -- Standard response structure
 type Envelope struct {
 	TransactionType      string      `json:"type"`
 	Schema               string      `json:"schema"`

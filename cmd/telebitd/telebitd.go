@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/server"
+	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/server"
 )
 
 var (
@@ -33,8 +33,8 @@ var (
 	argDeadTime              int
 	connectionTable          *server.Table
 	secretKey                = "abc123"
-	wssHostName              = "localhost.daplie.me"
-	adminHostName            = "rvpn.daplie.invalid"
+	wssHostName              = "localhost.rootprojects.org"
+	adminHostName            = "rvpn.rootprojects.invalid"
 	idle                     int
 	dwell                    int
 	cancelcheck              int

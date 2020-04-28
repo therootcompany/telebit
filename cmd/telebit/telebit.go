@@ -11,7 +11,7 @@ import (
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/client"
+	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/client"
 )
 
 var httpRegexp = regexp.MustCompile(`(?i)^http`)

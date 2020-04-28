@@ -13,8 +13,8 @@ Docker version 17.03.0-ce, build 60ccb22
 - checkout code into gopath
 
 ```bash
-cd $GOPATH/src/git.daplie.com/Daplie
-git clone git@git.daplie.com:Daplie/go-rvpn-server.git
+cd $GOPATH/src/git.coolaj86.com/coolaj86
+git clone git@git.coolaj86.com:coolaj86/go-telebitd.git
 
 cd go-rvpn-server
 go get
@@ -75,14 +75,14 @@ rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.268045 one_conn.go:17: Acce
 rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.268062 one_conn.go:27: close
 rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.268066 listener_generic.go:421: Serve error:  EOF
 rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.268707 listener_generic.go:366: HandleFunc /
-rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.268727 listener_generic.go:369: websocket opening  172.18.0.1:38148   localhost.daplie.me:8443
+rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.268727 listener_generic.go:369: websocket opening  172.18.0.1:38148   localhost.rootprojects.org:8443
 rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.269264 listener_generic.go:397: before connection table
 rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.269321 connection_table.go:79: register fired
-rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.269523 connection_table.go:90: adding domain  hfc.daplie.me  to connection  172.18.0.1:38148
-rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.269602 connection_table.go:90: adding domain  test1.hfc.daplie.me  to connection  172.18.0.1:38148
-rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.269821 listener_generic.go:410: connection registration accepted  &{0xc42012af00 172.18.0.1:38148 0xc420120ea0 [hfc.daplie.me test1.hfc.daplie.me] 0xc4200f49c0}
-rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.270168 connection.go:200: Reader Start  &{0xc420104990 0xc420077560 map[hfc.daplie.me:0xc4201ee7a0 test1.hfc.daplie.me:0xc4201ee7c0] 0xc42012af00 0xc420120f00 172.18.0.1:38148 0 0 {63624247982 269492963 0x8392a0} {0 0 <nil>} [hfc.daplie.me test1.hfc.daplie.me] 0xc4200f49c0 true}
-rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.270281 connection.go:242: Writer Start  &{0xc420104990 0xc420077560 map[hfc.daplie.me:0xc4201ee7a0 test1.hfc.daplie.me:0xc4201ee7c0] 0xc42012af00 0xc420120f00 172.18.0.1:38148 0 0 {63624247982 269492963 0x8392a0} {0 0 <nil>} [hfc.daplie.me test1.hfc.daplie.me] 0xc4200f49c0 true}
+rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.269523 connection_table.go:90: adding domain  hfc.rootprojects.org  to connection  172.18.0.1:38148
+rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.269602 connection_table.go:90: adding domain  test1.hfc.rootprojects.org  to connection  172.18.0.1:38148
+rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.269821 listener_generic.go:410: connection registration accepted  &{0xc42012af00 172.18.0.1:38148 0xc420120ea0 [hfc.rootprojects.org test1.hfc.rootprojects.org] 0xc4200f49c0}
+rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.270168 connection.go:200: Reader Start  &{0xc420104990 0xc420077560 map[hfc.rootprojects.org:0xc4201ee7a0 test1.hfc.rootprojects.org:0xc4201ee7c0] 0xc42012af00 0xc420120f00 172.18.0.1:38148 0 0 {63624247982 269492963 0x8392a0} {0 0 <nil>} [hfc.rootprojects.org test1.hfc.rootprojects.org] 0xc4200f49c0 true}
+rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.270281 connection.go:242: Writer Start  &{0xc420104990 0xc420077560 map[hfc.rootprojects.org:0xc4201ee7a0 test1.hfc.rootprojects.org:0xc4201ee7c0] 0xc42012af00 0xc420120f00 172.18.0.1:38148 0 0 {63624247982 269492963 0x8392a0} {0 0 <nil>} [hfc.rootprojects.org test1.hfc.rootprojects.org] 0xc4200f49c0 true}
 
 ```
 

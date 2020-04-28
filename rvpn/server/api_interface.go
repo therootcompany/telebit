@@ -9,11 +9,11 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"git.daplie.com/Daplie/go-rvpn-server/rvpn/envelope"
+	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/envelope"
 )
 
 const (
-	endPointPrefix = "/api/com.daplie.tunnel/"
+	endPointPrefix = "/api/org.rootprojects.tunnel/"
 )
 
 var connectionTable *Table
@@ -40,7 +40,7 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 		switch url := r.URL.Path; url {
 		case "/":
 			// check to see if we are using the administrative Host
-			if strings.Contains(r.Host, "rvpn.daplie.invalid") {
+			if strings.Contains(r.Host, "rvpn.rootprojects.invalid") {
 				http.Redirect(w, r, "/admin", 301)
 				serverStatus.AdminStats.IncResponses()
 
