@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/viper"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
+	telebit "git.coolaj86.com/coolaj86/go-telebitd"
 	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/server"
 )
 
@@ -34,7 +35,7 @@ var (
 	connectionTable          *server.Table
 	secretKey                = "abc123"
 	wssHostName              = "localhost.rootprojects.org"
-	adminHostName            = "rvpn.rootprojects.invalid"
+	adminHostName            = telebit.InvalidAdminDomain
 	idle                     int
 	dwell                    int
 	cancelcheck              int

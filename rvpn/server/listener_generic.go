@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
+	telebit "git.coolaj86.com/coolaj86/go-telebitd"
 	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/packer"
 	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/sni"
 )
@@ -233,11 +234,11 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 	if bytes.Contains(peek[:], []byte{0x0d, 0x0a}) {
 		//string protocol
 		if bytes.ContainsAny(peek[:], "HTTP/") {
-			loginfo.Println("identifed HTTP")
+			loginfo.Println("identified HTTP")
 
 			r, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(peek)))
 			if err != nil {
-				loginfo.Println("identifed as HTTP, failed request parsing", err)
+				loginfo.Println("identified as HTTP, failed request parsing", err)
 				return
 			}
 
@@ -255,7 +256,7 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 
 				//do we have a invalid domain indicating Admin?
 				//if yes, prep the oneConn and send it to the handler
-			} else if strings.Contains(r.Host, "rvpn.rootprojects.invalid") {
+			} else if strings.Contains(r.Host, telebit.InvalidAdminDomain) {
 				loginfo.Println("admin")
 				oneConn := &oneConnListener{wConn}
 				handleAdminClient(ctx, oneConn)

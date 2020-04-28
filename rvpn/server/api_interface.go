@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	telebit "git.coolaj86.com/coolaj86/go-telebitd"
 	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/envelope"
 )
 
@@ -40,7 +41,7 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 		switch url := r.URL.Path; url {
 		case "/":
 			// check to see if we are using the administrative Host
-			if strings.Contains(r.Host, "rvpn.rootprojects.invalid") {
+			if strings.Contains(r.Host, telebit.InvalidAdminDomain) {
 				http.Redirect(w, r, "/admin", 301)
 				serverStatus.AdminStats.IncResponses()
 
