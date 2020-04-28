@@ -1,7 +1,7 @@
 # Docker Deployment for RVPN
 
-- install docker 1.13, or the latest stable CE release (Testing on MAC using 17.03.0-ce-mac1 (15583))
-- validate installation
+-   install docker 1.13, or the latest stable CE release (Testing on MAC using 17.03.0-ce-mac1 (15583))
+-   validate installation
 
 ```bash
 hcamacho@Hanks-MBP:rvpn-docker $ docker-compose --version
@@ -10,7 +10,8 @@ docker-compose version 1.11.2, build dfed245
 hcamacho@Hanks-MBP:rvpn-docker $ docker --version
 Docker version 17.03.0-ce, build 60ccb22
 ```
-- checkout code into gopath
+
+-   checkout code into gopath
 
 ```bash
 cd $GOPATH/src/git.coolaj86.com/coolaj86
@@ -23,7 +24,7 @@ go get
 
 ## Execute Container Deployment
 
-- prep
+-   prep
 
 ```bash
 cd rvpn-docker
@@ -42,7 +43,7 @@ Successfully built 182aa9c814f2
 
 ```
 
-- execute container
+-   execute container
 
 ```bash
 hcamacho@Hanks-MBP:rvpn-docker $ docker-compose up
@@ -87,6 +88,3 @@ rvpn_1  | INFO: genericlistener: 2017/03/04 18:13:02.270281 connection.go:242: W
 ```
 
 The line "Connection Registration Accepted indicates a client WSS registered, was authenticated and registered its domains with the RVPN
-
-
-
