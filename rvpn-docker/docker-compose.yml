@@ -1,15 +1,13 @@
 version: '2.0'
-services: 
+services:
   rvpn:
     build: rvpn/.
     ports:
       - "8443:8443"
-    entrypoint: 
-      - ./start.sh
+    entrypoint:
+      - go build -mod vendor ./cmd/telebitd/ && ./telebitd
     expose:
       - "8843"
     volumes:
       - $GOPATH/:/go
-      - ../:/go-rvpn-server
-    
-      
+      - ../:/go-telebitd

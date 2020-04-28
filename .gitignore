@@ -1,3 +1,4 @@
+certs
 *.exe
 /telebitd
 /cmd/telebitd/telebitd
