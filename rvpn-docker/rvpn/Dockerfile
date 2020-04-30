@@ -1,5 +1,5 @@
-FROM golang:1.7.5
-LABEL maintainer "henry.f.camacho@gmail.com"
+FROM golang:1.14
+LABEL maintainer "aj@therootcompany.com"
 
 
-WORKDIR "/go-rvpn-server"
+WORKDIR "/telebit-relay"

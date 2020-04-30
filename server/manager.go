@@ -4,10 +4,27 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
+	"net/http"
 )
 
 //ListenerRegistrationStatus - post registration status
 type ListenerRegistrationStatus int
+
+// Authz represents grants or privileges of a client
+// clientID
+// domains that may be forwarded
+// # of domains that may be forwarded
+// ports that may be forwarded (i.e. allow special ports < 1024, exclude 443, 25, etc)
+// # of ports that may be forwarded
+// # of concurrent conections
+// # bandwith rate (i.e. 5 mbps)
+// # bandwith cap per time period (i.e. 100 MB / hour)
+// # throttled rate (i.e. 0 (kill), or 1 mbps)
+type Authz struct {
+}
+
+// Authorizer is called when a new client connects and we need to know something about it
+type Authorizer func(*http.Request) (*Authz, error)
 
 const (
 	listenerAdded ListenerRegistrationStatus = iota
@@ -40,99 +57,107 @@ func NewListenerRegistration(port int) (p *ListenerRegistration) {
 	p = new(ListenerRegistration)
 	p.port = port
 	p.commCh = make(chan *ListenerRegistration)
-	return
+	return p
 }
 
-// Servers -
-type Servers struct {
+// MPlexy -
+type MPlexy struct {
 	listeners          map[*net.Listener]int
 	ctx                context.Context
 	connnectionTable   *Table
 	connectionTracking *Tracking
-	secretKey          string
-	certbundle         tls.Certificate
+	authorize          Authorizer
+	tlsConfig          *tls.Config
 	register           chan *ListenerRegistration
-	servers            *Servers
 	wssHostName        string
 	adminHostName      string
 	cancelCheck        int
 	lbDefaultMethod    string
 	serverStatus       *Status
+	//xservers         *MPlexy
 }
 
-// NewGenerListeners creates tcp (and https and wss?) listeners
-func NewGenerListeners(ctx context.Context, secretKey string, certbundle tls.Certificate, serverStatus *Status) (p *Servers) {
-	p = &Servers{}
-	p.listeners = make(map[*net.Listener]int)
-	p.ctx = ctx
-	p.connnectionTable = serverStatus.ConnectionTable
-	p.connectionTracking = serverStatus.ConnectionTracking
-	p.secretKey = secretKey
-	p.certbundle = certbundle
-	p.register = make(chan *ListenerRegistration)
-	p.wssHostName = serverStatus.WssDomain
-	p.adminHostName = serverStatus.AdminDomain
-	p.cancelCheck = serverStatus.DeadTime.cancelcheck
-	p.lbDefaultMethod = serverStatus.LoadbalanceDefaultMethod
-	p.serverStatus = serverStatus
-	return
+// New creates tcp (and https and wss?) listeners
+func New(ctx context.Context, tlsConfig *tls.Config, authz Authorizer, serverStatus *Status) (mx *MPlexy) {
+	mx = &MPlexy{
+		listeners:          make(map[*net.Listener]int),
+		ctx:                ctx,
+		connnectionTable:   serverStatus.ConnectionTable,
+		connectionTracking: serverStatus.ConnectionTracking,
+		authorize:          authz,
+		tlsConfig:          tlsConfig,
+		register:           make(chan *ListenerRegistration),
+		wssHostName:        serverStatus.WssDomain,
+		adminHostName:      serverStatus.AdminDomain,
+		cancelCheck:        serverStatus.DeadTime.cancelcheck,
+		lbDefaultMethod:    serverStatus.LoadbalanceDefaultMethod,
+		serverStatus:       serverStatus,
+	}
+	return mx
 }
 
 //Run -- Execute
 // - execute the GenericLister
 // - pass initial port, we'll announce that
-func (gl *Servers) Run(ctx context.Context, initialPort int) {
+func (mx *MPlexy) Run() error {
 	loginfo.Println("ConnectionTable starting")
 
-	config := &tls.Config{Certificates: []tls.Certificate{gl.certbundle}}
+	loginfo.Println(mx.connectionTracking)
 
-	ctx = context.WithValue(ctx, ctxSecretKey, gl.secretKey)
+	ctx := mx.ctx
 
-	loginfo.Println(gl.connectionTracking)
+	// For just this bit
+	ctx = context.WithValue(ctx, ctxConnectionTrack, mx.connectionTracking)
 
-	ctx = context.WithValue(ctx, ctxConnectionTrack, gl.connectionTracking)
-	ctx = context.WithValue(ctx, ctxConfig, config)
-	ctx = context.WithValue(ctx, ctxListenerRegistration, gl.register)
-	ctx = context.WithValue(ctx, ctxWssHostName, gl.wssHostName)
-	ctx = context.WithValue(ctx, ctxAdminHostName, gl.adminHostName)
-	ctx = context.WithValue(ctx, ctxCancelCheck, gl.cancelCheck)
-	ctx = context.WithValue(ctx, ctxLoadbalanceDefaultMethod, gl.lbDefaultMethod)
-	ctx = context.WithValue(ctx, ctxServerStatus, gl.serverStatus)
+	// For all Listeners
+	ctx = context.WithValue(ctx, ctxConfig, mx.tlsConfig)
+	ctx = context.WithValue(ctx, ctxListenerRegistration, mx.register)
+	ctx = context.WithValue(ctx, ctxWssHostName, mx.wssHostName)
+	ctx = context.WithValue(ctx, ctxAdminHostName, mx.adminHostName)
+	ctx = context.WithValue(ctx, ctxCancelCheck, mx.cancelCheck)
+	ctx = context.WithValue(ctx, ctxLoadbalanceDefaultMethod, mx.lbDefaultMethod)
+	ctx = context.WithValue(ctx, ctxServerStatus, mx.serverStatus)
 
-	go func(ctx context.Context) {
-		for {
-			select {
+	for {
+		select {
 
-			case <-ctx.Done():
-				loginfo.Println("Cancel signal hit")
-				return
+		case <-ctx.Done():
+			loginfo.Println("Cancel signal hit")
+			return nil
 
-			case registration := <-gl.register:
-				loginfo.Println("register fired", registration.port)
+		case registration := <-mx.register:
+			loginfo.Println("register fired", registration.port)
 
-				// check to see if port is already running
-				for listener := range gl.listeners {
-					if gl.listeners[listener] == registration.port {
-						loginfo.Println("listener already running", registration.port)
-						registration.status = listenerExists
-						registration.commCh <- registration
-					}
-				}
-				loginfo.Println("listener starting up ", registration.port)
-				loginfo.Println(ctx.Value(ctxConnectionTrack).(*Tracking))
-				go GenericListenAndServe(ctx, registration)
-
-				status := <-registration.commCh
-				if status.status == listenerAdded {
-					gl.listeners[status.listener] = status.port
-				} else if status.status == listenerFault {
-					loginfo.Println("Unable to create a new listerer", registration.port)
+			// check to see if port is already running
+			for listener := range mx.listeners {
+				if mx.listeners[listener] == registration.port {
+					loginfo.Println("listener already running", registration.port)
+					registration.status = listenerExists
+					registration.commCh <- registration
 				}
 			}
+			loginfo.Println("listener starting up ", registration.port)
+			loginfo.Println(ctx.Value(ctxConnectionTrack).(*Tracking))
+			go mx.multiListenAndServe(ctx, registration)
+
+			status := <-registration.commCh
+			if status.status == listenerAdded {
+				mx.listeners[status.listener] = status.port
+			} else if status.status == listenerFault {
+				loginfo.Println("Unable to create a new listerer", registration.port)
+			}
 		}
+	}
 
-	}(ctx)
+	return nil
+}
 
-	newListener := NewListenerRegistration(initialPort)
-	gl.register <- newListener
+func (mx *MPlexy) Start() {
+	go mx.Run()
+}
+
+// MultiListenAndServe starts another listener (to the same application) on a new port
+func (mx *MPlexy) MultiListenAndServe(port int) {
+	// TODO how to associate a listening device with a given plain port
+	mx.register <- NewListenerRegistration(port)
 }

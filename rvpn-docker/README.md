@@ -17,7 +17,7 @@ Docker version 17.03.0-ce, build 60ccb22
 cd $GOPATH/src/git.coolaj86.com/coolaj86
 git clone git@git.coolaj86.com:coolaj86/go-telebitd.git
 
-cd go-rvpn-server
+cd telebit-relay
 go get
 
 ```
@@ -36,7 +36,7 @@ Step 2/3 : LABEL maintainer "henry.f.camacho@gmail.com"
  ---> Running in 5cdffef8e33d
  ---> f7e09c097612
 Removing intermediate container 5cdffef8e33d
-Step 3/3 : WORKDIR "/go-rvpn-server"
+Step 3/3 : WORKDIR "/telebit-relay"
  ---> 182aa9c814f2
 Removing intermediate container f136550d6d48
 Successfully built 182aa9c814f2

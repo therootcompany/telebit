@@ -15,13 +15,13 @@ type Status struct {
 	DeadTime                 *StatusDeadTime
 	ConnectionTracking       *Tracking
 	ConnectionTable          *Table
-	servers                  *Servers
 	LoadbalanceDefaultMethod string
 	AdminStats               *TrafficStats
 	AdminReqTyoe             *AdminReqType
 	TrafficStats             *TrafficStats
 	ExtConnections           *ConnectionStats
 	WSSConnections           *ConnectionStats
+	//servers                *MPlexy
 }
 
 //NewStatus --
@@ -32,7 +32,9 @@ func NewStatus(ctx context.Context) (p *Status) {
 	p.TrafficStats = new(TrafficStats)
 	p.ExtConnections = new(ConnectionStats)
 	p.WSSConnections = new(ConnectionStats)
-	return
+	// TODO any reason not to set StartTime like this?
+	p.StartTime = time.Now()
+	return p
 }
 
 // South Facing Functions

@@ -21,10 +21,11 @@ type Table struct {
 	domainRevoke   chan *DomainMapping
 	dwell          int
 	idle           int
+	balanceMethod  string
 }
 
 //NewTable -- consructor
-func NewTable(dwell, idle int) (p *Table) {
+func NewTable(dwell, idle int, balanceMethod string) (p *Table) {
 	p = new(Table)
 	p.connections = make(map[*Connection][]string)
 	p.domains = make(map[string]*DomainLoadBalance)
@@ -34,6 +35,7 @@ func NewTable(dwell, idle int) (p *Table) {
 	p.domainRevoke = make(chan *DomainMapping)
 	p.dwell = dwell
 	p.idle = idle
+	p.balanceMethod = balanceMethod
 	return
 }
 
@@ -88,7 +90,7 @@ func (c *Table) GetConnection(serverID int64) (*Connection, error) {
 }
 
 //Run -- Execute
-func (c *Table) Run(ctx context.Context, defaultMethod string) {
+func (c *Table) Run(ctx context.Context) {
 	loginfo.Println("ConnectionTable starting")
 
 	go c.reaper(c.dwell, c.idle)
@@ -122,7 +124,7 @@ func (c *Table) Run(ctx context.Context, defaultMethod string) {
 					c.domains[newDomain].AddConnection(connection)
 				} else {
 					//if not, then add as the 1st to the list of connections
-					c.domains[newDomain] = NewDomainLoadBalance(defaultMethod)
+					c.domains[newDomain] = NewDomainLoadBalance(c.balanceMethod)
 					c.domains[newDomain].AddConnection(connection)
 				}
 
