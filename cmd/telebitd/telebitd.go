@@ -144,6 +144,24 @@ func main() {
 			return []byte(secretKey), nil
 		})
 		return nil, err
+
+		/*
+			tokenString := r.URL.Query().Get("access_token")
+			result, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+				return []byte(secretKey), nil
+			})
+
+			if err != nil || !result.Valid {
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte("Not Authorized"))
+				loginfo.Println("access_token invalid...closing connection")
+				return
+			}
+
+			// TODO
+			claims := result.Claims.(jwt.MapClaims)
+			domains, ok := claims["domains"].([]interface{})
+		*/
 	}
 
 	r := relay.New(ctx, tlsConfig, authorizer, serverStatus, connectionTable)

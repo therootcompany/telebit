@@ -21,13 +21,13 @@ type Registration struct {
 	commCh chan bool
 
 	//initialDomains - a list of domains from the JWT
-	initialDomains []interface{}
+	initialDomains []string
 
 	connectionTrack *Tracking
 }
 
 //NewRegistration -- Constructor
-func NewRegistration(conn *websocket.Conn, remoteAddress string, initialDomains []interface{}, connectionTrack *Tracking, serverName string) (p *Registration) {
+func NewRegistration(conn *websocket.Conn, remoteAddress string, initialDomains []string, connectionTrack *Tracking, serverName string) (p *Registration) {
 	p = new(Registration)
 	p.conn = conn
 	p.source = remoteAddress

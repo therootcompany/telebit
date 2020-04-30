@@ -114,7 +114,7 @@ func (c *Table) Run(ctx context.Context) {
 			for _, domain := range connection.initialDomains {
 				// add to the domains regirstation
 
-				newDomain := string(domain.(string))
+				newDomain := domain
 				loginfo.Println("adding domain ", newDomain, " to connection ", connection.conn.RemoteAddr().String())
 
 				//check to see if domain is already present.

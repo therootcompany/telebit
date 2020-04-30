@@ -9,5 +9,6 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.6.3
+	golang.org/x/sys v0.0.0-20190412213103-97732733099d // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )

@@ -21,6 +21,7 @@ type ListenerRegistrationStatus int
 // # bandwith cap per time period (i.e. 100 MB / hour)
 // # throttled rate (i.e. 0 (kill), or 1 mbps)
 type Authz struct {
+	Domains []string
 }
 
 // Authorizer is called when a new client connects and we need to know something about it

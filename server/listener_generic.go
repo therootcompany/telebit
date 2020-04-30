@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 
@@ -27,7 +26,6 @@ type contextKey string
 
 //CtxConnectionTrack
 const (
-	ctxSecretKey    contextKey = "secretKey"
 	ctxServerStatus contextKey = "serverstatus"
 
 	//ctxConnectionTable          contextKey = "connectionTable"
@@ -280,7 +278,7 @@ func (mx *MPlexy) handleStream(ctx context.Context, wConn *WedgeConn) {
 	if err == nil {
 		loginfo.Println("Valid WSS dected...sending to handler")
 		oneConn := &oneConnListener{wConn}
-		handleWssClient(ctx, oneConn)
+		mx.handleWssClient(ctx, oneConn)
 
 		//do we have a invalid domain indicating Admin?
 		//if yes, prep the oneConn and send it to the handler
@@ -369,8 +367,7 @@ func handleExternalHTTPRequest(ctx context.Context, extConn *WedgeConn, hostname
 //handleWssClient -
 // - expecting an existing oneConnListener with a qualified wss client connected.
 // - auth will happen again since we were just peeking at the token.
-func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
-	secretKey := ctx.Value(ctxSecretKey).(string)
+func (mx *MPlexy) handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 	serverStatus := ctx.Value(ctxServerStatus).(*Status)
 
 	//connectionTable := ctx.Value(ctxConnectionTable).(*Table)
@@ -382,21 +379,7 @@ func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 		case "/":
 			loginfo.Println("websocket opening ", r.RemoteAddr, " ", r.Host)
 
-			tokenString := r.URL.Query().Get("access_token")
-			result, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-				return []byte(secretKey), nil
-			})
-
-			if err != nil || !result.Valid {
-				w.WriteHeader(http.StatusForbidden)
-				w.Write([]byte("Not Authorized"))
-				loginfo.Println("access_token invalid...closing connection")
-				return
-			}
-
-			claims := result.Claims.(jwt.MapClaims)
-			domains, ok := claims["domains"].([]interface{})
-
+			authz, err := mx.authorize(r)
 			var upgrader = websocket.Upgrader{
 				ReadBufferSize:  65535,
 				WriteBufferSize: 65535,
@@ -410,13 +393,12 @@ func handleWssClient(ctx context.Context, oneConn *oneConnListener) {
 
 			loginfo.Println("before connection table")
 
-			serverName := domains[0].(string)
+			serverName := authz.Domains[0]
 
-			newRegistration := NewRegistration(conn, r.RemoteAddr, domains, serverStatus.ConnectionTracking, serverName)
+			newRegistration := NewRegistration(conn, r.RemoteAddr, authz.Domains, serverStatus.ConnectionTracking, serverName)
 			serverStatus.WSSConnectionRegister(newRegistration)
 
-			ok = <-newRegistration.CommCh()
-			if !ok {
+			if ok := <-newRegistration.CommCh(); !ok {
 				loginfo.Println("connection registration failed ", newRegistration)
 				return
 			}

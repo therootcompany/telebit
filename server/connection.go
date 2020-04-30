@@ -56,7 +56,7 @@ type Connection struct {
 	lastUpdate time.Time
 
 	//initialDomains - a list of domains from the JWT
-	initialDomains []interface{}
+	initialDomains []string
 
 	connectionTrack *Tracking
 
@@ -69,7 +69,7 @@ type Connection struct {
 
 //NewConnection -- Constructor
 func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress string,
-	initialDomains []interface{}, connectionTrack *Tracking, serverName string) (p *Connection) {
+	initialDomains []string, connectionTrack *Tracking, serverName string) (p *Connection) {
 	connectionID = connectionID + 1
 
 	p = new(Connection)
@@ -89,7 +89,7 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	p.lastUpdate = time.Now()
 
 	for _, domain := range initialDomains {
-		p.AddTrackedDomain(string(domain.(string)))
+		p.AddTrackedDomain(domain)
 	}
 
 	p.SetState(true)
@@ -115,7 +115,7 @@ func (c *Connection) SetServerName(serverName string) {
 }
 
 //InitialDomains -- Property
-func (c *Connection) InitialDomains() []interface{} {
+func (c *Connection) InitialDomains() []string {
 	return c.initialDomains
 }
 
