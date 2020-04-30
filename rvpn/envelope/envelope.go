@@ -21,9 +21,10 @@ type Envelope struct {
 
 //NewEnvelope -- Constructor
 func NewEnvelope(transactionType string) (p *Envelope) {
+	// TODO BUG use atomic
 	transactionID++
 
-	p = new(Envelope)
+	p = &Envelope{}
 	p.TransactionType = transactionType
 	p.TransactionID = transactionID
 	p.TransactionTimeStamp = time.Now().Unix()

@@ -96,17 +96,17 @@ func GenericListenAndServe(ctx context.Context, listenerRegistration *ListenerRe
 			}
 
 			wedgeConn := NewWedgeConn(conn)
-			go handleConnection(ctx, wedgeConn)
+			go acceptTCPOrTLS(ctx, wedgeConn)
 		}
 	}
 }
 
-//handleConnection -
+//acceptTCPOrTLS -
 // - accept a wedgeConnection along with all the other required attritvues
 // - peek into the buffer, determine TLS or unencrypted
 // - if TSL, then terminate with a TLS endpoint, pass to handleStream
 // - if clearText, pass to handleStream
-func handleConnection(ctx context.Context, wConn *WedgeConn) {
+func acceptTCPOrTLS(ctx context.Context, wConn *WedgeConn) {
 	defer wConn.Close()
 	peekCnt := 10
 
@@ -145,68 +145,71 @@ func handleConnection(ctx context.Context, wConn *WedgeConn) {
 		loginfo.Println("SSLv2 is not accepted")
 		return
 
-	} else if encryptMode != encryptNone {
-		loginfo.Println("Handle Encryption")
+	}
 
-		// check SNI heading
-		// if matched, then looks like a WSS connection
-		// else external don't pull off TLS.
+	if encryptMode == encryptNone {
+		loginfo.Println("Handle Unencrypted")
+		handleStream(ctx, wConn)
+		return
+	}
 
-		peek, err := wConn.PeekAll()
-		if err != nil {
-			loginfo.Println("error while peeking")
-			loginfo.Println(hex.Dump(peek[0:]))
-			return
-		}
+	loginfo.Println("Handle Encryption")
 
-		wssHostName := ctx.Value(ctxWssHostName).(string)
-		adminHostName := ctx.Value(ctxAdminHostName).(string)
+	// check SNI heading
+	// if matched, then looks like a WSS connection
+	// else external don't pull off TLS.
 
-		sniHostName, err := sni.GetHostname(peek)
+	peek, err = wConn.PeekAll()
+	if err != nil {
+		loginfo.Println("error while peeking")
+		loginfo.Println(hex.Dump(peek[0:]))
+		return
+	}
+
+	wssHostName := ctx.Value(ctxWssHostName).(string)
+	adminHostName := ctx.Value(ctxAdminHostName).(string)
+
+	sniHostName, err := sni.GetHostname(peek)
+	if err != nil {
+		loginfo.Println(err)
+		return
+	}
+
+	loginfo.Println("sni:", sniHostName)
+
+	if sniHostName == wssHostName {
+		//handle WSS Path
+		tlsListener := tls.NewListener(oneConn, config)
+
+		conn, err := tlsListener.Accept()
 		if err != nil {
 			loginfo.Println(err)
 			return
 		}
 
-		loginfo.Println("sni:", sniHostName)
+		tlsWedgeConn := NewWedgeConn(conn)
+		handleStream(ctx, tlsWedgeConn)
+		return
 
-		if sniHostName == wssHostName {
-			//handle WSS Path
-			tlsListener := tls.NewListener(oneConn, config)
+	} else if sniHostName == adminHostName {
+		// handle admin path
+		tlsListener := tls.NewListener(oneConn, config)
 
-			conn, err := tlsListener.Accept()
-			if err != nil {
-				loginfo.Println(err)
-				return
-			}
-
-			tlsWedgeConn := NewWedgeConn(conn)
-			handleStream(ctx, tlsWedgeConn)
+		conn, err := tlsListener.Accept()
+		if err != nil {
+			loginfo.Println(err)
 			return
-
-		} else if sniHostName == adminHostName {
-			// handle admin path
-			tlsListener := tls.NewListener(oneConn, config)
-
-			conn, err := tlsListener.Accept()
-			if err != nil {
-				loginfo.Println(err)
-				return
-			}
-
-			tlsWedgeConn := NewWedgeConn(conn)
-			handleStream(ctx, tlsWedgeConn)
-			return
-
-		} else {
-			//traffic not terminating on the rvpn do not decrypt
-			loginfo.Println("processing non terminating traffic", wssHostName, sniHostName)
-			handleExternalHTTPRequest(ctx, wConn, sniHostName, "https")
 		}
-	}
 
-	loginfo.Println("Handle Unencrypted")
-	handleStream(ctx, wConn)
+		tlsWedgeConn := NewWedgeConn(conn)
+		handleStream(ctx, tlsWedgeConn)
+		return
+
+	} else {
+		//traffic not terminating on the rvpn do not decrypt
+		loginfo.Println("processing non terminating traffic", wssHostName, sniHostName)
+		handleExternalHTTPRequest(ctx, wConn, sniHostName, "https")
+	}
 
 	return
 }
@@ -223,6 +226,7 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 	loginfo.Println("handle Stream")
 	loginfo.Println("conn", wConn.LocalAddr().String(), wConn.RemoteAddr().String())
 
+	// TODO couldn't this be dangerous? Or is it limited to a single packet?
 	peek, err := wConn.PeekAll()
 	if err != nil {
 		loginfo.Println("error while peeking", err)
@@ -230,45 +234,50 @@ func handleStream(ctx context.Context, wConn *WedgeConn) {
 		return
 	}
 
-	// HTTP Identifcation
-	if bytes.Contains(peek[:], []byte{0x0d, 0x0a}) {
-		//string protocol
-		if bytes.ContainsAny(peek[:], "HTTP/") {
-			loginfo.Println("identified HTTP")
-
-			r, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(peek)))
-			if err != nil {
-				loginfo.Println("identified as HTTP, failed request parsing", err)
-				return
-			}
-
-			// do we have a valid wss_client?
-			secretKey := ctx.Value(ctxSecretKey).(string)
-			tokenString := r.URL.Query().Get("access_token")
-			result, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-				return []byte(secretKey), nil
-			})
-
-			if err == nil && result.Valid {
-				loginfo.Println("Valid WSS dected...sending to handler")
-				oneConn := &oneConnListener{wConn}
-				handleWssClient(ctx, oneConn)
-
-				//do we have a invalid domain indicating Admin?
-				//if yes, prep the oneConn and send it to the handler
-			} else if strings.Contains(r.Host, telebit.InvalidAdminDomain) {
-				loginfo.Println("admin")
-				oneConn := &oneConnListener{wConn}
-				handleAdminClient(ctx, oneConn)
-				return
-
-			} else {
-				loginfo.Println("unsupported")
-				loginfo.Println(hex.Dump(peek))
-				return
-			}
-		}
+	// HTTP Identifcation // CRLF
+	if !bytes.Contains(peek[:], []byte{0x0d, 0x0a}) {
+		return
 	}
+
+	//string protocol
+	if !bytes.ContainsAny(peek[:], "HTTP/") {
+		return
+	}
+
+	loginfo.Println("identified HTTP")
+
+	r, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(peek)))
+	if err != nil {
+		loginfo.Println("identified as HTTP, failed request parsing", err)
+		return
+	}
+
+	// do we have a valid wss_client?
+	secretKey := ctx.Value(ctxSecretKey).(string)
+	tokenString := r.URL.Query().Get("access_token")
+	result, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secretKey), nil
+	})
+
+	if err == nil && result.Valid {
+		loginfo.Println("Valid WSS dected...sending to handler")
+		oneConn := &oneConnListener{wConn}
+		handleWssClient(ctx, oneConn)
+
+		//do we have a invalid domain indicating Admin?
+		//if yes, prep the oneConn and send it to the handler
+		return
+	}
+	if strings.Contains(r.Host, telebit.InvalidAdminDomain) {
+		loginfo.Println("admin")
+		oneConn := &oneConnListener{wConn}
+		handleAdminClient(ctx, oneConn)
+		return
+
+	}
+	loginfo.Println("unsupported")
+	loginfo.Println(hex.Dump(peek))
+	return
 }
 
 //handleExternalHTTPRequest -
