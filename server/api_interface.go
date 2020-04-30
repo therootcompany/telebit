@@ -10,7 +10,7 @@ import (
 	"github.com/gorilla/mux"
 
 	telebit "git.coolaj86.com/coolaj86/go-telebitd"
-	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/envelope"
+	"git.coolaj86.com/coolaj86/go-telebitd/envelope"
 )
 
 const (

@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/packer"
+	"git.coolaj86.com/coolaj86/go-telebitd/packer"
 )
 
 // Connection track websocket and faciliates in and out data

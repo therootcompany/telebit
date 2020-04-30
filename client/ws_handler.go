@@ -12,8 +12,8 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/packer"
-	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/sni"
+	"git.coolaj86.com/coolaj86/go-telebitd/packer"
+	"git.coolaj86.com/coolaj86/go-telebitd/sni"
 )
 
 var hostRegexp = regexp.MustCompile(`(?im)(?:^|[\r\n])Host: *([^\r\n]+)[\r\n]`)

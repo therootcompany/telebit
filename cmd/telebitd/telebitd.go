@@ -15,7 +15,7 @@ import (
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	telebit "git.coolaj86.com/coolaj86/go-telebitd"
-	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/server"
+	"git.coolaj86.com/coolaj86/go-telebitd/server"
 )
 
 var (

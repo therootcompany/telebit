@@ -18,8 +18,8 @@ import (
 	"github.com/gorilla/websocket"
 
 	telebit "git.coolaj86.com/coolaj86/go-telebitd"
-	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/packer"
-	"git.coolaj86.com/coolaj86/go-telebitd/rvpn/sni"
+	"git.coolaj86.com/coolaj86/go-telebitd/packer"
+	"git.coolaj86.com/coolaj86/go-telebitd/sni"
 )
 
 type contextKey string
