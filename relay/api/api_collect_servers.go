@@ -2,8 +2,6 @@ package api
 
 import (
 	"time"
-
-	
 )
 
 //ServersAPI -- Structure to support the server API
