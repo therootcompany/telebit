@@ -10,7 +10,10 @@ import (
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 )
 
-var Loginfo = log.Loginfo
+// InvalidAdminDomain is for bootstrapping the setup of a relay device
+var InvalidAdminDomain = "admin.telebit.invalid"
+
+var loginfo = log.Loginfo
 var connectionID int64 = 0
 
 //ListenerRegistrationStatus - post registration status
@@ -112,13 +115,18 @@ func New(
 	return mx
 }
 
+// AdminDomain returns the Admin Domain as set on startup
+func (mx *MPlexy) AdminDomain() string {
+	return mx.adminHostName
+}
+
 //Run -- Execute
 // - execute the GenericLister
 // - pass initial port, we'll announce that
 func (mx *MPlexy) Run() error {
-	Loginfo.Println("ConnectionTable starting")
+	loginfo.Println("ConnectionTable starting")
 
-	Loginfo.Println(mx.connectionTracking)
+	loginfo.Println(mx.connectionTracking)
 
 	ctx := mx.ctx
 
@@ -129,7 +137,6 @@ func (mx *MPlexy) Run() error {
 	ctx = context.WithValue(ctx, ctxConfig, mx.tlsConfig)
 	ctx = context.WithValue(ctx, ctxListenerRegistration, mx.register)
 	ctx = context.WithValue(ctx, ctxWssHostName, mx.wssHostName)
-	ctx = context.WithValue(ctx, ctxAdminHostName, mx.adminHostName)
 	ctx = context.WithValue(ctx, ctxCancelCheck, mx.cancelCheck)
 	ctx = context.WithValue(ctx, ctxLoadbalanceDefaultMethod, mx.lbDefaultMethod)
 	ctx = context.WithValue(ctx, ctxServerStatus, mx.Status)
@@ -138,29 +145,30 @@ func (mx *MPlexy) Run() error {
 		select {
 
 		case <-ctx.Done():
-			Loginfo.Println("Cancel signal hit")
+			loginfo.Println("Cancel signal hit")
 			return nil
 
 		case registration := <-mx.register:
-			Loginfo.Println("register fired", registration.port)
+			loginfo.Println("register fired", registration.port)
 
 			// check to see if port is already running
 			for listener := range mx.listeners {
 				if mx.listeners[listener] == registration.port {
-					Loginfo.Println("listener already running", registration.port)
+					loginfo.Println("listener already running", registration.port)
 					registration.status = listenerExists
 					registration.commCh <- registration
 				}
 			}
-			Loginfo.Println("listener starting up ", registration.port)
-			Loginfo.Println(ctx.Value(ctxConnectionTrack).(*api.Tracking))
+
+			loginfo.Println("listener starting up ", registration.port)
+			loginfo.Println("[track]", ctx.Value(ctxConnectionTrack).(*api.Tracking))
 			go mx.multiListenAndServe(ctx, registration)
 
 			status := <-registration.commCh
 			if status.status == listenerAdded {
 				mx.listeners[status.listener] = status.port
 			} else if status.status == listenerFault {
-				Loginfo.Println("Unable to create a new listerer", registration.port)
+				loginfo.Println("Unable to create a new listerer", registration.port)
 			}
 		}
 	}
@@ -168,6 +176,7 @@ func (mx *MPlexy) Run() error {
 	return nil
 }
 
+// Start calls go Run()
 func (mx *MPlexy) Start() {
 	go mx.Run()
 }

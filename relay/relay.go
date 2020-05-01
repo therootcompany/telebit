@@ -10,7 +10,7 @@ import (
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/admin"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
-	"git.coolaj86.com/coolaj86/go-telebitd/tunnel"
+	"git.coolaj86.com/coolaj86/go-telebitd/relay/tunnel"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
@@ -78,7 +78,7 @@ func (r *Relay) ListenAndServe(port int) error {
 	return r.mx.Run()
 }
 
-func listenAndServeTargets(mx *mplexy.MPlexy, handler net.Listener) error {
+func listenAndServeTargets(mx *mplexy.MPlexy, listener net.Listener) error {
 	serverStatus := mx.Status
 
 	router := mux.NewRouter().StrictSlash(true)
@@ -121,5 +121,5 @@ func listenAndServeTargets(mx *mplexy.MPlexy, handler net.Listener) error {
 		Addr:    ":80",
 		Handler: router,
 	}
-	return s.Serve(handler)
+	return s.Serve(listener)
 }

@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	telebit "git.coolaj86.com/coolaj86/go-telebitd"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
 
@@ -48,13 +47,23 @@ func ListenAndServe(mx *mplexy.MPlexy, adminListener net.Listener) error {
 
 		switch url := r.URL.Path; url {
 		case "/":
-			// check to see if we are using the administrative Host
-			if strings.Contains(r.Host, telebit.InvalidAdminDomain) {
-				http.Redirect(w, r, "/admin", 301)
-				serverStatus.AdminStats.IncResponses()
-
+			var hostname string
+			host := strings.Split(r.Host, ":")
+			if len(host) > 0 {
+				hostname = host[0]
 			}
 
+			// check to see if we are using the administrative Host
+			if hostname == mplexy.InvalidAdminDomain {
+				http.Redirect(w, r, "/admin", 301)
+				serverStatus.AdminStats.IncResponses()
+				return
+			}
+			if hostname == mx.AdminDomain() {
+				http.Redirect(w, r, "/admin", 301)
+				serverStatus.AdminStats.IncResponses()
+				return
+			}
 		default:
 			http.Error(w, "Not Found", 404)
 		}

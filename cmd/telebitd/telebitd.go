@@ -12,7 +12,6 @@ import (
 	"os"
 	"strings"
 
-	telebit "git.coolaj86.com/coolaj86/go-telebitd"
 	"git.coolaj86.com/coolaj86/go-telebitd/log"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
@@ -46,7 +45,7 @@ var (
 	connectionTable          *api.Table
 	secretKey                string
 	wssHostName              = "localhost.rootprojects.org"
-	adminHostName            = telebit.InvalidAdminDomain
+	adminHostName            string
 	idle                     int
 	dwell                    int
 	cancelcheck              int

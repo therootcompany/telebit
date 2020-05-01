@@ -1,5 +1,7 @@
 package sni
 
+// TODO this was probably copied from somewhere that deserves attribution
+
 import (
 	"errors"
 )

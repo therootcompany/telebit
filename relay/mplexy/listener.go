@@ -13,11 +13,10 @@ import (
 	"strings"
 	"time"
 
-	telebit "git.coolaj86.com/coolaj86/go-telebitd"
 	"git.coolaj86.com/coolaj86/go-telebitd/packer"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
+	"git.coolaj86.com/coolaj86/go-telebitd/relay/tunnel"
 	"git.coolaj86.com/coolaj86/go-telebitd/sni"
-	"git.coolaj86.com/coolaj86/go-telebitd/tunnel"
 )
 
 type contextKey string
@@ -29,7 +28,6 @@ const (
 	ctxListenerRegistration     contextKey = "listenerRegistration"
 	ctxConnectionTrack          contextKey = "connectionTrack"
 	ctxWssHostName              contextKey = "wsshostname"
-	ctxAdminHostName            contextKey = "adminHostName"
 	ctxCancelCheck              contextKey = "cancelcheck"
 	ctxLoadbalanceDefaultMethod contextKey = "lbdefaultmethod"
 	//ctxConnectionTable          contextKey = "connectionTable"
@@ -55,19 +53,19 @@ const (
 // - if TLS, consume connection with TLS certbundle, pass to request identifier
 // - else, just pass to the request identififer
 func (mx *MPlexy) multiListenAndServe(ctx context.Context, listenerRegistration *ListenerRegistration) {
-	Loginfo.Println(":" + string(listenerRegistration.port))
+	loginfo.Println(":" + string(listenerRegistration.port))
 	cancelCheck := ctx.Value(ctxCancelCheck).(int)
 
 	listenAddr, err := net.ResolveTCPAddr("tcp", ":"+strconv.Itoa(listenerRegistration.port))
 
 	if nil != err {
-		Loginfo.Println(err)
+		loginfo.Println(err)
 		return
 	}
 
 	ln, err := net.ListenTCP("tcp", listenAddr)
 	if err != nil {
-		Loginfo.Println("unable to bind", err)
+		loginfo.Println("unable to bind", err)
 		listenerRegistration.status = listenerFault
 		listenerRegistration.err = err
 		listenerRegistration.commCh <- listenerRegistration
@@ -80,7 +78,7 @@ func (mx *MPlexy) multiListenAndServe(ctx context.Context, listenerRegistration 
 	for {
 		select {
 		case <-ctx.Done():
-			Loginfo.Println("Cancel signal hit")
+			loginfo.Println("Cancel signal hit")
 			return
 		default:
 			ln.SetDeadline(time.Now().Add(time.Duration(cancelCheck) * time.Second))
@@ -91,7 +89,7 @@ func (mx *MPlexy) multiListenAndServe(ctx context.Context, listenerRegistration 
 				if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 					continue
 				}
-				Loginfo.Println(err)
+				loginfo.Println(err)
 				return
 			}
 
@@ -114,10 +112,10 @@ func (mx *MPlexy) accept(ctx context.Context, wConn *tunnel.WedgeConn) {
 
 	encryptMode := encryptNone
 
-	Loginfo.Println("new conn", wConn, wConn.LocalAddr().String(), wConn.RemoteAddr().String())
+	loginfo.Println("new conn", wConn, wConn.LocalAddr().String(), wConn.RemoteAddr().String())
 	peek, err := wConn.Peek(peekCnt)
 	if err != nil {
-		Loginfo.Println("error while peeking")
+		loginfo.Println("error while peeking")
 		wConn.Close()
 		return
 	}
@@ -131,7 +129,7 @@ func (mx *MPlexy) accept(ctx context.Context, wConn *tunnel.WedgeConn) {
 
 	} else if bytes.Contains(peek[0:3], []byte{0x16, 0x03, 0x01}) {
 		encryptMode = encryptTLS10
-		Loginfo.Println("TLS10")
+		loginfo.Println("TLS10")
 
 	} else if bytes.Contains(peek[0:3], []byte{0x16, 0x03, 0x02}) {
 		encryptMode = encryptTLS11
@@ -145,19 +143,19 @@ func (mx *MPlexy) accept(ctx context.Context, wConn *tunnel.WedgeConn) {
 	}
 
 	if encryptMode == encryptSSLV2 {
-		Loginfo.Println("<= SSLv2 is not accepted")
+		loginfo.Println("<= SSLv2 is not accepted")
 		wConn.Close()
 		return
 
 	}
 
 	if encryptMode == encryptNone {
-		Loginfo.Println("Handle Unencrypted")
+		loginfo.Println("Handle Unencrypted")
 		mx.acceptPlainStream(ctx, wConn, false)
 		return
 	}
 
-	Loginfo.Println("Handle Encryption")
+	loginfo.Println("Handle Encryption")
 	mx.acceptEncryptedStream(ctx, wConn)
 }
 
@@ -166,21 +164,21 @@ func (mx *MPlexy) acceptEncryptedStream(ctx context.Context, wConn *tunnel.Wedge
 
 	peek, err := wConn.PeekAll()
 	if err != nil {
-		Loginfo.Println("Bad socket: read error from", wConn.RemoteAddr(), err)
-		Loginfo.Println(hex.Dump(peek[0:]))
+		loginfo.Println("Bad socket: read error from", wConn.RemoteAddr(), err)
+		loginfo.Println(hex.Dump(peek[0:]))
 		wConn.Close()
 		return
 	}
 
 	sniHostName, err := sni.GetHostname(peek)
 	if err != nil {
-		Loginfo.Println("Bad socket: no SNI from", wConn.RemoteAddr(), err)
-		Loginfo.Println(err)
+		loginfo.Println("Bad socket: no SNI from", wConn.RemoteAddr(), err)
+		loginfo.Println(err)
 		wConn.Close()
 		return
 	}
 
-	Loginfo.Println("SNI:", sniHostName)
+	loginfo.Println("SNI:", sniHostName)
 
 	if sniHostName == mx.wssHostName || sniHostName == mx.adminHostName {
 		// The TLS should be terminated and handled internally
@@ -194,7 +192,7 @@ func (mx *MPlexy) acceptEncryptedStream(ctx context.Context, wConn *tunnel.Wedge
 	//oneConn := &oneConnListener{wConn}
 
 	// TLS remains intact and shall be routed downstream, wholesale
-	Loginfo.Println("processing non terminating traffic", mx.wssHostName, sniHostName)
+	loginfo.Println("processing non terminating traffic", mx.wssHostName, sniHostName)
 	go mx.routeToTarget(ctx, wConn, sniHostName, "https")
 }
 
@@ -207,13 +205,13 @@ func (mx *MPlexy) acceptEncryptedStream(ctx context.Context, wConn *tunnel.Wedge
 // 	- else handle as raw http
 // - handle other?
 func (mx *MPlexy) acceptPlainStream(ctx context.Context, wConn *tunnel.WedgeConn, encrypted bool) {
-	Loginfo.Println("Plain Conn", wConn.LocalAddr().String(), wConn.RemoteAddr().String())
+	loginfo.Println("Plain Conn", wConn.LocalAddr().String(), wConn.RemoteAddr().String())
 
 	// TODO couldn't reading everything be dangerous? Or is it limited to a single packet?
 	peek, err := wConn.PeekAll()
 	if err != nil {
-		Loginfo.Println("error while peeking", err)
-		Loginfo.Println(hex.Dump(peek[0:]))
+		loginfo.Println("error while peeking", err)
+		loginfo.Println(hex.Dump(peek[0:]))
 		wConn.Close()
 		return
 	}
@@ -233,17 +231,23 @@ func (mx *MPlexy) acceptPlainStream(ctx context.Context, wConn *tunnel.WedgeConn
 		return
 	}
 
-	Loginfo.Println("identified HTTP")
+	loginfo.Println("identified HTTP")
 
 	r, err := http.ReadRequest(bufio.NewReader(bytes.NewReader(peek)))
 	if err != nil {
-		Loginfo.Println("identified as HTTP, failed request parsing", err)
+		loginfo.Println("identified as HTTP, failed request parsing", err)
 		wConn.Close()
 		return
 	}
 
-	if strings.Contains(r.Host, telebit.InvalidAdminDomain) {
-		Loginfo.Println("admin")
+	var hostname string
+	host := strings.Split(r.Host, ":")
+	if len(host) > 0 {
+		hostname = host[0]
+	}
+
+	if hostname == InvalidAdminDomain {
+		loginfo.Println("admin.invalid")
 		// TODO mx.Admin.CheckRemoteIP(conn) here
 		// handle admin path
 		mx.AcceptAdminClient(wConn)
@@ -251,19 +255,24 @@ func (mx *MPlexy) acceptPlainStream(ctx context.Context, wConn *tunnel.WedgeConn
 
 	}
 
-	// TODO add newtypes
-	// TODO check if this is a websocket
-	_, err = mx.AuthorizeTarget(r)
-	if err == nil {
-		Loginfo.Println("Valid WSS dected...sending to handler")
+	if hostname == mx.adminHostName {
+		loginfo.Println("admin")
+		// TODO mx.Admin.CheckRemoteIP(conn) here
+		// handle admin path
+		mx.AcceptAdminClient(wConn)
+		return
+	}
+
+	if "Upgrade" == r.Header.Get("Connection") || "WebSocket" == r.Header.Get("Upgrade") {
+		loginfo.Println("WebSocket Upgrade is in order...")
 		mx.AcceptTargetServer(wConn)
 		return
 	}
 
 	// TODO sniHostName is the key to the route, which could also be a port or hostname
 	//traffic not terminating on the rvpn do not decrypt
-	Loginfo.Println("processing non terminating traffic", mx.wssHostName, r.Host)
-	Loginfo.Println(hex.Dump(peek))
+	loginfo.Println("processing non terminating traffic", mx.wssHostName, r.Host)
+	loginfo.Println(hex.Dump(peek))
 	if !encrypted {
 		// TODO request and cache http resources as a feature??
 		go mx.routeToTarget(ctx, wConn, r.Host, "http")
@@ -271,7 +280,7 @@ func (mx *MPlexy) acceptPlainStream(ctx context.Context, wConn *tunnel.WedgeConn
 	}
 
 	// This is not presently possible
-	Loginfo.Println("impossible condition: local decryption of routable client", mx.wssHostName, r.Host)
+	loginfo.Println("impossible condition: local decryption of routable client", mx.wssHostName, r.Host)
 	go mx.routeToTarget(ctx, wConn, r.Host, "https")
 }
 
@@ -293,7 +302,7 @@ func (mx *MPlexy) routeToTarget(ctx context.Context, extConn *tunnel.WedgeConn, 
 	conn, ok := serverStatus.ConnectionTable.ConnByDomain(hostname)
 	if !ok {
 		//matching connection can not be found based on ConnByDomain
-		Loginfo.Println("unable to match ", hostname, " to an existing connection")
+		loginfo.Println("unable to match ", hostname, " to an existing connection")
 		//http.Error(, "Domain not supported", http.StatusBadRequest)
 		return
 	}
@@ -302,15 +311,15 @@ func (mx *MPlexy) routeToTarget(ctx context.Context, extConn *tunnel.WedgeConn, 
 	serverStatus.ExtConnectionRegister(track)
 
 	remoteStr := extConn.RemoteAddr().String()
-	Loginfo.Println("Domain Accepted", hostname, remoteStr)
+	loginfo.Println("Domain Accepted", hostname, remoteStr)
 
 	var header *packer.Header
 	if rAddr, rPort, err := net.SplitHostPort(remoteStr); err != nil {
-		Loginfo.Println("unable to decode hostport", remoteStr, err)
+		loginfo.Println("unable to decode hostport", remoteStr, err)
 	} else if port, err := strconv.Atoi(rPort); err != nil {
-		Loginfo.Printf("unable to parse port string %q: %v\n", rPort, err)
+		loginfo.Printf("unable to parse port string %q: %v\n", rPort, err)
 	} else if header, err = packer.NewHeader(rAddr, port, service); err != nil {
-		Loginfo.Println("unable to create packer header", err)
+		loginfo.Println("unable to create packer header", err)
 	}
 
 	if header == nil {
@@ -320,17 +329,17 @@ func (mx *MPlexy) routeToTarget(ctx context.Context, extConn *tunnel.WedgeConn, 
 	for {
 		buffer, err := extConn.PeekAll()
 		if err != nil {
-			Loginfo.Println("unable to peekAll", err)
+			loginfo.Println("unable to peekAll", err)
 			return
 		}
 
-		Loginfo.Println("Before Packer", hex.Dump(buffer))
+		loginfo.Println("Before Packer", hex.Dump(buffer))
 
 		p := packer.NewPacker(header)
 		p.Data.AppendBytes(buffer)
 		buf := p.PackV1()
 
-		//Loginfo.Println(hex.Dump(buf.Bytes()))
+		//loginfo.Println(hex.Dump(buf.Bytes()))
 
 		//Bundle up the send request and dispatch
 		sendTrack := api.NewSendTrack(buf.Bytes(), hostname)
@@ -338,7 +347,7 @@ func (mx *MPlexy) routeToTarget(ctx context.Context, extConn *tunnel.WedgeConn, 
 
 		cnt := len(buffer)
 		if _, err = extConn.Discard(cnt); err != nil {
-			Loginfo.Println("unable to discard", cnt, err)
+			loginfo.Println("unable to discard", cnt, err)
 			return
 		}
 

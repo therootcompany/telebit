@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/tunnel"
+	"git.coolaj86.com/coolaj86/go-telebitd/relay/tunnel"
 )
 
 //Status --
