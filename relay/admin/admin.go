@@ -10,7 +10,7 @@ import (
 
 	telebit "git.coolaj86.com/coolaj86/go-telebitd"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
-	"git.coolaj86.com/coolaj86/go-telebitd/server"
+	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
 
 	"github.com/gorilla/mux"
 )
@@ -26,7 +26,7 @@ var serverStatusAPI *api.Status
 //ListenAndServe -
 // - expecting an existing oneConnListener with a qualified wss client connected.
 // - auth will happen again since we were just peeking at the token.
-func ListenAndServe(mx *server.MPlexy, adminListener net.Listener) error {
+func ListenAndServe(mx *mplexy.MPlexy, adminListener net.Listener) error {
 	//serverStatus = mx.ctx.Value(ctxServerStatus).(*Status)
 
 	connectionTable = mx.Status.ConnectionTable

@@ -9,7 +9,7 @@ import (
 
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/admin"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
-	"git.coolaj86.com/coolaj86/go-telebitd/server"
+	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
 	"git.coolaj86.com/coolaj86/go-telebitd/tunnel"
 
 	"github.com/gorilla/mux"
@@ -20,12 +20,12 @@ import (
 type Relay struct {
 	ctx    context.Context
 	status *api.Status
-	mx     *server.MPlexy
+	mx     *mplexy.MPlexy
 	table  *api.Table
 }
 
 // New initializes and returns a relay service
-func New(ctx context.Context, tlsConfig *tls.Config, authz server.Authorizer, status *api.Status, table *api.Table) *Relay {
+func New(ctx context.Context, tlsConfig *tls.Config, authz mplexy.Authorizer, status *api.Status, table *api.Table) *Relay {
 	// TODO do we need this already setup here? or is it just for logging?
 	status.ConnectionTracking = api.NewTracking()
 	status.ConnectionTable = table
@@ -34,7 +34,7 @@ func New(ctx context.Context, tlsConfig *tls.Config, authz server.Authorizer, st
 		ctx:    ctx,
 		status: status,
 		table:  table,
-		mx:     server.New(ctx, tlsConfig, authAdmin, authz, status), // TODO Accept
+		mx:     mplexy.New(ctx, tlsConfig, authAdmin, authz, status), // TODO Accept
 	}
 	return r
 }
@@ -78,7 +78,7 @@ func (r *Relay) ListenAndServe(port int) error {
 	return r.mx.Run()
 }
 
-func listenAndServeTargets(mx *server.MPlexy, handler net.Listener) error {
+func listenAndServeTargets(mx *mplexy.MPlexy, handler net.Listener) error {
 	serverStatus := mx.Status
 
 	router := mux.NewRouter().StrictSlash(true)

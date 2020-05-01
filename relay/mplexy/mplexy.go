@@ -1,4 +1,4 @@
-package server
+package mplexy
 
 import (
 	"context"
@@ -6,8 +6,12 @@ import (
 	"net"
 	"net/http"
 
+	"git.coolaj86.com/coolaj86/go-telebitd/log"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 )
+
+var Loginfo = log.Loginfo
+var connectionID int64 = 0
 
 //ListenerRegistrationStatus - post registration status
 type ListenerRegistrationStatus int
@@ -112,9 +116,9 @@ func New(
 // - execute the GenericLister
 // - pass initial port, we'll announce that
 func (mx *MPlexy) Run() error {
-	loginfo.Println("ConnectionTable starting")
+	Loginfo.Println("ConnectionTable starting")
 
-	loginfo.Println(mx.connectionTracking)
+	Loginfo.Println(mx.connectionTracking)
 
 	ctx := mx.ctx
 
@@ -134,29 +138,29 @@ func (mx *MPlexy) Run() error {
 		select {
 
 		case <-ctx.Done():
-			loginfo.Println("Cancel signal hit")
+			Loginfo.Println("Cancel signal hit")
 			return nil
 
 		case registration := <-mx.register:
-			loginfo.Println("register fired", registration.port)
+			Loginfo.Println("register fired", registration.port)
 
 			// check to see if port is already running
 			for listener := range mx.listeners {
 				if mx.listeners[listener] == registration.port {
-					loginfo.Println("listener already running", registration.port)
+					Loginfo.Println("listener already running", registration.port)
 					registration.status = listenerExists
 					registration.commCh <- registration
 				}
 			}
-			loginfo.Println("listener starting up ", registration.port)
-			loginfo.Println(ctx.Value(ctxConnectionTrack).(*api.Tracking))
+			Loginfo.Println("listener starting up ", registration.port)
+			Loginfo.Println(ctx.Value(ctxConnectionTrack).(*api.Tracking))
 			go mx.multiListenAndServe(ctx, registration)
 
 			status := <-registration.commCh
 			if status.status == listenerAdded {
 				mx.listeners[status.listener] = status.port
 			} else if status.status == listenerFault {
-				loginfo.Println("Unable to create a new listerer", registration.port)
+				Loginfo.Println("Unable to create a new listerer", registration.port)
 			}
 		}
 	}

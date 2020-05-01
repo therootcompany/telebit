@@ -7,15 +7,16 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
+	golog "log"
 	"net/http"
 	"os"
 	"strings"
 
 	telebit "git.coolaj86.com/coolaj86/go-telebitd"
+	"git.coolaj86.com/coolaj86/go-telebitd/log"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
-	"git.coolaj86.com/coolaj86/go-telebitd/server"
+	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/spf13/viper"
@@ -24,14 +25,18 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+var Loginfo = log.Loginfo
+var Logdebug = log.Logdebug
+
+func init() {
+	log.LogFlags = golog.Ldate | golog.Lmicroseconds | golog.Lshortfile
+}
+
 var (
 	logfile    = "stdout"
 	configPath = "./"
 	configFile = "telebit-relay"
 
-	loginfo                  *log.Logger
-	logdebug                 *log.Logger
-	logFlags                 = log.Ldate | log.Lmicroseconds | log.Lshortfile
 	argWssClientListener     string
 	tcpPort                  int
 	argServerBinding         string
@@ -86,10 +91,7 @@ func main() {
 	}
 
 	// send the output io.Writing to the other packages
-	server.InitLogging(logoutput)
-
-	loginfo = log.New(logoutput, "INFO: main: ", logFlags)
-	logdebug = log.New(logoutput, "DEBUG: main:", logFlags)
+	log.InitLogging(logoutput)
 
 	viper.SetConfigName(configFile)
 	viper.AddConfigPath(configPath)
@@ -111,7 +113,7 @@ func main() {
 	lbDefaultMethod = viper.Get("rvpn.loadbalancing.defaultmethod").(string)
 	nickname = viper.Get("rvpn.serverName").(string)
 
-	loginfo.Println("startup")
+	Loginfo.Println("startup")
 
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
@@ -139,7 +141,7 @@ func main() {
 		},
 	}
 
-	authorizer := func(r *http.Request) (*server.Authz, error) {
+	authorizer := func(r *http.Request) (*mplexy.Authz, error) {
 		// do we have a valid wss_client?
 
 		var tokenString string
@@ -158,7 +160,7 @@ func main() {
 			return nil, err
 		}
 
-		authz := &server.Authz{
+		authz := &mplexy.Authz{
 			Domains: []string{
 				"target.rootprojects.org",
 			},
@@ -174,7 +176,7 @@ func main() {
 			if err != nil || !result.Valid {
 				w.WriteHeader(http.StatusForbidden)
 				w.Write([]byte("Not Authorized"))
-				loginfo.Println("access_token invalid...closing connection")
+				Loginfo.Println("access_token invalid...closing connection")
 				return
 			}
 
