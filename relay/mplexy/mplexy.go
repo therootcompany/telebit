@@ -124,9 +124,9 @@ func (mx *MPlexy) AdminDomain() string {
 // - execute the GenericLister
 // - pass initial port, we'll announce that
 func (mx *MPlexy) Run() error {
-	loginfo.Println("ConnectionTable starting")
+	loginfo.Println("[mplexy] ConnectionTable starting")
 
-	loginfo.Println(mx.connectionTracking)
+	loginfo.Println("[mplexy] ct ", mx.connectionTracking)
 
 	ctx := mx.ctx
 
@@ -145,30 +145,30 @@ func (mx *MPlexy) Run() error {
 		select {
 
 		case <-ctx.Done():
-			loginfo.Println("Cancel signal hit")
+			loginfo.Println("[mplexy] Cancel signal hit")
 			return nil
 
 		case registration := <-mx.register:
-			loginfo.Println("register fired", registration.port)
+			loginfo.Println("[mplexy] register fired", registration.port)
 
 			// check to see if port is already running
 			for listener := range mx.listeners {
 				if mx.listeners[listener] == registration.port {
-					loginfo.Println("listener already running", registration.port)
+					loginfo.Println("[mplexy] listener already running", registration.port)
 					registration.status = listenerExists
 					registration.commCh <- registration
 				}
 			}
 
-			loginfo.Println("listener starting up ", registration.port)
-			loginfo.Println("[track]", ctx.Value(ctxConnectionTrack).(*api.Tracking))
+			loginfo.Println("[mplexy] listener starting up ", registration.port)
+			loginfo.Println("[mplexy]", ctx.Value(ctxConnectionTrack).(*api.Tracking))
 			go mx.multiListenAndServe(ctx, registration)
 
 			status := <-registration.commCh
 			if status.status == listenerAdded {
 				mx.listeners[status.listener] = status.port
 			} else if status.status == listenerFault {
-				loginfo.Println("Unable to create a new listerer", registration.port)
+				loginfo.Println("[mplexy] Unable to create a new listerer", registration.port)
 			}
 		}
 	}

@@ -50,10 +50,10 @@ func (c *Table) Connections() map[*Connection][]string {
 //back to the WSS connections
 func (c *Table) ConnByDomain(domain string) (*Connection, bool) {
 	for dn := range c.Domains {
-		log.Println(dn, domain)
+		log.Println("[table]", dn, domain)
 	}
 	if domainsLB, ok := c.Domains[domain]; ok {
-		log.Println("found")
+		log.Println("[table] found")
 		conn := domainsLB.NextMember()
 		return conn, ok
 	}
@@ -64,14 +64,14 @@ func (c *Table) ConnByDomain(domain string) (*Connection, bool) {
 func (c *Table) reaper(delay int, idle int) {
 	_ = "breakpoint"
 	for {
-		log.Println("Reaper waiting for ", delay, " seconds")
+		log.Println("[table] Reaper waiting for ", delay, " seconds")
 		time.Sleep(time.Duration(delay) * time.Second)
 
-		log.Println("Running scanning ", len(c.connections))
+		log.Println("[table] Running scanning ", len(c.connections))
 		for d := range c.connections {
 			if !d.State() {
 				if time.Since(d.lastUpdate).Seconds() > float64(idle) {
-					log.Println("reaper removing ", d.lastUpdate, time.Since(d.lastUpdate).Seconds())
+					log.Println("[table] reaper removing ", d.lastUpdate, time.Since(d.lastUpdate).Seconds())
 					delete(c.connections, d)
 				}
 			}
@@ -92,7 +92,7 @@ func (c *Table) GetConnection(serverID int64) (*Connection, error) {
 
 //Run -- Execute
 func (c *Table) Run(ctx context.Context) {
-	log.Println("ConnectionTable starting")
+	log.Println("[table] ConnectionTable starting")
 
 	go c.reaper(c.dwell, c.idle)
 
@@ -100,11 +100,11 @@ func (c *Table) Run(ctx context.Context) {
 		select {
 
 		case <-ctx.Done():
-			log.Println("Cancel signal hit")
+			log.Println("[table] Cancel signal hit")
 			return
 
 		case registration := <-c.register:
-			log.Println("register fired")
+			log.Println("[table] register fired")
 
 			connection := NewConnection(c, registration.conn, registration.source, registration.initialDomains,
 				registration.connectionTrack, registration.serverName)
@@ -116,7 +116,7 @@ func (c *Table) Run(ctx context.Context) {
 				// add to the domains regirstation
 
 				newDomain := domain
-				log.Println("adding domain ", newDomain, " to connection ", connection.conn.RemoteAddr().String())
+				log.Println("[table] adding domain ", newDomain, " to connection ", connection.conn.RemoteAddr().String())
 
 				//check to see if domain is already present.
 				if _, ok := c.Domains[newDomain]; ok {
@@ -137,14 +137,14 @@ func (c *Table) Run(ctx context.Context) {
 			go connection.Reader(ctx)
 
 		case connection := <-c.unregister:
-			log.Println("closing connection ", connection.conn.RemoteAddr().String())
+			log.Println("[table] closing connection ", connection.conn.RemoteAddr().String())
 
 			//does connection exist in the connection table -- should never be an issue
 			if _, ok := c.connections[connection]; ok {
 
 				//iterate over the connections for the domain
 				for _, domain := range c.connections[connection] {
-					log.Println("remove domain", domain)
+					log.Println("[table] remove domain", domain)
 
 					//removing domain, make sure it is present (should never be a problem)
 					if _, ok := c.Domains[domain]; ok {
@@ -166,7 +166,7 @@ func (c *Table) Run(ctx context.Context) {
 			}
 
 		case domainMapping := <-c.domainAnnounce:
-			log.Println("domainMapping fired ", domainMapping)
+			log.Println("[table] domainMapping fired ", domainMapping)
 			//check to make sure connection is already regiered, you can no register a domain without an apporved connection
 			//if connection, ok := connections[domainMapping.connection]; ok {
 

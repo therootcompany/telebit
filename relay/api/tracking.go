@@ -41,19 +41,19 @@ func NewTracking() (p *Tracking) {
 
 //Run -
 func (p *Tracking) Run(ctx context.Context) {
-	log.Println("Tracking Running")
+	log.Println("[track] Tracking Running")
 
 	for {
 		select {
 
 		case <-ctx.Done():
-			log.Println("Cancel signal hit")
+			log.Println("[track] Cancel signal hit")
 			return
 
 		case connection := <-p.register:
 			p.mutex.Lock()
 			key := connection.conn.RemoteAddr().String()
-			log.Println("register fired", key)
+			log.Println("[track] register fired", key)
 			p.connections[key] = connection
 			p.list()
 			p.mutex.Unlock()
@@ -61,7 +61,7 @@ func (p *Tracking) Run(ctx context.Context) {
 		case connection := <-p.unregister:
 			p.mutex.Lock()
 			key := connection.RemoteAddr().String()
-			log.Println("unregister fired", key)
+			log.Println("[track] unregister fired", key)
 			if _, ok := p.connections[key]; ok {
 				delete(p.connections, key)
 			}
@@ -73,7 +73,7 @@ func (p *Tracking) Run(ctx context.Context) {
 
 func (p *Tracking) list() {
 	for c := range p.connections {
-		log.Println(c)
+		log.Println("[track] list", c)
 	}
 }
 

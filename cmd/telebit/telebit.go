@@ -40,70 +40,103 @@ type proxy struct {
 	port     int
 }
 
-func addLocals(proxies []proxy, location string) []proxy {
+func addLocals(proxies []proxy, location string) ([]proxy, error) {
 	parts := strings.Split(location, ":")
-	if len(parts) > 3 {
-		panic(fmt.Sprintf("provided invalid location %q", location))
+	if len(parts) > 3 || "" == parts[0] {
+		return nil, fmt.Errorf("provided invalid --locals %q", location)
 	}
 
-	// If all that was provided as a "local" is the domain name we assume that domain
-	// has HTTP and HTTPS handlers on the default ports.
-	if len(parts) == 1 {
-		proxies = append(proxies, proxy{"http", parts[0], 80})
-		proxies = append(proxies, proxy{"https", parts[0], 443})
-		return proxies
-	}
+	// Format can be any of
+	// <hostname> or <port> or <proto>:<port> or <proto>:<hostname>:<port>
 
-	// Make everything lower case and trim any slashes in something like https://john.example.com
-	parts[0] = strings.ToLower(parts[0])
-	parts[1] = strings.ToLower(strings.Trim(parts[1], "/"))
+	n := len(parts)
+	i := n - 1
+	last := parts[i]
 
-	if len(parts) == 2 {
-		if strings.Contains(parts[1], ".") {
-			if parts[0] == "http" {
-				parts = append(parts, "80")
-			} else if parts[0] == "https" {
-				parts = append(parts, "443")
-			} else {
-				panic(fmt.Sprintf("port must be specified for %q", location))
-			}
-		} else {
-			// https:3443 -> https:*:3443
-			parts = []string{parts[0], "*", parts[1]}
+	port, err := strconv.Atoi(last)
+	if nil != err {
+		// The last item is the hostname,
+		// which means it should be the only item
+		if n > 1 {
+			return nil, fmt.Errorf("provided invalid --locals %q", location)
 		}
+		// accepting all defaults
+		// If all that was provided as a "local" is the domain name we assume that domain
+		last = strings.ToLower(strings.Trim(last, "/"))
+		proxies = append(proxies, proxy{"http", last, 80})
+		proxies = append(proxies, proxy{"https", last, 443})
+		return proxies, nil
 	}
 
-	if port, err := strconv.Atoi(parts[2]); err != nil {
-		panic(fmt.Sprintf("port must be a valid number, not %q: %v", parts[2], err))
-	} else if port <= 0 || port > 65535 {
-		panic(fmt.Sprintf("%d is an invalid port for local services", port))
-	} else {
-		proxies = append(proxies, proxy{parts[0], parts[1], port})
+	// the last item is the port, and it must be a valid port
+	if port <= 0 || port > 65535 {
+		return nil, fmt.Errorf("local port forward must be between 1 and 65535, not %d", port)
 	}
-	return proxies
+
+	switch n {
+	case 1:
+		// <port>
+		proxies = append(proxies, proxy{"http", "*", port})
+		proxies = append(proxies, proxy{"https", "*", port})
+	case 2:
+		// <hostname>:<port>
+		// <scheme>:<port>
+		parts[0] = strings.ToLower(strings.Trim(parts[0], "/"))
+		if strings.Contains(parts[0], ".") {
+			hostname := parts[0]
+			proxies = append(proxies, proxy{"http", hostname, port})
+			proxies = append(proxies, proxy{"https", hostname, port})
+		} else {
+			scheme := parts[0]
+			proxies = append(proxies, proxy{scheme, "*", port})
+		}
+	case 3:
+		// <scheme>:<hostname>:<port>
+		scheme := strings.ToLower(strings.Trim(parts[0], "/"))
+		hostname := strings.ToLower(strings.Trim(parts[1], "/"))
+		proxies = append(proxies, proxy{scheme, hostname, port})
+	}
+	return proxies, nil
 }
 
-func addDomains(proxies []proxy, location string) []proxy {
+func addDomains(proxies []proxy, location string) ([]proxy, error) {
 	parts := strings.Split(location, ":")
-	if len(parts) > 3 {
-		panic(fmt.Sprintf("provided invalid location %q", location))
-	} else if len(parts) == 2 {
-		panic("invalid argument for --domains, use format <domainname> or <scheme>:<domainname>:<local-port>")
+	if len(parts) > 3 || "" == parts[0] {
+		return nil, fmt.Errorf("provided invalid --domains %q", location)
 	}
 
-	// If the scheme and port weren't provided use the zero values
-	if len(parts) == 1 {
-		return append(proxies, proxy{"", parts[0], 0})
+	// Format is limited to
+	// <hostname> or <proto>:<hostname>:<port>
+
+	err := fmt.Errorf("invalid argument for --domains, use format <domainname> or <scheme>:<domainname>:<local-port>")
+	switch len(parts) {
+	case 1:
+		// TODO test that it's a valid pattern for a domain
+		hostname := parts[0]
+		if !strings.Contains(hostname, ".") {
+			return nil, err
+		}
+		proxies = append(proxies, proxy{"http", hostname, 80})
+		proxies = append(proxies, proxy{"https", hostname, 443})
+	case 2:
+		return nil, err
+	case 3:
+		scheme := parts[0]
+		hostname := parts[1]
+		if "" == scheme {
+			return nil, err
+		}
+		if !strings.Contains(hostname, ".") {
+			return nil, err
+		}
+		port, _ := strconv.Atoi(parts[2])
+		if port <= 0 || port > 65535 {
+			return nil, err
+		}
+		proxies = append(proxies, proxy{scheme, hostname, port})
 	}
 
-	if port, err := strconv.Atoi(parts[2]); err != nil {
-		panic(fmt.Sprintf("port must be a valid number, not %q: %v", parts[2], err))
-	} else if port <= 0 || port > 65535 {
-		panic(fmt.Sprintf("%d is an invalid port for local services", port))
-	} else {
-		proxies = append(proxies, proxy{parts[0], parts[1], port})
-	}
-	return proxies
+	return proxies, nil
 }
 
 func extractServicePorts(proxies []proxy) map[string]map[string]int {
@@ -150,15 +183,25 @@ func extractServicePorts(proxies []proxy) map[string]map[string]int {
 func main() {
 	flag.Parse()
 
+	var err error
 	proxies := make([]proxy, 0)
 	for _, option := range viper.GetStringSlice("locals") {
 		for _, location := range strings.Split(option, ",") {
-			proxies = addLocals(proxies, location)
+			//fmt.Println("locals", location)
+			proxies, err = addLocals(proxies, location)
+			if nil != err {
+				panic(err)
+			}
 		}
 	}
+	//fmt.Println("proxies:")
+	//fmt.Printf("%+v\n\n", proxies)
 	for _, option := range viper.GetStringSlice("domains") {
 		for _, location := range strings.Split(option, ",") {
-			proxies = addDomains(proxies, location)
+			proxies, err = addDomains(proxies, location)
+			if nil != err {
+				panic(err)
+			}
 		}
 	}
 

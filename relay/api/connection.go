@@ -320,7 +320,7 @@ func (c *Connection) Writer() {
 				log.Println("adding ", messageLen, " to ", message.domain)
 			} else {
 				log.Println("attempting to add bytes to ", message.domain, "it does not exist")
-				log.Println(c.DomainTrack)
+				log.Println("dt", c.DomainTrack)
 			}
 			log.Println(c)
 		}
