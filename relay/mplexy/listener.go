@@ -275,7 +275,7 @@ func (mx *MPlexy) acceptPlainStream(ctx context.Context, wConn *tunnel.WedgeConn
 	loginfo.Println(hex.Dump(peek))
 	if !encrypted {
 		// TODO request and cache http resources as a feature??
-		go mx.routeToTarget(ctx, wConn, r.Host, "http")
+		go mx.routeToTarget(ctx, wConn, hostname, "http")
 		return
 	}
 
