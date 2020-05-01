@@ -1,7 +1,8 @@
-package server
+package api
 
 import (
 	"fmt"
+	"log"
 	"sync"
 )
 
@@ -54,7 +55,7 @@ func (p *DomainLoadBalance) NextMember() (conn *Connection) {
 	defer p.mutex.Unlock()
 
 	//check for round robin, if not RR then drop out and call calculate
-	loginfo.Println("NextMember:", p)
+	log.Println("NextMember:", p)
 	if p.method == lbmRoundRobin {
 		p.lastmember++
 		if p.lastmember >= p.count {
@@ -75,33 +76,33 @@ func (p *DomainLoadBalance) NextMember() (conn *Connection) {
 //this should not affect the next member calculation in RR.  However it many in other
 //methods
 func (p *DomainLoadBalance) AddConnection(conn *Connection) []*Connection {
-	loginfo.Println("AddConnection", fmt.Sprintf("%p", conn))
+	log.Println("AddConnection", fmt.Sprintf("%p", conn))
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	p.connections = append(p.connections, conn)
 	p.count++
-	loginfo.Println("AddConnection", p)
+	log.Println("AddConnection", p)
 	return p.connections
 }
 
 //RemoveConnection -- removes a matching connection from the list. This may
 //affect the nextmember calculation if found so the recalc flag is set.
 func (p *DomainLoadBalance) RemoveConnection(conn *Connection) {
-	loginfo.Println("RemoveConnection", fmt.Sprintf("%p", conn))
+	log.Println("RemoveConnection", fmt.Sprintf("%p", conn))
 
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 
 	//scan all the connections
 	for pos := range p.connections {
-		loginfo.Println("RemoveConnection", pos, len(p.connections), p.count)
+		log.Println("RemoveConnection", pos, len(p.connections), p.count)
 		if p.connections[pos] == conn {
 			//found connection remove it
-			loginfo.Printf("found connection %p", conn)
+			log.Printf("found connection %p", conn)
 			p.connections[pos], p.connections = p.connections[len(p.connections)-1], p.connections[:len(p.connections)-1]
 			p.count--
 			break
 		}
 	}
-	loginfo.Println("RemoveConnection:", p)
+	log.Println("RemoveConnection:", p)
 }

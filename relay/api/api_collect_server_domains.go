@@ -1,4 +1,4 @@
-package server
+package api
 
 //ServerDomainsAPI -- Structure to support the server API
 type ServerDomainsAPI struct {
@@ -17,8 +17,8 @@ func NewServerDomainsAPI(c *Connection, d *DomainTrack) (s *ServerDomainsAPI) {
 	s.ServerID = c.ConnectionID()
 	s.BytesIn = d.BytesIn()
 	s.BytesOut = d.BytesOut()
-	s.Requests = d.requests
-	s.Responses = d.responses
+	s.Requests = d.Requests()
+	s.Responses = d.Responses()
 
 	return
 }
@@ -53,8 +53,8 @@ func NewServerDomainAPI(c *Connection, d *DomainTrack) (s *ServerDomainAPI) {
 	s.ServerID = c.ConnectionID()
 	s.BytesIn = d.BytesIn()
 	s.BytesOut = d.BytesOut()
-	s.Requests = d.requests
-	s.Responses = d.responses
+	s.Requests = d.Requests()
+	s.Responses = d.Responses()
 	s.Source = c.Source()
 	return
 }

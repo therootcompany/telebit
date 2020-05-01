@@ -1,4 +1,4 @@
-package envelope
+package admin
 
 import (
 	"bytes"
@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-//Envelope -- Standard response structure
-type Envelope struct {
+//Response -- Standard response structure
+type Response struct {
 	TransactionType      string      `json:"type"`
 	Schema               string      `json:"schema"`
 	TransactionTimeStamp int64       `json:"txts"`
@@ -19,12 +19,12 @@ type Envelope struct {
 	Result               interface{} `json:"result"`
 }
 
-//NewEnvelope -- Constructor
-func NewEnvelope(transactionType string) (p *Envelope) {
+//NewResponse -- Constructor
+func NewResponse(transactionType string) (p *Response) {
 	// TODO BUG use atomic
 	transactionID++
 
-	p = &Envelope{}
+	p = &Response{}
 	p.TransactionType = transactionType
 	p.TransactionID = transactionID
 	p.TransactionTimeStamp = time.Now().Unix()
@@ -34,13 +34,13 @@ func NewEnvelope(transactionType string) (p *Envelope) {
 }
 
 //Generate -- encode into JSON and return string
-func (e *Envelope) Generate() string {
+func (e *Response) Generate() string {
 	buf := new(bytes.Buffer)
 	json.NewEncoder(buf).Encode(e)
 	return buf.String()
 }
 
 //GenerateWriter --
-func (e *Envelope) GenerateWriter(w io.Writer) {
+func (e *Response) GenerateWriter(w io.Writer) {
 	json.NewEncoder(w).Encode(e)
 }

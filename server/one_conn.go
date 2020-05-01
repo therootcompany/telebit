@@ -11,7 +11,7 @@ type oneConnListener struct {
 
 func (l *oneConnListener) Accept() (net.Conn, error) {
 	if l.conn == nil {
-		loginfo.Println("Accept EOF")
+		loginfo.Println("oneConnListener Accept EOF")
 		return nil, io.EOF
 	}
 
@@ -22,11 +22,11 @@ func (l *oneConnListener) Accept() (net.Conn, error) {
 }
 
 func (l *oneConnListener) Close() error {
-	loginfo.Println("close")
+	loginfo.Println("oneConnListener close")
 	return nil
 }
 
 func (l *oneConnListener) Addr() net.Addr {
-	loginfo.Println("addr")
+	loginfo.Println("oneConnLister addr")
 	return nil
 }

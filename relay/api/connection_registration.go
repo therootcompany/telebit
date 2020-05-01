@@ -1,7 +1,9 @@
-package server
+package api
 
 import (
 	"github.com/gorilla/websocket"
+
+	
 )
 
 //Registration -- A connection registration structure used to bring up a connection

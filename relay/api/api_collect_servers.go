@@ -1,6 +1,10 @@
-package server
+package api
 
-import "time"
+import (
+	"time"
+
+	
+)
 
 //ServersAPI -- Structure to support the server API
 type ServersAPI struct {
@@ -27,8 +31,8 @@ func NewServersAPI(c *Connection) (s *ServersAPI) {
 	s.Idle = time.Since(c.LastUpdate()).Seconds()
 	s.BytesIn = c.BytesIn()
 	s.BytesOut = c.BytesOut()
-	s.Requests = c.requests
-	s.Responses = c.responses
+	s.Requests = c.Requests
+	s.Responses = c.Responses
 	s.Source = c.Source()
 	s.State = c.State()
 

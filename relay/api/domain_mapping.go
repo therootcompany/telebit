@@ -1,4 +1,4 @@
-package server
+package api
 
 //DomainMapping --
 type DomainMapping struct {

@@ -1,4 +1,4 @@
-package server
+package api
 
 //DomainTrack -- Tracking specifics for domains
 type DomainTrack struct {

@@ -1,4 +1,4 @@
-package server
+package api
 
 //TrafficStats --
 type TrafficAPI struct {

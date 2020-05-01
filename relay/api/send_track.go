@@ -1,4 +1,4 @@
-package server
+package api
 
 //SendTrack -- Used as a channel communication to id domain asssociated to domain for outbound WSS
 type SendTrack struct {

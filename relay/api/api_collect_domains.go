@@ -1,4 +1,4 @@
-package server
+package api
 
 //DomainsAPI -- A collections of all the domains
 //List of Domains -> DomainAPI
@@ -36,14 +36,14 @@ type DomainAPI struct {
 func NewDomainAPI(domain string, domainLoadBalance *DomainLoadBalance) (p *DomainAPI) {
 	p = new(DomainAPI)
 	p.DomainName = domain
-	for pos := range domainLoadBalance.connections {
-		ds := NewDomainServerAPI(domain, domainLoadBalance.connections[pos])
+	for pos := range domainLoadBalance.Connections() {
+		ds := NewDomainServerAPI(domain, domainLoadBalance.Connections()[pos])
 		p.Servers = append(p.Servers, ds)
 		p.TotalServers++
-		p.Traffic.BytesIn += domainLoadBalance.connections[pos].BytesIn()
-		p.Traffic.BytesOut += domainLoadBalance.connections[pos].BytesOut()
-		p.Traffic.Requests += domainLoadBalance.connections[pos].requests
-		p.Traffic.Responses += domainLoadBalance.connections[pos].responses
+		p.Traffic.BytesIn += domainLoadBalance.Connections()[pos].BytesIn()
+		p.Traffic.BytesOut += domainLoadBalance.Connections()[pos].BytesOut()
+		p.Traffic.Requests += domainLoadBalance.Connections()[pos].Requests
+		p.Traffic.Responses += domainLoadBalance.Connections()[pos].Responses
 	}
 	return
 }

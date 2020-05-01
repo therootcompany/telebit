@@ -51,12 +51,13 @@ func Run(ctx context.Context, config *Config) error {
 
 	authenticated := false
 	for {
+		fmt.Printf("debug serverURL:\n%+v", serverURL)
 		if conn, _, err := dialer.Dial(serverURL.String(), nil); err == nil {
 			loginfo.Println("connected to remote server")
 			authenticated = true
 			handler.HandleConn(ctx, conn)
 		} else if !authenticated {
-			return fmt.Errorf("First connection to server failed - check auth: %v", err)
+			return fmt.Errorf("first connection to server failed - check auth: %s", err.Error())
 		}
 		loginfo.Println("disconnected from remote server")
 

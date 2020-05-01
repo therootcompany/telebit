@@ -1,8 +1,9 @@
-package server
+package api
 
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"sync"
 )
@@ -40,19 +41,19 @@ func NewTracking() (p *Tracking) {
 
 //Run -
 func (p *Tracking) Run(ctx context.Context) {
-	loginfo.Println("Tracking Running")
+	log.Println("Tracking Running")
 
 	for {
 		select {
 
 		case <-ctx.Done():
-			loginfo.Println("Cancel signal hit")
+			log.Println("Cancel signal hit")
 			return
 
 		case connection := <-p.register:
 			p.mutex.Lock()
 			key := connection.conn.RemoteAddr().String()
-			loginfo.Println("register fired", key)
+			log.Println("register fired", key)
 			p.connections[key] = connection
 			p.list()
 			p.mutex.Unlock()
@@ -60,7 +61,7 @@ func (p *Tracking) Run(ctx context.Context) {
 		case connection := <-p.unregister:
 			p.mutex.Lock()
 			key := connection.RemoteAddr().String()
-			loginfo.Println("unregister fired", key)
+			log.Println("unregister fired", key)
 			if _, ok := p.connections[key]; ok {
 				delete(p.connections, key)
 			}
@@ -72,7 +73,7 @@ func (p *Tracking) Run(ctx context.Context) {
 
 func (p *Tracking) list() {
 	for c := range p.connections {
-		loginfo.Println(c)
+		log.Println(c)
 	}
 }
 

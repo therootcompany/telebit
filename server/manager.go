@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"net"
 	"net/http"
+
+	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 )
 
 //ListenerRegistrationStatus - post registration status
@@ -65,34 +67,43 @@ func NewListenerRegistration(port int) (p *ListenerRegistration) {
 type MPlexy struct {
 	listeners          map[*net.Listener]int
 	ctx                context.Context
-	connnectionTable   *Table
-	connectionTracking *Tracking
-	authorize          Authorizer
+	connnectionTable   *api.Table
+	connectionTracking *api.Tracking
+	AuthorizeTarget    Authorizer
+	AuthorizeAdmin     Authorizer
 	tlsConfig          *tls.Config
 	register           chan *ListenerRegistration
 	wssHostName        string
 	adminHostName      string
 	cancelCheck        int
 	lbDefaultMethod    string
-	serverStatus       *Status
-	//xservers         *MPlexy
+	Status             *api.Status
+	AcceptTargetServer func(net.Conn)
+	AcceptAdminClient  func(net.Conn)
 }
 
 // New creates tcp (and https and wss?) listeners
-func New(ctx context.Context, tlsConfig *tls.Config, authz Authorizer, serverStatus *Status) (mx *MPlexy) {
+func New(
+	ctx context.Context,
+	tlsConfig *tls.Config,
+	authAdmin Authorizer,
+	authz Authorizer,
+	serverStatus *api.Status,
+) (mx *MPlexy) {
 	mx = &MPlexy{
 		listeners:          make(map[*net.Listener]int),
 		ctx:                ctx,
 		connnectionTable:   serverStatus.ConnectionTable,
 		connectionTracking: serverStatus.ConnectionTracking,
-		authorize:          authz,
+		AuthorizeTarget:    authz,
+		AuthorizeAdmin:     authz,
 		tlsConfig:          tlsConfig,
 		register:           make(chan *ListenerRegistration),
 		wssHostName:        serverStatus.WssDomain,
 		adminHostName:      serverStatus.AdminDomain,
-		cancelCheck:        serverStatus.DeadTime.cancelcheck,
+		cancelCheck:        serverStatus.DeadTime.Cancelcheck,
 		lbDefaultMethod:    serverStatus.LoadbalanceDefaultMethod,
-		serverStatus:       serverStatus,
+		Status:             serverStatus,
 	}
 	return mx
 }
@@ -117,7 +128,7 @@ func (mx *MPlexy) Run() error {
 	ctx = context.WithValue(ctx, ctxAdminHostName, mx.adminHostName)
 	ctx = context.WithValue(ctx, ctxCancelCheck, mx.cancelCheck)
 	ctx = context.WithValue(ctx, ctxLoadbalanceDefaultMethod, mx.lbDefaultMethod)
-	ctx = context.WithValue(ctx, ctxServerStatus, mx.serverStatus)
+	ctx = context.WithValue(ctx, ctxServerStatus, mx.Status)
 
 	for {
 		select {
@@ -138,7 +149,7 @@ func (mx *MPlexy) Run() error {
 				}
 			}
 			loginfo.Println("listener starting up ", registration.port)
-			loginfo.Println(ctx.Value(ctxConnectionTrack).(*Tracking))
+			loginfo.Println(ctx.Value(ctxConnectionTrack).(*api.Tracking))
 			go mx.multiListenAndServe(ctx, registration)
 
 			status := <-registration.commCh

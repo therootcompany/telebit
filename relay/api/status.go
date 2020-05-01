@@ -1,8 +1,10 @@
-package server
+package api
 
 import (
 	"context"
 	"time"
+
+	"git.coolaj86.com/coolaj86/go-telebitd/tunnel"
 )
 
 //Status --
@@ -64,7 +66,7 @@ func (p *Status) ExtConnectionRegister(newTrack *Track) {
 //ExtConnectionUnregister --
 //unregisters an ext facing connection
 //intercept and update global statistics
-func (p *Status) ExtConnectionUnregister(extConn *WedgeConn) {
+func (p *Status) ExtConnectionUnregister(extConn *tunnel.WedgeConn) {
 	p.ConnectionTracking.unregister <- extConn
 	p.ExtConnections.DecConnections()
 

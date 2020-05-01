@@ -6,5 +6,4 @@ certs
 /cmd/telebitd/telebitd
 /telebit
 /cmd/telebit/telebit
-/m
 /debug

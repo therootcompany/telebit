@@ -1,40 +1,48 @@
-package server
+package admin
 
 import (
-	"context"
+	"log"
+	"net"
 	"net/http"
 	"runtime"
 	"strconv"
 	"strings"
 
-	"github.com/gorilla/mux"
-
 	telebit "git.coolaj86.com/coolaj86/go-telebitd"
-	"git.coolaj86.com/coolaj86/go-telebitd/envelope"
+	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
+	"git.coolaj86.com/coolaj86/go-telebitd/server"
+
+	"github.com/gorilla/mux"
 )
 
 const (
 	endPointPrefix = "/api/org.rootprojects.tunnel/"
 )
 
-var connectionTable *Table
-var serverStatus *Status
-var serverStatusAPI *Status
+var connectionTable *api.Table
+var serverStatus *api.Status
+var serverStatusAPI *api.Status
 
-//handleAdminClient -
+//ListenAndServe -
 // - expecting an existing oneConnListener with a qualified wss client connected.
 // - auth will happen again since we were just peeking at the token.
-func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
-	serverStatus = ctx.Value(ctxServerStatus).(*Status)
+func ListenAndServe(mx *server.MPlexy, adminListener net.Listener) error {
+	//serverStatus = mx.ctx.Value(ctxServerStatus).(*Status)
 
-	connectionTable = serverStatus.ConnectionTable
-	serverStatusAPI = serverStatus
+	connectionTable = mx.Status.ConnectionTable
+	serverStatusAPI = mx.Status
+
 	router := mux.NewRouter().StrictSlash(true)
-
 	router.PathPrefix("/admin/").Handler(http.StripPrefix("/admin/", http.FileServer(http.Dir("html/admin"))))
-
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		loginfo.Println("HandleFunc /")
+		log.Println("HandleFunc /")
+
+		_, err := mx.AuthorizeAdmin(r)
+		if err == nil {
+			// TODO
+			w.Write([]byte("TODO: handle bad auth"))
+			return
+		}
 
 		serverStatus.AdminStats.IncRequests()
 
@@ -64,30 +72,20 @@ func handleAdminClient(ctx context.Context, oneConn *oneConnListener) {
 		Addr:    ":80",
 		Handler: router,
 	}
-
-	err := s.Serve(oneConn)
-	if err != nil {
-		loginfo.Println("Serve error: ", err)
-	}
-
-	select {
-	case <-ctx.Done():
-		loginfo.Println("Cancel signal hit")
-		return
-	}
+	return s.Serve(adminListener)
 }
 
 func getStatusEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
-	loginfo.Println(runtime.FuncForPC(pc).Name())
+	log.Println(runtime.FuncForPC(pc).Name())
 
 	serverStatus.AdminStats.IncRequests()
 
-	statusContainer := NewStatusAPI(serverStatusAPI)
+	statusContainer := api.NewStatusAPI(serverStatusAPI)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	env := envelope.NewEnvelope("domains/GET")
+	env := NewResponse("domains/GET")
 	env.Result = statusContainer
 	env.GenerateWriter(w)
 	serverStatus.AdminStats.IncResponses()
@@ -95,15 +93,15 @@ func getStatusEndpoint(w http.ResponseWriter, r *http.Request) {
 
 func getDomainsEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
-	loginfo.Println(runtime.FuncForPC(pc).Name())
+	log.Println(runtime.FuncForPC(pc).Name())
 
 	serverStatus.AdminStats.IncRequests()
 
-	domainsContainer := NewDomainsAPI(connectionTable.domains)
+	domainsContainer := api.NewDomainsAPI(connectionTable.Domains)
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	env := envelope.NewEnvelope("domains/GET")
+	env := NewResponse("domains/GET")
 	env.Result = domainsContainer
 	env.GenerateWriter(w)
 	serverStatus.AdminStats.IncResponses()
@@ -111,11 +109,11 @@ func getDomainsEndpoint(w http.ResponseWriter, r *http.Request) {
 
 func getDomainEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
-	loginfo.Println(runtime.FuncForPC(pc).Name())
+	log.Println(runtime.FuncForPC(pc).Name())
 
 	serverStatus.AdminStats.IncRequests()
 
-	env := envelope.NewEnvelope("domain/GET")
+	env := NewResponse("domain/GET")
 
 	params := mux.Vars(r)
 	if id, ok := params["domain-name"]; !ok {
@@ -124,16 +122,16 @@ func getDomainEndpoint(w http.ResponseWriter, r *http.Request) {
 		env.ErrorDescription = "domain API requires a domain-name"
 	} else {
 		domainName := id
-		if domainLB, ok := connectionTable.domains[domainName]; !ok {
+		if domainLB, ok := connectionTable.Domains[domainName]; !ok {
 			env.Error = "domain-name was not found"
 			env.ErrorURI = r.RequestURI
 			env.ErrorDescription = "domain-name not found"
 		} else {
-			var domainAPIContainer []*ServerDomainAPI
+			var domainAPIContainer []*api.ServerDomainAPI
 			conns := domainLB.Connections()
 			for pos := range conns {
 				conn := conns[pos]
-				domainAPI := NewServerDomainAPI(conn, conn.DomainTrack[domainName])
+				domainAPI := api.NewServerDomainAPI(conn, conn.DomainTrack[domainName])
 				domainAPIContainer = append(domainAPIContainer, domainAPI)
 			}
 			env.Result = domainAPIContainer
@@ -146,21 +144,21 @@ func getDomainEndpoint(w http.ResponseWriter, r *http.Request) {
 
 func getServersEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
-	loginfo.Println(runtime.FuncForPC(pc).Name())
+	log.Println(runtime.FuncForPC(pc).Name())
 
 	serverStatus.AdminStats.IncRequests()
 
-	serverContainer := NewServerAPIContainer()
+	serverContainer := api.NewServerAPIContainer()
 
 	for c := range connectionTable.Connections() {
-		serverAPI := NewServersAPI(c)
+		serverAPI := api.NewServersAPI(c)
 		serverContainer.Servers = append(serverContainer.Servers, serverAPI)
 
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
-	env := envelope.NewEnvelope("servers/GET")
+	env := NewResponse("servers/GET")
 	env.Result = serverContainer
 	env.GenerateWriter(w)
 	serverStatus.AdminStats.IncResponses()
@@ -168,11 +166,11 @@ func getServersEndpoint(w http.ResponseWriter, r *http.Request) {
 
 func getServerEndpoint(w http.ResponseWriter, r *http.Request) {
 	pc, _, _, _ := runtime.Caller(0)
-	loginfo.Println(runtime.FuncForPC(pc).Name())
+	log.Println(runtime.FuncForPC(pc).Name())
 
 	serverStatus.AdminStats.IncRequests()
 
-	env := envelope.NewEnvelope("server/GET")
+	env := NewResponse("server/GET")
 
 	params := mux.Vars(r)
 	if id, ok := params["server-id"]; !ok {
@@ -193,8 +191,8 @@ func getServerEndpoint(w http.ResponseWriter, r *http.Request) {
 				env.ErrorURI = r.RequestURI
 				env.ErrorDescription = "missing server-id, make sure desired service-id is in servers"
 			} else {
-				loginfo.Println("test")
-				serverAPI := NewServerAPI(conn)
+				log.Println("test")
+				serverAPI := api.NewServerAPI(conn)
 				env.Result = serverAPI
 
 			}

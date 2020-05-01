@@ -10,9 +10,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	telebit "git.coolaj86.com/coolaj86/go-telebitd"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay"
+	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 	"git.coolaj86.com/coolaj86/go-telebitd/server"
 
 	jwt "github.com/dgrijalva/jwt-go"
@@ -36,7 +38,7 @@ var (
 	argServerAdminBinding    string
 	argServerExternalBinding string
 	argDeadTime              int
-	connectionTable          *server.Table
+	connectionTable          *api.Table
 	secretKey                string
 	wssHostName              = "localhost.rootprojects.org"
 	adminHostName            = telebit.InvalidAdminDomain
@@ -114,14 +116,14 @@ func main() {
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
 
-	serverStatus := server.NewStatus(ctx)
+	serverStatus := api.NewStatus(ctx)
 	serverStatus.AdminDomain = adminHostName
 	serverStatus.WssDomain = wssHostName
 	serverStatus.Name = nickname
-	serverStatus.DeadTime = server.NewStatusDeadTime(dwell, idle, cancelcheck)
+	serverStatus.DeadTime = api.NewStatusDeadTime(dwell, idle, cancelcheck)
 	serverStatus.LoadbalanceDefaultMethod = lbDefaultMethod
 
-	connectionTable := server.NewTable(dwell, idle, lbDefaultMethod)
+	connectionTable := api.NewTable(dwell, idle, lbDefaultMethod)
 
 	tlsConfig := &tls.Config{
 		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
@@ -139,11 +141,29 @@ func main() {
 
 	authorizer := func(r *http.Request) (*server.Authz, error) {
 		// do we have a valid wss_client?
-		tokenString := r.URL.Query().Get("access_token")
+
+		var tokenString string
+		if auth := strings.Split(r.Header.Get("Authorization"), " "); len(auth) > 1 {
+			// TODO handle Basic auth tokens as well
+			tokenString = auth[1]
+		}
+		if "" == tokenString {
+			tokenString = r.URL.Query().Get("access_token")
+		}
+
 		_, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return []byte(secretKey), nil
 		})
-		return nil, err
+		if nil != err {
+			return nil, err
+		}
+
+		authz := &server.Authz{
+			Domains: []string{
+				"target.rootprojects.org",
+			},
+		}
+		return authz, err
 
 		/*
 			tokenString := r.URL.Query().Get("access_token")

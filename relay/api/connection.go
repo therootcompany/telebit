@@ -1,9 +1,10 @@
-package server
+package api
 
 import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"sync"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 
 	"git.coolaj86.com/coolaj86/go-telebitd/packer"
 )
+
+var connectionID int64 = 0
 
 // Connection track websocket and faciliates in and out data
 type Connection struct {
@@ -43,11 +46,11 @@ type Connection struct {
 	// bytes out
 	bytesOut int64
 
-	// requests
-	requests int64
+	// Requests
+	Requests int64 // TODO atomic
 
-	// response
-	responses int64
+	// Response
+	Responses int64 // TODO atomic
 
 	// Connect Time
 	connectTime time.Time
@@ -79,8 +82,8 @@ func NewConnection(connectionTable *Table, conn *websocket.Conn, remoteAddress s
 	p.serverName = serverName
 	p.bytesIn = 0
 	p.bytesOut = 0
-	p.requests = 0
-	p.responses = 0
+	p.Requests = 0
+	p.Responses = 0
 	p.send = make(chan *SendTrack)
 	p.connectTime = time.Now()
 	p.initialDomains = initialDomains
@@ -153,11 +156,13 @@ func (c *Connection) addOut(num int64) {
 }
 
 func (c *Connection) addRequests() {
-	c.requests = c.requests + 1
+	// TODO atomic
+	c.Requests++
 }
 
 func (c *Connection) addResponse() {
-	c.responses = c.responses + 1
+	// TODO atomic
+	c.Responses++
 }
 
 //ConnectionTable -- property
@@ -208,7 +213,7 @@ func (c *Connection) NextWriter(wssMessageType int) (io.WriteCloser, error) {
 	}
 
 	// Is returning a nil error actually the proper thing to do here?
-	loginfo.Println("NextWriter aborted, state is not true")
+	log.Println("NextWriter aborted, state is not true")
 	return nil, nil
 }
 
@@ -229,23 +234,23 @@ func (c *Connection) Reader(ctx context.Context) {
 	defer func() {
 		c.connectionTable.unregister <- c
 		c.conn.Close()
-		loginfo.Println("reader defer", c)
+		log.Println("reader defer", c)
 	}()
 
-	loginfo.Println("Reader Start ", c)
+	log.Println("Reader Start ", c)
 
 	//c.conn.SetReadLimit(65535)
 	for {
 		_, message, err := c.conn.ReadMessage()
 
-		//loginfo.Println("ReadMessage", msgType, err)
+		//log.Println("ReadMessage", msgType, err)
 
 		c.Update()
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway) {
 				c.SetState(false)
-				loginfo.Printf("error: %v", err)
+				log.Printf("error: %v", err)
 			}
 			break
 		}
@@ -255,10 +260,10 @@ func (c *Connection) Reader(ctx context.Context) {
 		key := fmt.Sprintf("%s:%d", p.Address(), p.Port())
 		track, err := connectionTrack.Lookup(key)
 
-		//loginfo.Println(hex.Dump(p.Data.Data()))
+		//log.Println(hex.Dump(p.Data.Data()))
 
 		if err != nil {
-			//loginfo.Println("Unable to locate Tracking for ", key)
+			//log.Println("Unable to locate Tracking for ", key)
 			continue
 		}
 
@@ -273,7 +278,7 @@ func (c *Connection) Reader(ctx context.Context) {
 
 		c.addIn(int64(len(message)))
 		c.addResponse()
-		//loginfo.Println("end of read")
+		//log.Println("end of read")
 	}
 }
 
@@ -281,14 +286,14 @@ func (c *Connection) Reader(ctx context.Context) {
 func (c *Connection) Writer() {
 	defer c.conn.Close()
 
-	loginfo.Println("Writer Start ", c)
+	log.Println("Writer Start ", c)
 
 	for {
 		select {
 
 		case message := <-c.send:
 			w, err := c.NextWriter(websocket.BinaryMessage)
-			loginfo.Println("next writer ", w)
+			log.Println("next writer ", w)
 			if err != nil {
 				c.SetState(false)
 				return
@@ -312,12 +317,12 @@ func (c *Connection) Writer() {
 				//if ok then add to structure, else warn there is something wrong
 				domainTrack.AddIn(messageLen)
 				domainTrack.AddRequests()
-				loginfo.Println("adding ", messageLen, " to ", message.domain)
+				log.Println("adding ", messageLen, " to ", message.domain)
 			} else {
-				logdebug.Println("attempting to add bytes to ", message.domain, "it does not exist")
-				logdebug.Println(c.DomainTrack)
+				log.Println("attempting to add bytes to ", message.domain, "it does not exist")
+				log.Println(c.DomainTrack)
 			}
-			loginfo.Println(c)
+			log.Println(c)
 		}
 	}
 }

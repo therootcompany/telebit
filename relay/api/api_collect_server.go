@@ -1,6 +1,8 @@
-package server
+package api
 
-import "time"
+import (
+	"time"
+)
 
 //ServerAPI -- Structure to support the server API
 type ServerAPI struct {
@@ -25,7 +27,7 @@ func NewServerAPI(c *Connection) (s *ServerAPI) {
 	s.Idle = time.Since(c.LastUpdate()).Seconds()
 	s.BytesIn = c.BytesIn()
 	s.BytesOut = c.BytesOut()
-	s.Source = c.source
+	s.Source = c.Source()
 
 	for domainName := range c.DomainTrack {
 

@@ -1,4 +1,4 @@
-package envelope
+package admin
 
 import (
 	"log"
