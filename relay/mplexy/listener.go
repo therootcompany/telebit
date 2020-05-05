@@ -126,6 +126,7 @@ func (mx *MPlexy) accept(ctx context.Context, wConn *tunnel.WedgeConn) {
 
 	} else if bytes.Contains(peek[0:3], []byte{0x16, 0x03, 0x00}) {
 		encryptMode = encryptSSLV3
+		loginfo.Println("SSLV3")
 
 	} else if bytes.Contains(peek[0:3], []byte{0x16, 0x03, 0x01}) {
 		encryptMode = encryptTLS10
@@ -133,12 +134,15 @@ func (mx *MPlexy) accept(ctx context.Context, wConn *tunnel.WedgeConn) {
 
 	} else if bytes.Contains(peek[0:3], []byte{0x16, 0x03, 0x02}) {
 		encryptMode = encryptTLS11
+		loginfo.Println("TLS11")
 
 	} else if bytes.Contains(peek[0:3], []byte{0x16, 0x03, 0x03}) {
 		encryptMode = encryptTLS12
+		loginfo.Println("TLS12")
 
 	} else if bytes.Contains(peek[0:3], []byte{0x16, 0x03, 0x04}) {
 		encryptMode = encryptTLS13
+		loginfo.Println("TLS13")
 
 	}
 
@@ -183,7 +187,7 @@ func (mx *MPlexy) acceptEncryptedStream(ctx context.Context, wConn *tunnel.Wedge
 	if sniHostName == mx.wssHostName || sniHostName == mx.adminHostName {
 		// The TLS should be terminated and handled internally
 		tlsConfig := ctx.Value(ctxConfig).(*tls.Config)
-		conn := tls.Client(wConn, tlsConfig)
+		conn := tls.Server(wConn, tlsConfig)
 		tlsWedgeConn := tunnel.NewWedgeConn(conn)
 		mx.acceptPlainStream(ctx, tlsWedgeConn, true)
 		return

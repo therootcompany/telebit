@@ -26,7 +26,10 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+// Loginfo TODO remove
 var Loginfo = log.Loginfo
+
+// Logdebug TODO remove
 var Logdebug = log.Logdebug
 
 func init() {
@@ -38,28 +41,22 @@ var (
 	configPath = "./"
 	configFile = "telebit-relay"
 
-	argWssClientListener     string
-	tcpPort                  int
-	argServerBinding         string
-	argServerAdminBinding    string
-	argServerExternalBinding string
-	argDeadTime              int
-	connectionTable          *api.Table
-	secretKey                string
-	wssHostName              = "localhost.rootprojects.org"
-	adminHostName            string
-	idle                     int
-	dwell                    int
-	cancelcheck              int
-	lbDefaultMethod          api.LoadBalanceStrategy
-	nickname                 string
-	acmeEmail                string
-	acmeStorage              string
-	acmeAgree                bool
-	acmeStaging              bool
-	allclients               string
-	adminDomain              string
-	wssDomain                string
+	tcpPort           int
+	argDeadTime       int
+	connectionTable   *api.Table
+	secretKey         string
+	wssHostName       string
+	adminHostName     string
+	idle              int
+	dwell             int
+	cancelcheck       int
+	loadBalanceMethod api.LoadBalanceStrategy
+	nickname          string
+	acmeEmail         string
+	acmeStorage       string
+	acmeAgree         bool
+	acmeStaging       bool
+	allclients        string
 )
 
 func init() {
@@ -68,8 +65,8 @@ func init() {
 	flag.StringVar(&acmeStorage, "acme-storage", "./acme.d/", "path to ACME storage directory")
 	flag.BoolVar(&acmeAgree, "acme-agree", false, "agree to the terms of the ACME service provider (required)")
 	flag.BoolVar(&acmeStaging, "staging", false, "get fake certificates for testing")
-	flag.StringVar(&adminDomain, "admin-domain", "", "the management domain")
-	flag.StringVar(&wssDomain, "wss-domain", "", "the wss domain for connecting devices, if different from admin")
+	flag.StringVar(&adminHostName, "admin-hostname", "", "the management domain")
+	flag.StringVar(&wssHostName, "wss-hostname", "", "the wss domain for connecting devices, if different from admin")
 	flag.StringVar(&configPath, "config-path", configPath, "Configuration File Path")
 	flag.StringVar(&secretKey, "secret", "", "a >= 16-character random string for JWT key signing") // SECRET
 	flag.StringVar(&logfile, "log", logfile, "Log file (or stdout/stderr; empty for none)")
@@ -143,20 +140,18 @@ func main() {
 		}
 	}
 
-	adminHostName = adminDomain
 	if 0 == len(adminHostName) {
-		adminHostName = os.Getenv("ADMIN_DOMAIN")
+		adminHostName = os.Getenv("ADMIN_HOSTNAME")
 	}
-	wssHostName = wssDomain
 	if 0 == len(wssHostName) {
-		wssHostName = os.Getenv("WSS_DOMAIN")
+		wssHostName = os.Getenv("WSS_HOSTNAME")
 	}
 	if 0 == len(wssHostName) {
 		wssHostName = adminHostName
 	}
 
 	// load balancer method
-	lbDefaultMethod = api.RoundRobin
+	loadBalanceMethod = api.RoundRobin
 	if 0 == len(nickname) {
 		nickname = os.Getenv("NICKNAME")
 	}
@@ -187,23 +182,29 @@ func main() {
 	serverStatus.WssDomain = wssHostName
 	serverStatus.Name = nickname
 	serverStatus.DeadTime = api.NewStatusDeadTime(dwell, idle, cancelcheck)
-	serverStatus.LoadbalanceDefaultMethod = string(lbDefaultMethod)
+	serverStatus.LoadbalanceDefaultMethod = string(loadBalanceMethod)
 
-	connectionTable := api.NewTable(dwell, idle, lbDefaultMethod)
+	connectionTable := api.NewTable(dwell, idle, loadBalanceMethod)
 
 	tlsConfig := &tls.Config{
 		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			certbundle, err := magic.GetCertificate(hello)
+			return magic.GetCertificate(hello)
+			/*
+				if false {
+					_, _ = magic.GetCertificate(hello)
+				}
 
-			// TODO
-			// 1. call out to greenlock for validation
-			// 2. push challenges through http channel
-			// 3. receive certificates (or don't)
-			//certbundle, err := tls.LoadX509KeyPair("certs/fullchain.pem", "certs/privkey.pem")
-			if err != nil {
-				return nil, err
-			}
-			return certbundle, nil
+				// TODO
+				// 1. call out to greenlock for validation
+				// 2. push challenges through http channel
+				// 3. receive certificates (or don't)
+				certbundleT, err := tls.LoadX509KeyPair("certs/fullchain.pem", "certs/privkey.pem")
+				certbundle := &certbundleT
+				if err != nil {
+					return nil, err
+				}
+				return certbundle, nil
+			*/
 		},
 	}
 

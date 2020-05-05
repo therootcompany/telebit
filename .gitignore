@@ -1,6 +1,8 @@
 .env
 .env.*
 certs
+acme.d
+
 *.exe
 /telebitd
 /cmd/telebitd/telebitd
