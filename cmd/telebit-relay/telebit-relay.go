@@ -220,17 +220,21 @@ func main() {
 			tokenString = r.URL.Query().Get("access_token")
 		}
 
-		_, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		tok, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			return []byte(secretKey), nil
 		})
 		if nil != err {
+			fmt.Println("return an error, do not go on")
 			return nil, err
 		}
+		fmt.Printf("client claims:\n%+v\n", tok.Claims)
 
+		domains := []string{}
+		for _, name := range tok.Claims.(jwt.MapClaims)["domains"].([]interface{}) {
+			domains = append(domains, name.(string))
+		}
 		authz := &mplexy.Authz{
-			Domains: []string{
-				"target.rootprojects.org",
-			},
+			Domains: domains,
 		}
 		return authz, err
 

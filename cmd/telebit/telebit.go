@@ -2,36 +2,39 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
-	jwt "github.com/dgrijalva/jwt-go"
-	flag "github.com/spf13/pflag"
-	"github.com/spf13/viper"
-
 	"git.coolaj86.com/coolaj86/go-telebitd/client"
+
+	jwt "github.com/dgrijalva/jwt-go"
+
+	_ "github.com/joho/godotenv/autoload"
 )
 
 var httpRegexp = regexp.MustCompile(`(?i)^http`)
+var locals string
+var domains string
+var insecure bool
+var relay string
+var secret string
+var token string
 
 func init() {
-	flag.StringSlice("locals", []string{}, "comma separated list of <proto>:<port> or "+
+	flag.StringVar(&locals, "locals", "", "comma separated list of <proto>:<port> or "+
 		"<proto>:<hostname>:<port> to which matching incoming connections should forward. "+
 		"Ex: smtps:8465,https:example.com:8443")
-	flag.StringSlice("domains", []string{}, "comma separated list of domain names to set to the tunnel")
-	viper.BindPFlag("locals", flag.Lookup("locals"))
-	viper.BindPFlag("domains", flag.Lookup("domains"))
-
-	flag.BoolP("insecure", "k", false, "Allow TLS connections to telebit-relay without valid certs")
-	flag.String("relay", "", "the domain (or ip address) at which the RVPN server is running")
-	flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
-	flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
-	viper.BindPFlag("raw.insecure", flag.Lookup("insecure"))
-	viper.BindPFlag("raw.relay", flag.Lookup("relay"))
-	viper.BindPFlag("raw.secret", flag.Lookup("secret"))
-	viper.BindPFlag("raw.token", flag.Lookup("token"))
+	flag.StringVar(&domains, "domains", "", "comma separated list of domain names to set to the tunnel")
+	flag.BoolVar(&insecure, "insecure", false, "Allow TLS connections to telebit-relay without valid certs")
+	flag.BoolVar(&insecure, "k", false, "alias of --insecure")
+	flag.StringVar(&relay, "relay", "", "the domain (or ip address) at which the relay server is running")
+	flag.StringVar(&secret, "secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
+	flag.StringVar(&token, "token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 }
 
 type proxy struct {
@@ -139,14 +142,14 @@ func addDomains(proxies []proxy, location string) ([]proxy, error) {
 	return proxies, nil
 }
 
-func extractServicePorts(proxies []proxy) map[string]map[string]int {
-	result := make(map[string]map[string]int, 2)
+func extractServicePorts(proxies []proxy) client.RouteMap {
+	result := make(client.RouteMap, 2)
 
 	for _, p := range proxies {
 		if p.protocol != "" && p.port != 0 {
 			hostPorts := result[p.protocol]
 			if hostPorts == nil {
-				result[p.protocol] = make(map[string]int)
+				result[p.protocol] = make(map[client.DomainName]*client.TerminalConfig)
 				hostPorts = result[p.protocol]
 			}
 
@@ -155,25 +158,33 @@ func extractServicePorts(proxies []proxy) map[string]map[string]int {
 			if !httpRegexp.MatchString(p.protocol) || p.hostname == "" {
 				p.hostname = "*"
 			}
-			if port, ok := hostPorts[p.hostname]; ok && port != p.port {
+			if port, ok := hostPorts[p.hostname]; ok && port.Port != p.port {
 				panic(fmt.Sprintf("duplicate ports for %s://%s", p.protocol, p.hostname))
 			}
-			hostPorts[p.hostname] = p.port
+			hostPorts[p.hostname] = &client.TerminalConfig{
+				Port: p.port,
+			}
 		}
 	}
 
 	// Make sure we have defaults for HTTPS and HTTP.
 	if result["https"] == nil {
-		result["https"] = make(map[string]int, 1)
+		result["https"] = make(map[client.DomainName]*client.TerminalConfig, 1)
 	}
-	if result["https"]["*"] == 0 {
-		result["https"]["*"] = 8443
+	if result["https"]["*"] == nil {
+		result["https"]["*"] = &client.TerminalConfig{}
+	}
+	if result["https"]["*"].Port == 0 {
+		result["https"]["*"].Port = 8443
 	}
 
 	if result["http"] == nil {
-		result["http"] = make(map[string]int, 1)
+		result["http"] = make(map[client.DomainName]*client.TerminalConfig, 1)
 	}
-	if result["http"]["*"] == 0 {
+	if result["http"]["*"] == nil {
+		result["http"]["*"] = &client.TerminalConfig{}
+	}
+	if result["http"]["*"].Port == 0 {
 		result["http"]["*"] = result["https"]["*"]
 	}
 
@@ -184,8 +195,13 @@ func main() {
 	flag.Parse()
 
 	var err error
+
+	if "" == locals {
+		locals = os.Getenv("LOCALS")
+	}
+
 	proxies := make([]proxy, 0)
-	for _, option := range viper.GetStringSlice("locals") {
+	for _, option := range stringSlice(locals) {
 		for _, location := range strings.Split(option, ",") {
 			//fmt.Println("locals", location)
 			proxies, err = addLocals(proxies, location)
@@ -194,9 +210,10 @@ func main() {
 			}
 		}
 	}
+
 	//fmt.Println("proxies:")
 	//fmt.Printf("%+v\n\n", proxies)
-	for _, option := range viper.GetStringSlice("domains") {
+	for _, option := range stringSlice(domains) {
 		for _, location := range strings.Split(option, ",") {
 			proxies, err = addDomains(proxies, location)
 			if nil != err {
@@ -213,39 +230,58 @@ func main() {
 		}
 	}
 
-	if viper.GetString("raw.relay") == "" {
-		panic("must provide remote RVPN server to connect to")
+	if relay == "" {
+		relay = os.Getenv("RELAY")
+	}
+	if relay == "" {
+		fmt.Fprintf(os.Stderr, "must provide remote relay server to connect to\n")
+		os.Exit(1)
 	}
 
-	var token string
-	if viper.GetString("raw.token") != "" {
-		token = viper.GetString("raw.token")
-	} else if viper.GetString("raw.secret") != "" {
+	if secret == "" {
+		secret = os.Getenv("SECRET")
+	}
+
+	if secret != "" {
 		domains := make([]string, 0, len(domainMap))
 		for name := range domainMap {
 			domains = append(domains, name)
 		}
 		tokenData := jwt.MapClaims{"domains": domains}
 
-		secret := []byte(viper.GetString("raw.secret"))
+		secret := []byte(secret)
 		jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenData)
 		if tokenStr, err := jwtToken.SignedString(secret); err != nil {
 			panic(err)
 		} else {
 			token = tokenStr
 		}
-	} else {
-		panic("must provide either token or secret")
+	} else if token != "" {
+		fmt.Fprintf(os.Stderr, "must provide either token or secret\n")
+		os.Exit(1)
 	}
 
 	ctx, quit := context.WithCancel(context.Background())
 	defer quit()
 
 	config := client.Config{
-		Insecure: viper.GetBool("raw.insecure"),
-		Server:   viper.GetString("raw.relay"),
+		Insecure: insecure,
+		Server:   relay,
 		Services: servicePorts,
 		Token:    token,
 	}
-	panic(client.Run(ctx, &config))
+
+	fmt.Printf("config:\n%#v\n", config)
+	log.Fatal(client.Run(ctx, &config))
+}
+
+func stringSlice(csv string) []string {
+	list := []string{}
+	for _, item := range strings.Split(csv, ", ") {
+		if 0 == len(item) {
+			continue
+		}
+		list = append(list, item)
+	}
+	return list
 }

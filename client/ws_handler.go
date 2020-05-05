@@ -24,7 +24,7 @@ type WsHandler struct {
 	lock       sync.Mutex
 	localConns map[string]net.Conn
 
-	servicePorts map[string]map[string]int
+	servicePorts RouteMap
 
 	ctx      context.Context
 	dataChan chan *packer.Packer
@@ -32,7 +32,7 @@ type WsHandler struct {
 
 // NewWsHandler creates a new handler ready to be given a websocket connection. The services
 // argument specifies what port each service type should be directed to on the local interface.
-func NewWsHandler(services map[string]map[string]int) *WsHandler {
+func NewWsHandler(services RouteMap) *WsHandler {
 	h := new(WsHandler)
 	h.servicePorts = services
 	h.localConns = make(map[string]net.Conn)
@@ -142,6 +142,7 @@ func (h *WsHandler) getLocalConn(p *packer.Packer) net.Conn {
 	if service == "http" {
 		if match := hostRegexp.FindSubmatch(p.Data.Data()); match != nil {
 			hostname = strings.Split(string(match[1]), ":")[0]
+			// TODO remove Hostname
 		}
 	} else if service == "https" {
 		hostname, _ = sni.GetHostname(p.Data.Data())
@@ -154,23 +155,29 @@ func (h *WsHandler) getLocalConn(p *packer.Packer) net.Conn {
 	}
 	hostname = strings.ToLower(hostname)
 
-	port := portList[hostname]
-	if port == 0 {
-		port = portList["*"]
+	term := portList[hostname]
+	fmt.Println("route to", hostname, term)
+	if term == nil {
+		portList[hostname] = portList["*"]
+		term = portList[hostname]
 	}
-	if port == 0 {
+	if term.Port == 0 {
+		portList[hostname] = portList["*"]
+	}
+	if term.Port == 0 {
 		loginfo.Println("unable to determine local port for", service, hostname)
 		return nil
 	}
 
-	conn, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", port))
+	// TODO allow jumping
+	conn, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", term.Port))
 	if err != nil {
-		loginfo.Println("unable to open local connection on port", port, err)
+		loginfo.Println("unable to open local connection on port", term.Port, err)
 		return nil
 	}
 
 	h.localConns[key] = conn
-	loginfo.Printf("new client %q for %s:%d (%d clients)\n", key, hostname, port, len(h.localConns))
+	loginfo.Printf("new client %q for %s:%d (%d clients)\n", key, hostname, term.Port, len(h.localConns))
 	go h.readLocal(key, &p.Header)
 	return conn
 }

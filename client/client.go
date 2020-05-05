@@ -16,7 +16,7 @@ type Config struct {
 	Server   string
 	Token    string
 	Insecure bool
-	Services map[string]map[string]int
+	Services RouteMap
 }
 
 // Run establishes a connection with the RVPN server specified in the config. If the first attempt

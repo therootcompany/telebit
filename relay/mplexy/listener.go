@@ -259,17 +259,18 @@ func (mx *MPlexy) acceptPlainStream(ctx context.Context, wConn *tunnel.WedgeConn
 
 	}
 
-	if hostname == mx.adminHostName {
-		loginfo.Println("admin")
-		// TODO mx.Admin.CheckRemoteIP(conn) here
-		// handle admin path
-		mx.AcceptAdminClient(wConn)
+	if hostname == mx.wssHostName &&
+		("Upgrade" == r.Header.Get("Connection") || "WebSocket" == r.Header.Get("Upgrade")) {
+		loginfo.Println("WebSocket Upgrade is in order...")
+		mx.AcceptTargetServer(wConn)
 		return
 	}
 
-	if "Upgrade" == r.Header.Get("Connection") || "WebSocket" == r.Header.Get("Upgrade") {
-		loginfo.Println("WebSocket Upgrade is in order...")
-		mx.AcceptTargetServer(wConn)
+	if hostname == mx.adminHostName {
+		loginfo.Println("matched admin hostname")
+		// TODO mx.Admin.CheckRemoteIP(conn) here
+		// handle admin path
+		mx.AcceptAdminClient(wConn)
 		return
 	}
 
