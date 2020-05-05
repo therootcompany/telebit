@@ -3,12 +3,13 @@
 certs
 acme.d
 
-*.exe
-/telebitd
-/cmd/telebitd/telebitd
 /telebit
 /cmd/telebit/telebit
-/debug
+/telebitd
+/cmd/telebitd/telebitd
+/telebit-relay
+/cmd/telebit-relay/telebit-relay
+*.exe
 
 log.txt
 *.log

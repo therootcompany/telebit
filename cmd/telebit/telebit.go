@@ -24,12 +24,12 @@ func init() {
 	viper.BindPFlag("locals", flag.Lookup("locals"))
 	viper.BindPFlag("domains", flag.Lookup("domains"))
 
-	flag.BoolP("insecure", "k", false, "Allow TLS connections to stunneld without valid certs")
-	flag.String("stunneld", "", "the domain (or ip address) at which the RVPN server is running")
-	flag.String("secret", "", "the same secret used by stunneld (used for JWT authentication)")
+	flag.BoolP("insecure", "k", false, "Allow TLS connections to telebit-relay without valid certs")
+	flag.String("relay", "", "the domain (or ip address) at which the RVPN server is running")
+	flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 	viper.BindPFlag("raw.insecure", flag.Lookup("insecure"))
-	viper.BindPFlag("raw.stunneld", flag.Lookup("stunneld"))
+	viper.BindPFlag("raw.relay", flag.Lookup("relay"))
 	viper.BindPFlag("raw.secret", flag.Lookup("secret"))
 	viper.BindPFlag("raw.token", flag.Lookup("token"))
 }
@@ -213,7 +213,7 @@ func main() {
 		}
 	}
 
-	if viper.GetString("raw.stunneld") == "" {
+	if viper.GetString("raw.relay") == "" {
 		panic("must provide remote RVPN server to connect to")
 	}
 
@@ -243,7 +243,7 @@ func main() {
 
 	config := client.Config{
 		Insecure: viper.GetBool("raw.insecure"),
-		Server:   viper.GetString("raw.stunneld"),
+		Server:   viper.GetString("raw.relay"),
 		Services: servicePorts,
 		Token:    token,
 	}

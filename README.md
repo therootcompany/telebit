@@ -33,11 +33,11 @@ tmp $ serve-https -p 8080 -d /tmp --servername hfc.rootprojects.org --agree-tos 
 
 ```bash
 # For .env
-TELEBIT_SECRET=abcdef1234567890
+SECRET=abcdef1234567890
 ```
 
 ```bash
-node-tunnel-client $ bin/stunnel.js --locals http://hfc.rootprojects.org:8080,http://test1.hfc.rootprojects.org:8080 --stunneld wss://localhost.rootprojects.org:8443 --secret abcdef1234567890
+node-tunnel-client $ bin/stunnel.js --locals http://hfc.rootprojects.org:8080,http://test1.hfc.rootprojects.org:8080 --relay wss://localhost.rootprojects.org:8443 --secret abcdef1234567890
 ```
 
 ### Execute RVPN
