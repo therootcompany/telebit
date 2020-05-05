@@ -66,7 +66,6 @@ func init() {
 	flag.StringVar(&allclients, "clients", "", "list of client:secret pairings such as example.com:secret123,foo.com:secret321")
 	flag.StringVar(&acmeEmail, "acme-email", "", "email to use for Let's Encrypt / ACME registration")
 	flag.StringVar(&acmeStorage, "acme-storage", "./acme.d/", "path to ACME storage directory")
-	flag.StringVar(&acmeStorage, "acme-storage", "./acme.d/", "path to ACME storage directory")
 	flag.BoolVar(&acmeAgree, "acme-agree", false, "agree to the terms of the ACME service provider (required)")
 	flag.BoolVar(&acmeStaging, "staging", false, "get fake certificates for testing")
 	flag.StringVar(&adminDomain, "admin-domain", "", "the management domain")
@@ -97,7 +96,7 @@ func main() {
 
 	clients := []Client{}
 	for _, pair := range strings.Split(allclients, ", ") {
-		if len(pair) > 0 {
+		if 0 == len(pair) {
 			continue
 		}
 		keyval := strings.Split(pair, ":")
@@ -107,8 +106,8 @@ func main() {
 		})
 	}
 
-	if "" == secretKey {
-		secretKey = os.Getenv("TELEBIT_SECRET")
+	if 0 == len(secretKey) {
+		secretKey = os.Getenv("SECRET")
 	}
 	if len(secretKey) < 16 {
 		fmt.Fprintf(os.Stderr, "Invalid secret: %q. See --help for details.\n", secretKey)
@@ -137,8 +136,8 @@ func main() {
 	flag.IntVar(&argDeadTime, "dead-time-counter", 5, "deadtime counter in seconds")
 
 	if 0 == tcpPort {
-		tcpPort, err = strconv.Atoi(os.Getenv("PORT"))
-		if nil != err {
+		tcpPort, _ = strconv.Atoi(os.Getenv("PORT"))
+		if 0 == tcpPort {
 			fmt.Fprintf(os.Stderr, "must specify --port or PORT\n")
 			os.Exit(1)
 		}
@@ -178,6 +177,10 @@ func main() {
 		directory = certmagic.LetsEncryptStagingCA
 	}
 	magic, err := newCertMagic(directory, acmeEmail, &certmagic.FileStorage{Path: acmeStorage})
+	if nil != err {
+		fmt.Fprintf(os.Stderr, "failed to initialize certificate management (discovery url? local folder perms?): %s\n", err)
+		os.Exit(1)
+	}
 
 	serverStatus := api.NewStatus(ctx)
 	serverStatus.AdminDomain = adminHostName
