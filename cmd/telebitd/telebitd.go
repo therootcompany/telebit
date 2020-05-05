@@ -10,6 +10,7 @@ import (
 	golog "log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/log"
@@ -17,8 +18,9 @@ import (
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
 
+	"github.com/caddyserver/certmagic"
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/spf13/viper"
+	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -49,21 +51,61 @@ var (
 	idle                     int
 	dwell                    int
 	cancelcheck              int
-	lbDefaultMethod          string
+	lbDefaultMethod          api.LoadBalanceStrategy
 	nickname                 string
+	acmeEmail                string
+	acmeStorage              string
+	acmeAgree                bool
+	acmeStaging              bool
+	allclients               string
+	adminDomain              string
+	wssDomain                string
 )
 
 func init() {
-	flag.StringVar(&logfile, "log", logfile, "Log file (or stdout/stderr; empty for none)")
+	flag.StringVar(&allclients, "clients", "", "list of client:secret pairings such as example.com:secret123,foo.com:secret321")
+	flag.StringVar(&acmeEmail, "acme-email", "", "email to use for Let's Encrypt / ACME registration")
+	flag.StringVar(&acmeStorage, "acme-storage", "./acme.d/", "path to ACME storage directory")
+	flag.StringVar(&acmeStorage, "acme-storage", "./acme.d/", "path to ACME storage directory")
+	flag.BoolVar(&acmeAgree, "acme-agree", false, "agree to the terms of the ACME service provider (required)")
+	flag.BoolVar(&acmeStaging, "staging", false, "get fake certificates for testing")
+	flag.StringVar(&adminDomain, "admin-domain", "", "the management domain")
+	flag.StringVar(&wssDomain, "wss-domain", "", "the wss domain for connecting devices, if different from admin")
 	flag.StringVar(&configPath, "config-path", configPath, "Configuration File Path")
-	flag.StringVar(&secretKey, "secret", "", "a >= 16-character random string for JWT key signing")
+	flag.StringVar(&secretKey, "secret", "", "a >= 16-character random string for JWT key signing") // SECRET
+	flag.StringVar(&logfile, "log", logfile, "Log file (or stdout/stderr; empty for none)")
+	flag.IntVar(&tcpPort, "port", 0, "tcp port on which to listen")                           // PORT
+	flag.StringVar(&nickname, "nickname", "", "a nickname for this server, as an identifier") // NICKNAME
 }
 
 var logoutput io.Writer
 
+// Client is a domain and secret pair
+type Client struct {
+	domain string
+	secret string
+}
+
 //Main -- main entry point
 func main() {
 	flag.Parse()
+
+	if !acmeAgree {
+		fmt.Fprintf(os.Stderr, "set --acme-agree=true to accept the terms of the ACME service provider.\n")
+		os.Exit(1)
+	}
+
+	clients := []Client{}
+	for _, pair := range strings.Split(allclients, ", ") {
+		if len(pair) > 0 {
+			continue
+		}
+		keyval := strings.Split(pair, ":")
+		clients = append(clients, Client{
+			domain: keyval[0],
+			secret: keyval[1],
+		})
+	}
 
 	if "" == secretKey {
 		secretKey = os.Getenv("TELEBIT_SECRET")
@@ -92,51 +134,73 @@ func main() {
 	// send the output io.Writing to the other packages
 	log.InitLogging(logoutput)
 
-	viper.SetConfigName(configFile)
-	viper.AddConfigPath(configPath)
-	viper.AddConfigPath("./")
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(fmt.Errorf("fatal error config file: %s", err))
-	}
-
 	flag.IntVar(&argDeadTime, "dead-time-counter", 5, "deadtime counter in seconds")
 
-	wssHostName = viper.Get("rvpn.wssdomain").(string)
-	adminHostName = viper.Get("rvpn.admindomain").(string)
-	tcpPort = viper.GetInt("rvpn.port")
-	deadtime := viper.Get("rvpn.deadtime").(map[string]interface{})
-	idle = deadtime["idle"].(int)
-	dwell = deadtime["dwell"].(int)
-	cancelcheck = deadtime["cancelcheck"].(int)
-	lbDefaultMethod = viper.Get("rvpn.loadbalancing.defaultmethod").(string)
-	nickname = viper.Get("rvpn.serverName").(string)
+	if 0 == tcpPort {
+		tcpPort, err = strconv.Atoi(os.Getenv("PORT"))
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "must specify --port or PORT\n")
+			os.Exit(1)
+		}
+	}
+
+	adminHostName = adminDomain
+	if 0 == len(adminHostName) {
+		adminHostName = os.Getenv("ADMIN_DOMAIN")
+	}
+	wssHostName = wssDomain
+	if 0 == len(wssHostName) {
+		wssHostName = os.Getenv("WSS_DOMAIN")
+	}
+	if 0 == len(wssHostName) {
+		wssHostName = adminHostName
+	}
+
+	// load balancer method
+	lbDefaultMethod = api.RoundRobin
+	if 0 == len(nickname) {
+		nickname = os.Getenv("NICKNAME")
+	}
+
+	// TODO what do these "deadtimes" do exactly?
+	dwell := 120
+	idle := 60
+	cancelcheck := 10
 
 	Loginfo.Println("startup")
 
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
 
+	// CertMagic is Greenlock for Go
+	directory := certmagic.LetsEncryptProductionCA
+	if acmeStaging {
+		directory = certmagic.LetsEncryptStagingCA
+	}
+	magic, err := newCertMagic(directory, acmeEmail, &certmagic.FileStorage{Path: acmeStorage})
+
 	serverStatus := api.NewStatus(ctx)
 	serverStatus.AdminDomain = adminHostName
 	serverStatus.WssDomain = wssHostName
 	serverStatus.Name = nickname
 	serverStatus.DeadTime = api.NewStatusDeadTime(dwell, idle, cancelcheck)
-	serverStatus.LoadbalanceDefaultMethod = lbDefaultMethod
+	serverStatus.LoadbalanceDefaultMethod = string(lbDefaultMethod)
 
 	connectionTable := api.NewTable(dwell, idle, lbDefaultMethod)
 
 	tlsConfig := &tls.Config{
-		GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			certbundle, err := magic.GetCertificate(hello)
+
 			// TODO
 			// 1. call out to greenlock for validation
 			// 2. push challenges through http channel
 			// 3. receive certificates (or don't)
-			certbundle, err := tls.LoadX509KeyPair("certs/fullchain.pem", "certs/privkey.pem")
+			//certbundle, err := tls.LoadX509KeyPair("certs/fullchain.pem", "certs/privkey.pem")
 			if err != nil {
 				return nil, err
 			}
-			return &certbundle, nil
+			return certbundle, nil
 		},
 	}
 
@@ -187,4 +251,47 @@ func main() {
 
 	r := relay.New(ctx, tlsConfig, authorizer, serverStatus, connectionTable)
 	r.ListenAndServe(tcpPort)
+}
+
+func newCertMagic(directory string, email string, storage certmagic.Storage) (*certmagic.Config, error) {
+	cache := certmagic.NewCache(certmagic.CacheOptions{
+		GetConfigForCert: func(cert certmagic.Certificate) (*certmagic.Config, error) {
+			// do whatever you need to do to get the right
+			// configuration for this certificate; keep in
+			// mind that this config value is used as a
+			// template, and will be completed with any
+			// defaults that are set in the Default config
+			return &certmagic.Config{}, nil
+		},
+	})
+	provider, err := newDuckDNSProvider(os.Getenv("DUCKDNS_TOKEN"))
+	if err != nil {
+		return nil, err
+	}
+	magic := certmagic.New(cache, certmagic.Config{
+		Storage: storage,
+		OnDemand: &certmagic.OnDemandConfig{
+			DecisionFunc: func(name string) error {
+				return nil
+			},
+		},
+	})
+	// Ummm... just a little confusing
+	magic.Issuer = certmagic.NewACMEManager(magic, certmagic.ACMEManager{
+		DNSProvider:             provider,
+		CA:                      directory,
+		Email:                   email,
+		Agreed:                  true,
+		DisableHTTPChallenge:    true,
+		DisableTLSALPNChallenge: true,
+		// plus any other customizations you need
+	})
+	return magic, nil
+}
+
+// newDuckDNSProvider is for the sake of demoing the tunnel
+func newDuckDNSProvider(token string) (*duckdns.DNSProvider, error) {
+	config := duckdns.NewDefaultConfig()
+	config.Token = token
+	return duckdns.NewDNSProviderConfig(config)
 }

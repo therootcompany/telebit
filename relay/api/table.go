@@ -22,11 +22,11 @@ type Table struct {
 	domainRevoke   chan *DomainMapping
 	dwell          int
 	idle           int
-	balanceMethod  string
+	balanceMethod  LoadBalanceStrategy
 }
 
 //NewTable -- consructor
-func NewTable(dwell, idle int, balanceMethod string) (p *Table) {
+func NewTable(dwell, idle int, balanceMethod LoadBalanceStrategy) (p *Table) {
 	p = new(Table)
 	p.connections = make(map[*Connection][]string)
 	p.Domains = make(map[string]*DomainLoadBalance)

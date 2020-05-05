@@ -6,10 +6,12 @@ import (
 	"sync"
 )
 
+type LoadBalanceStrategy string
+
 const (
-	lbmUnSupported      string = "unsuported"
-	lbmRoundRobin       string = "round-robin"
-	lbmLeastConnections string = "least-connections"
+	UnSupported      LoadBalanceStrategy = "unsuported"
+	RoundRobin       LoadBalanceStrategy = "round-robin"
+	LeastConnections LoadBalanceStrategy = "least-connections"
 )
 
 //DomainLoadBalance -- Use as a structure for domain connections
@@ -19,7 +21,7 @@ type DomainLoadBalance struct {
 	mutex sync.Mutex
 
 	//lb method, supported round robin.
-	method string
+	method LoadBalanceStrategy
 
 	//the last connection based on calculation
 	lastmember int
@@ -35,7 +37,7 @@ type DomainLoadBalance struct {
 }
 
 //NewDomainLoadBalance -- Constructor
-func NewDomainLoadBalance(defaultMethod string) (p *DomainLoadBalance) {
+func NewDomainLoadBalance(defaultMethod LoadBalanceStrategy) (p *DomainLoadBalance) {
 	p = new(DomainLoadBalance)
 	p.method = defaultMethod
 	p.lastmember = 0
@@ -56,7 +58,7 @@ func (p *DomainLoadBalance) NextMember() (conn *Connection) {
 
 	//check for round robin, if not RR then drop out and call calculate
 	log.Println("NextMember:", p)
-	if p.method == lbmRoundRobin {
+	if p.method == RoundRobin {
 		p.lastmember++
 		if p.lastmember >= p.count {
 			p.lastmember = 0

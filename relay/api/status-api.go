@@ -25,7 +25,7 @@ func NewStatusAPI(c *Status) (s *StatusAPI) {
 	s.Uptime = time.Since(c.StartTime).Seconds()
 	s.WssDomain = c.WssDomain
 	s.AdminDomain = c.AdminDomain
-	s.LoadbalanceDefaultMethod = c.LoadbalanceDefaultMethod
+	s.LoadbalanceDefaultMethod = string(c.LoadbalanceDefaultMethod)
 	s.DeadTime = NewStatusDeadTimeAPI(c.DeadTime.dwell, c.DeadTime.idle, c.DeadTime.Cancelcheck)
 	s.AdminStats = NewTrafficAPI(c.AdminStats.Requests, c.AdminStats.Responses, c.AdminStats.BytesIn, c.AdminStats.BytesOut)
 	s.TrafficStats = NewTrafficAPI(c.TrafficStats.Requests, c.TrafficStats.Responses, c.TrafficStats.BytesIn, c.TrafficStats.BytesOut)

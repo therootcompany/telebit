@@ -7,3 +7,6 @@ certs
 /telebit
 /cmd/telebit/telebit
 /debug
+
+log.txt
+*.log
