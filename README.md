@@ -1,35 +1,60 @@
 # Telebit
 
-## branch: load-balancing
+A secure, end-to-end Encrypted tunnel.
 
--   code now passes traffic using just Root tools
--   this will require serve-https and node-tunnel-client to work
--   the system supports round-robin load balancing
+Because friends don't let friends localhost.
 
-### Build RVPN
+## Install Go
 
-```bash
-go build -mod vendor ./cmd/telebit/
-go build -mod vendor ./cmd/telebitd/
-```
-
-### Setup Some Entries
-
-`/etc/hosts`:
-
-```txt
-127.0.0.1 tunnel.example.com rvpn.rootprojects.invalid hfc2.rootprojects.org hfc.rootprojects.org
-```
-
-### Start Up Webserver
+Installs Go to `~/.local/opt/go` for MacOS and Linux:
 
 ```bash
-tmp $ cd /tmp
-tmp $ vim index.html --- Place some index content
-tmp $ serve-https -p 8080 -d /tmp --servername hfc.rootprojects.org --agree-tos --email henry.f.camacho@gmail.com
+curl https://webinstall.dev/golang | bash
 ```
 
-### Start Tunnel Client
+For Windows, see https://golang.org/dl
+
+## Relay Server
+
+All dependencies are included, at the correct version in the `./vendor` directory.
+
+```bash
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-relay-linux ./cmd/telebit-relay/telebit-relay.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-relay-macos ./cmd/telebit-relay/telebit-relay.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-relay-windows.exe ./cmd/telebit-relay/telebit-relay.go
+```
+
+### Configure
+
+Command-line flags or `.env` may be used.
+
+See `./telebit-relay --help` for all options, and `examples/relay.env` for their corresponding ENVs.
+
+### Example
+
+```bash
+./telebit-relay --acme-agree=true
+```
+
+Copy `examples/relay.env` as `.env` in the working directory.
+
+## Relay Client
+
+All dependencies are included, at the correct version in the `./vendor` directory.
+
+```bash
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-client-linux ./cmd/telebit/telebit.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-client-macos ./cmd/telebit/telebit.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-client-windows.exe ./cmd/telebit/telebit.go
+```
+
+### Configure
+
+Command-line flags or `.env` may be used.
+
+See `./telebit-client --help` for all options, and `examples/client.env` for their corresponding ENVs.
+
+### Example
 
 ```bash
 # For .env
@@ -40,35 +65,22 @@ SECRET=abcdef1234567890
 node-tunnel-client $ bin/stunnel.js --locals http://hfc.rootprojects.org:8080,http://test1.hfc.rootprojects.org:8080 --relay wss://localhost.rootprojects.org:8443 --secret abcdef1234567890
 ```
 
-### Execute RVPN
+## Local Web Application
+
+Currently only raw TCP is tunneled.
+
+This means that either the application must handle and terminate encrypted TLS connections, or use HTTP (instead of HTTPS).
+This will be available in the next release.
 
 ```bash
-./telebitd
-```
+mkdir -p tmp-app
+pushd tmp-app/
 
-```txt
-INFO: packer: 2017/03/02 19:16:52.652109 run.go:47: startup
--=-=-=-=-=-=-=-=-=-=
-INFO: genericlistener: 2017/03/02 19:16:52.652777 manager.go:77: ConnectionTable starting
-INFO: genericlistener: 2017/03/02 19:16:52.652806 connection_table.go:67: ConnectionTable starting
-INFO: genericlistener: 2017/03/02 19:16:52.652826 manager.go:84: &{map[] 0xc420072420 0xc420072480}
-INFO: genericlistener: 2017/03/02 19:16:52.652832 connection_table.go:50: Reaper waiting for  300  seconds
-INFO: genericlistener: 2017/03/02 19:16:52.652856 manager.go:100: register fired 8443
-INFO: genericlistener: 2017/03/02 19:16:52.652862 manager.go:110: listener starting up  8443
-INFO: genericlistener: 2017/03/02 19:16:52.652868 manager.go:111: &{map[] 0xc420072420 0xc420072480}
-INFO: genericlistener: 2017/03/02 19:16:52.652869 conn_tracking.go:25: Tracking Running
-```
+cat << EOF > index.html
+Hello, World!
+EOF
 
-### Browse via tunnel
-
-https://hfc.rootprojects.org:8443
-
-### Test Load Balancing
-
-In a new terminal
-
-```bash
-node-tunnel-client $ bin/stunnel.js --locals http://hfc.rootprojects.org:8080,http://test1.hfc.rootprojects.org:8080 --stunneld wss://localhost.rootprojects.org:8443 --secret abc123
+python3 -m http.server 3000
 ```
 
 ### Check Results
