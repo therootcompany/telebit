@@ -14,6 +14,8 @@ curl https://webinstall.dev/golang | bash
 
 For Windows, see https://golang.org/dl
 
+**Note**: The _minimum required go version_ is shown in `go.mod`. DO NOT use with `GOPATH`!
+
 ## Relay Server
 
 All dependencies are included, at the correct version in the `./vendor` directory.
