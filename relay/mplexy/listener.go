@@ -332,6 +332,7 @@ func (mx *MPlexy) routeToTarget(ctx context.Context, extConn *tunnel.WedgeConn, 
 	}
 
 	for {
+		fmt.Println("xxyyzz buffer")
 		buffer, err := extConn.PeekAll()
 		if err != nil {
 			loginfo.Println("unable to peekAll", err)

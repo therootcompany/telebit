@@ -13,10 +13,11 @@ import (
 // The Config struct holds all of the information needed to establish and handle a connection
 // with the RVPN server.
 type Config struct {
-	Server   string
-	Token    string
-	Insecure bool
-	Services RouteMap
+	Server    string
+	Token     string
+	Insecure  bool
+	Services  RouteMap
+	TLSConfig *tls.Config
 }
 
 // Run establishes a connection with the RVPN server specified in the config. If the first attempt
@@ -47,7 +48,7 @@ func Run(ctx context.Context, config *Config) error {
 			return fmt.Errorf(`service %s missing port for "*"`, name)
 		}
 	}
-	handler := NewWsHandler(config.Services)
+	handler := NewWsHandler(config.Services, config.TLSConfig)
 
 	authenticated := false
 	for {

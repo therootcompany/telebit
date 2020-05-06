@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"log"
@@ -12,7 +13,9 @@ import (
 
 	"git.coolaj86.com/coolaj86/go-telebitd/client"
 
+	"github.com/caddyserver/certmagic"
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -264,15 +267,97 @@ func main() {
 	ctx, quit := context.WithCancel(context.Background())
 	defer quit()
 
+	acmeStorage := "./acme.d/"
+	acmeEmail := ""
+	acmeStaging := false
+	//
+	// CertMagic is Greenlock for Go
+	//
+	directory := certmagic.LetsEncryptProductionCA
+	if acmeStaging {
+		directory = certmagic.LetsEncryptStagingCA
+	}
+	magic, err := newCertMagic(directory, acmeEmail, &certmagic.FileStorage{Path: acmeStorage})
+	if nil != err {
+		fmt.Fprintf(os.Stderr, "failed to initialize certificate management (discovery url? local folder perms?): %s\n", err)
+		os.Exit(1)
+	}
+
+	tlsConfig := &tls.Config{
+		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return magic.GetCertificate(hello)
+			/*
+				if false {
+					_, _ = magic.GetCertificate(hello)
+				}
+
+				// TODO
+				// 1. call out to greenlock for validation
+				// 2. push challenges through http channel
+				// 3. receive certificates (or don't)
+				certbundleT, err := tls.LoadX509KeyPair("certs/fullchain.pem", "certs/privkey.pem")
+				certbundle := &certbundleT
+				if err != nil {
+					return nil, err
+				}
+				return certbundle, nil
+			*/
+		},
+	}
+
 	config := client.Config{
-		Insecure: insecure,
-		Server:   relay,
-		Services: servicePorts,
-		Token:    token,
+		Insecure:  insecure,
+		Server:    relay,
+		Services:  servicePorts,
+		Token:     token,
+		TLSConfig: tlsConfig,
 	}
 
 	fmt.Printf("config:\n%#v\n", config)
 	log.Fatal(client.Run(ctx, &config))
+}
+
+func newCertMagic(directory string, email string, storage certmagic.Storage) (*certmagic.Config, error) {
+	cache := certmagic.NewCache(certmagic.CacheOptions{
+		GetConfigForCert: func(cert certmagic.Certificate) (*certmagic.Config, error) {
+			// do whatever you need to do to get the right
+			// configuration for this certificate; keep in
+			// mind that this config value is used as a
+			// template, and will be completed with any
+			// defaults that are set in the Default config
+			return &certmagic.Config{}, nil
+		},
+	})
+	provider, err := newDuckDNSProvider(os.Getenv("DUCKDNS_TOKEN"))
+	if err != nil {
+		return nil, err
+	}
+	magic := certmagic.New(cache, certmagic.Config{
+		Storage: storage,
+		OnDemand: &certmagic.OnDemandConfig{
+			DecisionFunc: func(name string) error {
+				return nil
+			},
+		},
+	})
+	// Ummm... just a little confusing
+	magic.Issuer = certmagic.NewACMEManager(magic, certmagic.ACMEManager{
+		DNSProvider:             provider,
+		CA:                      directory,
+		Email:                   email,
+		Agreed:                  true,
+		DisableHTTPChallenge:    true,
+		DisableTLSALPNChallenge: true,
+		// plus any other customizations you need
+	})
+	return magic, nil
+}
+
+// newDuckDNSProvider is for the sake of demoing the tunnel
+func newDuckDNSProvider(token string) (*duckdns.DNSProvider, error) {
+	config := duckdns.NewDefaultConfig()
+	config.Token = token
+	return duckdns.NewDNSProviderConfig(config)
 }
 
 func stringSlice(csv string) []string {

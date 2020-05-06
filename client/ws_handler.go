@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -26,17 +27,19 @@ type WsHandler struct {
 
 	servicePorts RouteMap
 
-	ctx      context.Context
-	dataChan chan *packer.Packer
+	ctx       context.Context
+	dataChan  chan *packer.Packer
+	tlsConfig *tls.Config
 }
 
 // NewWsHandler creates a new handler ready to be given a websocket connection. The services
 // argument specifies what port each service type should be directed to on the local interface.
-func NewWsHandler(services RouteMap) *WsHandler {
-	h := new(WsHandler)
-	h.servicePorts = services
-	h.localConns = make(map[string]net.Conn)
-	return h
+func NewWsHandler(services RouteMap, tlsConfig *tls.Config) *WsHandler {
+	return &WsHandler{
+		servicePorts: services,
+		localConns:   make(map[string]net.Conn),
+		tlsConfig:    tlsConfig,
+	}
 }
 
 // HandleConn handles all of the traffic on the provided websocket connection. The function
@@ -81,7 +84,7 @@ func (h *WsHandler) HandleConn(ctx context.Context, conn *websocket.Conn) {
 	}
 }
 
-func (h *WsHandler) writeRemote(conn *websocket.Conn) {
+func (h *WsHandler) writeRemote(wsconn *websocket.Conn) {
 	defer h.closeConnections()
 	defer func() { h.dataChan = nil }()
 
@@ -94,13 +97,13 @@ func (h *WsHandler) writeRemote(conn *websocket.Conn) {
 			// all errors if it doesn't work.
 			message := websocket.FormatCloseMessage(websocket.CloseGoingAway, "closing connection")
 			deadline := time.Now().Add(10 * time.Second)
-			conn.WriteControl(websocket.CloseMessage, message, deadline)
-			conn.Close()
+			wsconn.WriteControl(websocket.CloseMessage, message, deadline)
+			wsconn.Close()
 			return
 
 		case p := <-h.dataChan:
 			packed := p.PackV1()
-			conn.WriteMessage(websocket.BinaryMessage, packed.Bytes())
+			wsconn.WriteMessage(websocket.BinaryMessage, packed.Bytes())
 		}
 	}
 }
@@ -139,6 +142,7 @@ func (h *WsHandler) getLocalConn(p *packer.Packer) net.Conn {
 	}
 
 	var hostname string
+	//var terminate bool
 	if service == "http" {
 		if match := hostRegexp.FindSubmatch(p.Data.Data()); match != nil {
 			hostname = strings.Split(string(match[1]), ":")[0]
@@ -146,6 +150,7 @@ func (h *WsHandler) getLocalConn(p *packer.Packer) net.Conn {
 		}
 	} else if service == "https" {
 		hostname, _ = sni.GetHostname(p.Data.Data())
+		//terminate = true
 	} else {
 		hostname = "*"
 	}
@@ -176,7 +181,14 @@ func (h *WsHandler) getLocalConn(p *packer.Packer) net.Conn {
 		return nil
 	}
 
-	h.localConns[key] = conn
+	rconn := conn
+	/*
+		if terminate {
+			rconn = tls.Server(conn, h.tlsConfig)
+			//rconn = tls.Client(conn, h.tlsConfig)
+		}
+	*/
+	h.localConns[key] = rconn
 	loginfo.Printf("new client %q for %s:%d (%d clients)\n", key, hostname, term.Port, len(h.localConns))
 	go h.readLocal(key, &p.Header)
 	return conn
@@ -190,6 +202,7 @@ func (h *WsHandler) writeLocal(p *packer.Packer) {
 	}
 
 	if p.Service() == "error" || p.Service() == "end" {
+		// TODO XXX where's the opposite of this?
 		conn.Close()
 		return
 	}
