@@ -11,5 +11,6 @@ acme.d
 /cmd/telebit-relay/telebit-relay
 *.exe
 
+.*.sw*
 log.txt
 *.log
