@@ -1,4 +1,4 @@
-package mplexer
+package packer
 
 import (
 	"fmt"
@@ -24,6 +24,7 @@ const (
 type Addr struct {
 	scheme      Scheme
 	termination Termination
+	family      string // TODO what should be the format? "tcpv6"?
 	addr        string
 	port        int
 }

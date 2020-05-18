@@ -1,4 +1,4 @@
-package mplexer
+package packer
 
 import (
 	"errors"
@@ -7,12 +7,11 @@ import (
 )
 
 type Conn struct {
-	// TODO
-	relayRemoteAddr  string
-	relayRemotePort  int
-	relaySourceProto string
-	relaySourceAddr  string
-	relaySourcePort  int
+	relaySourceAddr Addr
+	relayRemoteAddr Addr
+	relay           net.Conn
+	local           net.Conn
+	updated         time.Time
 }
 
 // TODO conn.go -> conn/conn.go
@@ -26,23 +25,20 @@ func NewConn() *Conn {
 // Read can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetReadDeadline.
 func (c *Conn) Read(b []byte) (n int, err error) {
-	panic(errors.New("not implemented"))
-	return 0, nil
+	return c.relay.Read(b)
 }
 
 // Write writes data to the connection.
 // Write can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetWriteDeadline.
 func (c *Conn) Write(b []byte) (n int, err error) {
-	panic(errors.New("not implemented"))
-	return 0, nil
+	return c.relay.Write(b)
 }
 
 // Close closes the connection.
 // Any blocked Read or Write operations will be unblocked and return errors.
 func (c *Conn) Close() error {
-	panic(errors.New("not implemented"))
-	return nil
+	return c.relay.Close()
 }
 
 // Error signals an error back to the relay
@@ -61,14 +57,14 @@ func (c *Conn) LocalAddr() net.Addr {
 
 // LocalAddr returns the local network address.
 func (c *Conn) LocalAddr() *Addr {
-	panic(errors.New("not implemented"))
-	return &Addr{}
+	// TODO is this the right one?
+	return &c.relaySourceAddr
 }
 
 // RemoteAddr returns the remote network address.
 func (c *Conn) RemoteAddr() net.Addr {
-	panic(errors.New("not implemented"))
-	return &net.IPAddr{}
+	// TODO is this the right one?
+	return &c.relayRemoteAddr
 }
 
 // SetDeadline sets the read and write deadlines associated
@@ -94,16 +90,14 @@ func (c *Conn) RemoteAddr() net.Addr {
 // failure on I/O can be detected using
 // errors.Is(err, syscall.ETIMEDOUT).
 func (c *Conn) SetDeadline(t time.Time) error {
-	panic(errors.New("not implemented"))
-	return nil
+	return c.relay.SetDeadline(t)
 }
 
 // SetReadDeadline sets the deadline for future Read calls
 // and any currently-blocked Read call.
 // A zero value for t means Read will not time out.
 func (c *Conn) SetReadDeadline(t time.Time) error {
-	panic(errors.New("not implemented"))
-	return nil
+	return c.relay.SetReadDeadline(t)
 }
 
 // SetWriteDeadline sets the deadline for future Write calls
@@ -112,6 +106,5 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 // some of the data was successfully written.
 // A zero value for t means Write will not time out.
 func (c *Conn) SetWriteDeadline(t time.Time) error {
-	panic(errors.New("not implemented"))
-	return nil
+	return c.relay.SetWriteDeadline(t)
 }

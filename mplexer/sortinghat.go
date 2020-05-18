@@ -1,10 +1,10 @@
 package mplexer
 
 import (
-	"net"
+	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/packer"
 )
 
 type SortingHat interface {
-	LookupTarget(*Addr) (net.Conn, error)
+	LookupTarget(*packer.Addr) (*packer.Conn, error)
 	Authz() (string, error)
 }

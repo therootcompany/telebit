@@ -7,12 +7,15 @@ import (
 	"net"
 	"os"
 	"time"
+
+	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/packer"
 )
 
 type MultiplexLocal struct {
 	Relay      string
 	SortingHat SortingHat
 	Timeout    time.Duration
+	listener   *Listener
 }
 
 func New(relay string, hat SortingHat) *MultiplexLocal {
@@ -24,6 +27,11 @@ func New(relay string, hat SortingHat) *MultiplexLocal {
 }
 
 func (m *MultiplexLocal) ListenAndServe(ctx context.Context) error {
+	// Cancels if Accept() returns an error (i.e. because it was closed)
+	// (TODO: this may be redundant)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	listener, err := m.Listen(ctx)
 	if nil != err {
 		return err
@@ -39,7 +47,11 @@ func (m *MultiplexLocal) ListenAndServe(ctx context.Context) error {
 	}
 }
 
-func (m *MultiplexLocal) serve(ctx context.Context, pconn *Conn) {
+func (m *MultiplexLocal) Close() error {
+	return m.listener.Close()
+}
+
+func (m *MultiplexLocal) serve(ctx context.Context, pconn *packer.Conn) {
 	//paddr := pconn.LocalAddr().(*Addr) // packer.Addr
 	paddr := pconn.LocalAddr()
 	//addr.Network()
@@ -54,10 +66,10 @@ func (m *MultiplexLocal) serve(ctx context.Context, pconn *Conn) {
 	if target, err := m.SortingHat.LookupTarget(paddr); nil != target {
 		if nil != err {
 			// TODO get a log channel or some such
-			fmt.Fprintf(os.Stderr, "lookup failed for tunneled client: %s", err)
+			fmt.Fprintf(os.Stderr, "lookup failed for tunneled client: %s\n", err)
 			err := pconn.Error(err)
 			if nil != err {
-				fmt.Fprintf(os.Stderr, "failed to signal error back to relay: %s", err)
+				fmt.Fprintf(os.Stderr, "failed to signal error back to relay: %s\n", err)
 			}
 			return
 		}
@@ -65,7 +77,7 @@ func (m *MultiplexLocal) serve(ctx context.Context, pconn *Conn) {
 	}
 }
 
-func pipePacker(ctx context.Context, pconn *Conn, target net.Conn, timeout time.Duration) {
+func pipePacker(ctx context.Context, pconn *packer.Conn, target net.Conn, timeout time.Duration) {
 	// how can this be done so that target errors are
 	// sent back to the relay server?
 
