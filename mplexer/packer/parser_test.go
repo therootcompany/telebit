@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -41,14 +40,24 @@ func TestParseWholeBlock(t *testing.T) {
 	}
 
 	p := NewParser(ctx, th)
-	body := []byte(`Hello, World!`)
-	fmt.Println("payload len", len(body))
-	header := []byte("IPv4,192.168.1.101,6743," + strconv.Itoa(len(body)) + ",http,80,ex1.telebit.io,\n")
-	fmt.Println("header len", len(header))
-	raw := []byte{255 - 1, byte(len(header))}
-	raw = append(raw, header...)
-	raw = append(raw, body...)
-	fmt.Println("total len", len(raw))
+	payload := []byte(`Hello, World!`)
+	fmt.Println("payload len", len(payload))
+	src := Addr{
+		family: "IPv4",
+		addr:   "192.168.1.101",
+		port:   6743,
+	}
+	dst := Addr{
+		family: "IPv4",
+		port:   80,
+		scheme: "http",
+	}
+	domain := "ex1.telebit.io"
+	h, b, err := Encode(src, dst, domain, payload)
+	if nil != err {
+		t.Fatal(err)
+	}
+	raw := append(h, b...)
 	n, err := p.Write(raw)
 	if nil != err {
 		t.Fatal(err)
@@ -60,8 +69,8 @@ func TestParseWholeBlock(t *testing.T) {
 	if 1 != th.chunksParsed {
 		t.Fatal("should have parsed one chunck")
 	}
-	if len(body) != th.bytesRead {
-		t.Fatalf("should have parsed a body of %d bytes, but saw %d\n", len(body), th.bytesRead)
+	if len(payload) != th.bytesRead {
+		t.Fatalf("should have parsed a payload of %d bytes, but saw %d\n", len(payload), th.bytesRead)
 	}
 	if n != len(raw) {
 		t.Fatalf("should have parsed all %d bytes, not just %d\n", n, len(raw))
