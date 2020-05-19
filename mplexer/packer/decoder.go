@@ -33,8 +33,8 @@ func (d *Decoder) StreamDecode(handler Handler, bufferSize int) error {
 	}
 
 	go func() {
-		b := make([]byte, bufferSize)
 		for {
+			b := make([]byte, bufferSize)
 			//fmt.Println("loopers gonna loop")
 			n, err := d.r.Read(b)
 			if n > 0 {
