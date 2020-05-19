@@ -1,12 +1,10 @@
 package packer
 
 import (
-	"context"
 	"errors"
 )
 
 type Parser struct {
-	ctx        context.Context
 	handler    Handler
 	newConns   chan *Conn
 	conns      map[string]*Conn
@@ -38,9 +36,8 @@ const (
 	VersionState State = 0
 )
 
-func NewParser(ctx context.Context, handler Handler) *Parser {
+func NewParser(handler Handler) *Parser {
 	return &Parser{
-		ctx:       ctx,
 		conns:     make(map[string]*Conn),
 		newConns:  make(chan *Conn, 2), // Buffered to make testing easier
 		dataReady: make(chan struct{}, 2),
@@ -73,8 +70,8 @@ func (p *Parser) Write(b []byte) (int, error) {
 		//fmt.Println("[debug] version state", b[0])
 		p.state.version = b[0]
 		b = b[1:]
-		p.consumed += 1
-		p.parseState += 1
+		p.consumed++
+		p.parseState++
 	default:
 		// do nothing
 	}

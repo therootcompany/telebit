@@ -1,7 +1,7 @@
 package packer
 
 import (
-	"context"
+	"math/rand"
 	"net"
 	"testing"
 	"time"
@@ -27,7 +27,7 @@ type testHandler struct {
 }
 
 func (th *testHandler) WriteMessage(a Addr, b []byte) {
-	th.chunksParsed += 1
+	th.chunksParsed++
 	addr := &a
 	_, ok := th.conns[addr.Network()]
 	if !ok {
@@ -63,15 +63,38 @@ func TestParse3Addrs(t *testing.T) {
 	testParseNBlocks(t, 5)
 }
 
-func TestParse1AndRest(t *testing.T) {
-	ctx := context.Background()
-	//ctx, cancel := context.WithCancel(ctx)
+func TestParseBy1(t *testing.T) {
+	testParseByN(t, 1)
+}
 
+func TestParseByPrimes(t *testing.T) {
+	testParseByN(t, 2)
+	testParseByN(t, 3)
+	testParseByN(t, 5)
+	testParseByN(t, 7)
+	testParseByN(t, 11)
+	testParseByN(t, 13)
+	testParseByN(t, 17)
+	testParseByN(t, 19)
+	testParseByN(t, 23)
+	testParseByN(t, 29)
+	testParseByN(t, 31)
+	testParseByN(t, 37)
+	testParseByN(t, 41)
+	testParseByN(t, 43)
+	testParseByN(t, 47)
+}
+
+func TestParseByRand(t *testing.T) {
+	testParseByN(t, 0)
+}
+
+func TestParse1AndRest(t *testing.T) {
 	th := &testHandler{
 		conns: map[string]*Conn{},
 	}
 
-	p := NewParser(ctx, th)
+	p := NewParser(th)
 
 	h, b, err := Encode(src, dst, domain, payload)
 	if nil != err {
@@ -102,14 +125,11 @@ func TestParse1AndRest(t *testing.T) {
 }
 
 func TestParseRestAnd1(t *testing.T) {
-	ctx := context.Background()
-	//ctx, cancel := context.WithCancel(ctx)
-
 	th := &testHandler{
 		conns: map[string]*Conn{},
 	}
 
-	p := NewParser(ctx, th)
+	p := NewParser(th)
 
 	h, b, err := Encode(src, dst, domain, payload)
 	if nil != err {
@@ -140,15 +160,13 @@ func TestParseRestAnd1(t *testing.T) {
 	}
 }
 
-func TestParse1By1(t *testing.T) {
-	ctx := context.Background()
-	//ctx, cancel := context.WithCancel(ctx)
-
+func testParseByN(t *testing.T, n int) {
+	//fmt.Printf("[debug] parse by %d\n", n)
 	th := &testHandler{
 		conns: map[string]*Conn{},
 	}
 
-	p := NewParser(ctx, th)
+	p := NewParser(th)
 
 	h, b, err := Encode(src, dst, domain, payload)
 	if nil != err {
@@ -156,19 +174,43 @@ func TestParse1By1(t *testing.T) {
 	}
 	raw := append(h, b...)
 	count := 0
-	for _, b := range raw {
-		n, err := p.Write([]byte{b})
+	nChunk := 0
+	b = raw
+	for {
+		r := 24
+		c := len(b)
+		if 0 == c {
+			break
+		}
+		i := n
+		if 0 == n {
+			if c < r {
+				r = c
+			}
+			i = 1 + rand.Intn(r+1)
+		}
+		if c < i {
+			i = c
+		}
+		// TODO shouldn't this cause an error?
+		//a := b[:i][0]
+		a := b[:i]
+		b = b[i:]
+		nw, err := p.Write(a)
 		if nil != err {
 			t.Fatal(err)
 		}
-		count += n
+		count += nw
+		if count > len(h) {
+			nChunk++
+		}
 	}
 
 	if 1 != len(th.conns) {
-		t.Fatal("should have parsed one connection")
+		t.Fatalf("should have parsed one connection, not %d", len(th.conns))
 	}
-	if len(payload) != th.chunksParsed {
-		t.Fatalf("should have parsed %d chunck(s), not %d", len(payload), th.chunksParsed)
+	if nChunk != th.chunksParsed {
+		t.Fatalf("should have parsed %d chunk(s), not %d", nChunk, th.chunksParsed)
 	}
 	if len(payload) != th.bytesRead {
 		t.Fatalf("should have parsed a payload of %d bytes, but saw %d\n", len(payload), th.bytesRead)
@@ -179,9 +221,6 @@ func TestParse1By1(t *testing.T) {
 }
 
 func testParseNBlocks(t *testing.T, count int) {
-	ctx := context.Background()
-	//ctx, cancel := context.WithCancel(ctx)
-
 	th := &testHandler{
 		conns: map[string]*Conn{},
 	}
@@ -190,7 +229,7 @@ func testParseNBlocks(t *testing.T, count int) {
 	if count > 2 {
 		nAddr = count - 2
 	}
-	p := NewParser(ctx, th)
+	p := NewParser(th)
 	raw := []byte{}
 	for i := 0; i < count; i++ {
 		if i > 2 {

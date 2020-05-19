@@ -34,7 +34,7 @@ func (p *Parser) unpackV1(b []byte) (int, error) {
 		if z > 20 {
 			panic("stuck in an infinite loop?")
 		}
-		z += 1
+		z++
 		n := len(b)
 		if n < 1 {
 			//fmt.Println("[debug] v1 end", z, n)
@@ -47,8 +47,8 @@ func (p *Parser) unpackV1(b []byte) (int, error) {
 			//fmt.Println("[debug] version state", b[0])
 			p.state.version = b[0]
 			b = b[1:]
-			p.consumed += 1
-			p.parseState += 1
+			p.consumed++
+			p.parseState++
 		case HeaderLengthState:
 			//fmt.Println("[debug] v1 h len")
 			b = p.unpackV1HeaderLength(b)
@@ -92,8 +92,8 @@ func (p *Parser) unpackV1HeaderLength(b []byte) []byte {
 	p.state.headerLen = int(b[0])
 	//fmt.Println("[debug] unpacked header len", p.state.headerLen)
 	b = b[1:]
-	p.consumed += 1
-	p.parseState += 1
+	p.consumed++
+	p.parseState++
 	return b
 }
 
@@ -154,7 +154,7 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 			p.newConns <- p.state.conn
 		}
 	*/
-	p.parseState += 1
+	p.parseState++
 
 	return b, nil
 }
