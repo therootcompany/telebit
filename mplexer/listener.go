@@ -81,7 +81,7 @@ func (m *MultiplexLocal) listen(ctx context.Context, wsconn *websocket.Conn, lis
 		for {
 			time.Sleep(15 * time.Second)
 			deadline := time.Now().Add(45 * time.Second)
-			if err := wsconn.WriteControl(websocket.PingMessage, "", deadline); nil != err {
+			if err := wsconn.WriteControl(websocket.PingMessage, []byte(""), deadline); nil != err {
 				fmt.Fprintf(os.Stderr, "failed to write ping message to websocket: %s\n", err)
 				cancel()
 				break
@@ -94,7 +94,7 @@ func (m *MultiplexLocal) listen(ctx context.Context, wsconn *websocket.Conn, lis
 		// TODO optimal buffer size
 		b := make([]byte, 128*1024)
 		for {
-			n, err := listener.packer.Read(b)
+			n, err := listener.parser.Read(b)
 			if n > 0 {
 				if err := wsconn.WriteMessage(websocket.BinaryMessage, b); nil != err {
 					fmt.Fprintf(os.Stderr, "failed to write packer message to websocket: %s\n", err)

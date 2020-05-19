@@ -3,7 +3,6 @@ package packer
 import (
 	"context"
 	"errors"
-	"fmt"
 )
 
 type Parser struct {
@@ -15,11 +14,11 @@ type Parser struct {
 	parseState State
 	dataReady  chan struct{}
 	data       []byte
-	written    int
+	consumed   int
 }
 
 type ParserState struct {
-	written        int
+	consumed       int
 	version        byte
 	headerLen      int
 	header         []byte
@@ -60,19 +59,21 @@ func (p *Parser) Write(b []byte) (int, error) {
 		return 0, errors.New("developer error: wrote 0 bytes")
 	}
 
-	// so that we can overwrite the main state
-	// as soon as a full message has completed
-	// but still keep the number of bytes written
-	if 0 == p.state.written {
-		p.written = 0
-	}
+	/*
+		// so that we can overwrite the main state
+		// as soon as a full message has completed
+		// but still keep the number of bytes written
+		if 0 == p.state.written {
+			p.written = 0
+		}
+	*/
 
 	switch p.parseState {
 	case VersionState:
-		fmt.Println("version state", b[0])
+		//fmt.Println("[debug] version state", b[0])
 		p.state.version = b[0]
 		b = b[1:]
-		p.state.written += 1
+		p.consumed += 1
 		p.parseState += 1
 	default:
 		// do nothing
@@ -80,8 +81,8 @@ func (p *Parser) Write(b []byte) (int, error) {
 
 	switch p.state.version {
 	case V1:
-		fmt.Println("v1 unmarshal")
-		return p.written, p.unpackV1(b)
+		//fmt.Println("[debug] v1 unmarshal")
+		return p.unpackV1(b)
 	default:
 		return 0, errors.New("incorrect version or version not implemented")
 	}

@@ -28,71 +28,86 @@ type Header struct {
 	Service string
 }
 
-func (p *Parser) unpackV1(b []byte) error {
+func (p *Parser) unpackV1(b []byte) (int, error) {
 	z := 0
 	for {
-		if z > 10 {
+		if z > 20 {
 			panic("stuck in an infinite loop?")
 		}
 		z += 1
 		n := len(b)
-		// at least one loop
-		if z > 1 && n < 1 {
-			fmt.Println("v1 end", z, n)
+		if n < 1 {
+			//fmt.Println("[debug] v1 end", z, n)
 			break
 		}
 
 		var err error
 		switch p.parseState {
+		case VersionState:
+			//fmt.Println("[debug] version state", b[0])
+			p.state.version = b[0]
+			b = b[1:]
+			p.consumed += 1
+			p.parseState += 1
 		case HeaderLengthState:
-			fmt.Println("v1 h len")
+			//fmt.Println("[debug] v1 h len")
 			b = p.unpackV1HeaderLength(b)
 		case HeaderState:
-			fmt.Println("v1 header")
+			//fmt.Println("[debug] v1 header")
 			b, err = p.unpackV1Header(b, n)
 			if nil != err {
-				fmt.Println("v1 header err", err)
-				return err
+				//fmt.Println("[debug] v1 header err", err)
+				consumed := p.consumed
+				p.consumed = 0
+				return consumed, err
 			}
 		case PayloadState:
-			fmt.Println("v1 payload")
+			//fmt.Println("[debug] v1 payload")
 			// if this payload is complete, reset all state
 			if p.state.payloadWritten == p.state.payloadLen {
 				p.state = ParserState{}
+				p.parseState = 0
 			}
 			b, err = p.unpackV1Payload(b, n)
 			if nil != err {
-				return err
+				consumed := p.consumed
+				p.consumed = 0
+				return consumed, err
 			}
 		default:
+			fmt.Println("[debug] v1 unknown state")
 			// do nothing
-			return errors.New("error unpacking")
+			consumed := p.consumed
+			p.consumed = 0
+			return consumed, errors.New("error unpacking")
 		}
 	}
 
-	return nil
+	consumed := p.consumed
+	p.consumed = 0
+	return consumed, nil
 }
 
 func (p *Parser) unpackV1HeaderLength(b []byte) []byte {
 	p.state.headerLen = int(b[0])
-	fmt.Println("unpacked header len", p.state.headerLen)
+	//fmt.Println("[debug] unpacked header len", p.state.headerLen)
 	b = b[1:]
-	p.state.written += 1
+	p.consumed += 1
 	p.parseState += 1
 	return b
 }
 
 func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
-	fmt.Println("got", len(b), "bytes", string(b))
+	//fmt.Println("[debug] got", len(b), "bytes", string(b))
 	m := len(p.state.header)
 	k := p.state.headerLen - m
 	if n < k {
 		k = n
 	}
-	p.state.written += k
+	p.consumed += k
 	c := b[0:k]
 	b = b[k:]
-	fmt.Println("has", m, "want", k, "more and have", len(b), "more")
+	//fmt.Println("[debug] has", m, "want", k, "more and have", len(b), "more")
 	p.state.header = append(p.state.header, c...)
 	if p.state.headerLen != len(p.state.header) {
 		return b, nil
@@ -162,12 +177,13 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 			return b, nil
 		*/
 
+		//fmt.Printf("[debug] [2] payload written: %d | payload length: %d\n", p.state.payloadWritten, p.state.payloadLen)
 		p.handler.WriteMessage(p.state.addr, []byte{})
 		return b, nil
 	}
 
 	k := p.state.payloadLen - p.state.payloadWritten
-	if k < n {
+	if n < k {
 		k = n
 	}
 	c := b[0:k]
@@ -176,7 +192,6 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 	// and also put backpressure on just that connection
 	/*
 		m, err := p.state.conn.local.Write(c)
-		p.state.written += m
 		p.state.payloadWritten += m
 		if nil != err {
 			// TODO we want to surface this error somewhere, but not to the websocket
@@ -184,13 +199,14 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 		}
 	*/
 	p.handler.WriteMessage(p.state.addr, c)
-	p.state.written += k
+	p.consumed += k
 	p.state.payloadWritten += k
-	p.written = p.state.written
 
+	//fmt.Printf("[debug] [1] payload written: %d | payload length: %d\n", p.state.payloadWritten, p.state.payloadLen)
 	// if this payload is complete, reset all state
 	if p.state.payloadWritten == p.state.payloadLen {
 		p.state = ParserState{}
+		p.parseState = 0
 	}
 	return b, nil
 }
