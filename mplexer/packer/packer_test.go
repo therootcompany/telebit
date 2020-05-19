@@ -6,13 +6,13 @@ import (
 )
 
 func TestEncodeDataMessage(t *testing.T) {
-	src := Addr{
+	id := Addr{
 		family: "IPv4",
 		addr:   "192.168.1.101",
 		port:   6743,
 	}
-	dst := Addr{
-		family: src.family,
+	tun := Addr{
+		family: id.family,
 		port:   80,
 		scheme: "http",
 	}
@@ -23,7 +23,7 @@ func TestEncodeDataMessage(t *testing.T) {
 	//header = append([]byte{V1, byte(len(header))}, header...)
 	header = append([]byte{254, byte(len(header))}, header...)
 
-	h, b, err := Encode(src, dst, domain, payload)
+	h, b, err := Encode(id, tun, domain, payload)
 	if nil != err {
 		t.Fatal(err)
 	}
