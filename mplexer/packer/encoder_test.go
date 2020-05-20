@@ -3,6 +3,7 @@ package packer
 import (
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -45,14 +46,15 @@ func TestEncodeWholeBlock(t *testing.T) {
 		}
 	}()
 
-	ctx := context.Background()
+	// TODO nix context here
+	ctx := context.TODO()
 	rin, wout := net.Pipe()
 	go func() {
 		for {
 			b := make([]byte, 1024)
 			n, err := rin.Read(b)
 			if nil != err {
-				fmt.Printf("Error: %s\n", err)
+				t.Fatalf("Error: %s\n", err)
 				return
 			}
 			r := b[:n]
@@ -60,8 +62,18 @@ func TestEncodeWholeBlock(t *testing.T) {
 		}
 	}()
 	encoder := NewEncoder(ctx, wout)
-	encoder.Start()
 
+	go func() {
+		err := encoder.Run()
+		if nil != err {
+			if io.EOF != err {
+				t.Fatalf("Encoder Run Err: %q\n", err)
+			}
+		}
+		wout.Close()
+	}()
+
+	// TODO eliminate Run and don't sleep here
 	time.Sleep(time.Millisecond)
 
 	// single client
@@ -79,7 +91,7 @@ func TestEncodeWholeBlock(t *testing.T) {
 			port:   4834,
 		})
 		if nil != err {
-			fmt.Printf("Enc Err: %q\n", err)
+			t.Fatalf("Enc Err 1: %q\n", err)
 		}
 	}()
 
@@ -98,11 +110,11 @@ func TestEncodeWholeBlock(t *testing.T) {
 			port:   4834,
 		})
 		if nil != err {
-			fmt.Printf("Enc Err 2: %q\n", err)
+			t.Fatalf("Enc Err 2: %q\n", err)
 		}
 	}()
 
-	// TODO must be a better way to do this
+	// TODO use wait group
 	time.Sleep(10 * time.Millisecond)
 
 	for k, v := range m {
