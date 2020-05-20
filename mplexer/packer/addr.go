@@ -46,6 +46,14 @@ func (a *Addr) Network() string {
 	return a.addr + ":" + strconv.Itoa(a.port)
 }
 
+func (a *Addr) Port() int {
+	return a.port
+}
+
+func (a *Addr) Hostname() string {
+	return a.addr
+}
+
 func (a *Addr) Scheme() Scheme {
 	return a.scheme
 }
