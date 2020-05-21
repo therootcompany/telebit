@@ -5,7 +5,7 @@ import (
 )
 
 type Parser struct {
-	handler    Handler
+	handler    Router
 	newConns   chan *Conn
 	conns      map[string]*Conn
 	state      ParserState
@@ -36,7 +36,7 @@ const (
 	VersionState State = 0
 )
 
-func NewParser(handler Handler) *Parser {
+func NewParser(handler Router) *Parser {
 	return &Parser{
 		conns:     make(map[string]*Conn),
 		newConns:  make(chan *Conn, 2), // Buffered to make testing easier
@@ -46,8 +46,8 @@ func NewParser(handler Handler) *Parser {
 	}
 }
 
-type Handler interface {
-	WriteMessage(Addr, []byte)
+type Router interface {
+	RouteBytes(Addr, []byte)
 }
 
 // Write receives tunnel data and creates or writes to connections

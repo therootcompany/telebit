@@ -1,22 +1,23 @@
 package packer
 
 import (
-	"errors"
 	"net"
 	"time"
 )
 
+// Conn TODO rename to Pipe, perhaps?
 type Conn struct {
 	relaySourceAddr Addr
 	relayRemoteAddr Addr
 	relay           net.Conn
 	local           net.Conn
-	updated         time.Time
+	//updated         time.Time
 }
 
 // TODO conn.go -> conn/conn.go
 // TODO NewConn -> New
 
+// NewConn TODO rename to NewPipe, perhaps?
 func NewConn() *Conn {
 	return nil
 }
@@ -41,11 +42,13 @@ func (c *Conn) Close() error {
 	return c.relay.Close()
 }
 
+/*
 // Error signals an error back to the relay
 func (c *Conn) Error(err error) error {
 	panic(errors.New("not implemented"))
 	return nil
 }
+*/
 
 /*
 // LocalAddr returns the local network address.
@@ -62,7 +65,7 @@ func (c *Conn) LocalAddr() *Addr {
 }
 
 // RemoteAddr returns the remote network address.
-func (c *Conn) RemoteAddr() net.Addr {
+func (c *Conn) RemoteAddr() *Addr {
 	// TODO is this the right one?
 	return &c.relayRemoteAddr
 }

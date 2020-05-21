@@ -8,142 +8,203 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
+
+	jwt "github.com/dgrijalva/jwt-go"
 
 	"github.com/gorilla/websocket"
 )
 
 func TestDialServer(t *testing.T) {
-
 	// TODO replace the websocket connection with a mock server
 
-	relay := os.Getenv("RELAY")
-	authz := os.Getenv("SECRET")
+	relay := "wss://roottest.duckdns.org:8443"
+	authz, err := getToken("xxxxyyyyssss8347")
+	if nil != err {
+		panic(err)
+	}
 
 	ctx := context.Background()
 	wsd := websocket.Dialer{}
 	headers := http.Header{}
 	headers.Set("Authorization", fmt.Sprintf("Bearer %s", authz))
 	// *http.Response
-	wsconn, _, err := wsd.DialContext(ctx, relay, headers)
+	sep := "?"
+	if strings.Contains(relay, sep) {
+		sep = "&"
+	}
+	wsconn, _, err := wsd.DialContext(ctx, relay+sep+"access_token="+authz, headers)
 	if nil != err {
+		fmt.Println("relay:", relay)
 		t.Fatal(err)
 		return
 	}
 
-	mux := &MyMux{}
-	err = ListenAndServe(wsconn, mux)
-	t.Fatal(err)
+	/*
+		t := telebit.New(token)
+		mux := telebit.RouteMux{}
+		mux.HandleTLS("*", mux) // go back to itself
+		mux.HandleProxy("example.com", "localhost:3000")
+		mux.HandleTCP("example.com", func (c *telebit.Conn) {
+			return httpmux.Serve()
+		})
+
+		l := t.Listen("wss://example.com")
+		conn := l.Accept()
+		telebit.Serve(listener, mux)
+		t.ListenAndServe("wss://example.com", mux)
+	*/
+
+	mux := NewRouteMux()
+	// TODO set failure
+	t.Fatal(ListenAndServe(wsconn, mux))
+}
+
+func getToken(secret string) (token string, err error) {
+	domains := []string{"dandel.duckdns.org"}
+	tokenData := jwt.MapClaims{"domains": domains}
+
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenData)
+	if token, err = jwtToken.SignedString([]byte(secret)); err != nil {
+		return "", err
+	}
+	return token, nil
 }
 
 type Listener struct {
-	ws       *websocket.Conn
-	incoming chan *Conn
-	close    chan struct{}
+	ws           *websocket.Conn
+	incoming     chan *Conn
+	close        chan struct{}
+	encoder      *Encoder
+	conns        map[string]*Conn
+	chunksParsed int
+	bytesRead    int
 }
 
-func ListenAndServe(ws *websocket.Conn, mux Mux) error {
+func ListenAndServe(ws *websocket.Conn, mux Handler) error {
 	listener := Listen(ws)
 	return Serve(listener, mux)
 }
 
 func Listen(ws *websocket.Conn) *Listener {
+	ctx := context.TODO()
+
+	// Wrap the websocket and feed it into the Encoder and Decoder
+	rw := &WSConn{c: ws, nr: nil}
 	listener := &Listener{
 		ws:       ws,
-		incoming: make(chan *Conn, 1),
+		conns:    map[string]*Conn{},
+		incoming: make(chan *Conn, 1), // buffer ever so slightly
 		close:    make(chan struct{}),
+		encoder:  NewEncoder(ctx, rw),
 	}
+	// TODO perhaps the wrapper should have a mutex
+	// rather than having a goroutine in the encoder
+	go func() {
+		err := listener.encoder.Run()
+		fmt.Printf("encoder stopped entirely: %q", err)
+		rw.c.Close()
+	}()
 
-	ctx := context.TODO()
-	r := &WSConn{
-		c: ws,
-		r: nil,
-		w: nil,
-	}
-	decoder := NewDecoder(ctx, r)
-
-	// Feed websocket into Decoder
-	th := &testHandler2{
-		conns:  map[string]*Conn{},
-		connCh: listener.incoming,
-	}
+	// Decode the stream as it comes in
+	decoder := NewDecoder(rw)
 	go func() {
 		// TODO pass error to Accept()
-		err := decoder.StreamDecode(th, 0)
-		fmt.Printf("the main stream is done: %q", err)
+		err := decoder.Decode(listener)
+		rw.Close()
+		fmt.Printf("the main stream is done: %q\n", err)
 	}()
 
 	return listener
 }
 
-type testHandler2 struct {
-	conns        map[string]*Conn
-	connCh       chan *Conn
-	chunksParsed int
-	bytesRead    int
-}
+func (l *Listener) RouteBytes(a Addr, b []byte) {
+	// TODO use context to be able to cancel many at once?
+	l.chunksParsed++
 
-func (th *testHandler2) WriteMessage(a Addr, b []byte) {
-	th.chunksParsed++
 	addr := &a
-	_, ok := th.conns[addr.Network()]
-	if !ok {
-		rconn, wconn := net.Pipe()
-		conn := &Conn{
-			updated:         time.Now(),
-			relayRemoteAddr: *addr,
-			relay:           rconn,
-			local:           wconn,
-		}
-		th.conns[addr.Network()] = conn
-		th.connCh <- conn
+	pipe := l.getPipe(addr)
+
+	// handle errors before data writes because I don't
+	// remember where the error message goes
+	if "error" == string(addr.scheme) {
+		pipe.Close()
+		delete(l.conns, addr.Network())
+		fmt.Printf("a stream errored remotely: %v\n", addr)
 	}
-	th.bytesRead += len(b)
+
+	// write data, if any
+	if len(b) > 0 {
+		l.bytesRead += len(b)
+		pipe.Write(b)
+	}
+	// EOF, if needed
+	if "end" == string(addr.scheme) {
+		pipe.Close()
+		delete(l.conns, addr.Network())
+	}
 }
 
-func Serve(listener *Listener, mux Mux) error {
-	w := &WSConn{
-		c: listener.ws,
-		r: nil,
-		w: nil,
-	}
-	ctx := context.TODO()
-	encoder := NewEncoder(ctx, w)
-	encoder.Start()
+func (l *Listener) getPipe(addr *Addr) *Conn {
+	connID := addr.Network()
+	pipe, ok := l.conns[connID]
 
+	// Pipe exists
+	if ok {
+		return pipe
+	}
+
+	// Create pipe
+	rawPipe, encodable := net.Pipe()
+	pipe = &Conn{
+		//updated:         time.Now(),
+		relayRemoteAddr: *addr,
+		relay:           rawPipe,
+	}
+	l.conns[connID] = pipe
+	l.incoming <- pipe
+
+	// Handle encoding
+	go func() {
+		// TODO handle err
+		err := l.encoder.Encode(encodable, *pipe.LocalAddr())
+		// the error may be EOF or ErrServerClosed or ErrGoingAwawy or some such
+		// or it might be an actual error
+		// In any case, we'll just close it all
+		encodable.Close()
+		pipe.Close()
+		fmt.Printf("a stream is done: %q\n", err)
+	}()
+
+	return pipe
+}
+
+func Serve(listener *Listener, mux Handler) error {
 	for {
 		client, err := listener.Accept()
 		if nil != err {
 			return err
 		}
-		lconn, err := mux.LookupTarget(client.LocalAddr())
-		if nil != err {
-			conn.Close()
-			continue
-		}
 
 		go func() {
-			// TODO handle err
-			err := encoder.StreamEncode(*conn.LocalAddr(), lconn, 0)
-			fmt.Printf("a stream is done: %q", err)
+			err = mux.Serve(client)
+			if nil != err {
+				if io.EOF != err {
+					fmt.Printf("client could not be served: %q\n", err.Error())
+				}
+			}
+			client.Close()
 		}()
 	}
 }
 
-func Blah() {
-		go func() {
-			pipe
-		}
-
-
-}
-
 func (l *Listener) Accept() (*Conn, error) {
 	select {
-	case conn, ok := <-l.incoming:
+	case rconn, ok := <-l.incoming:
 		if ok {
-			return conn, nil
+			return rconn, nil
 		}
 		return nil, io.EOF
 
@@ -154,17 +215,127 @@ func (l *Listener) Accept() (*Conn, error) {
 	}
 }
 
-type Mux interface {
-	LookupTarget(*Addr) (net.Conn, error)
+type Handler interface {
+	Serve(*Conn) error
+	GetTargetConn(*Addr) (net.Conn, error)
 }
 
-type MyMux struct {
+type RouteMux struct {
+	defaultTimeout time.Duration
+}
+
+func NewRouteMux() *RouteMux {
+	mux := &RouteMux{
+		defaultTimeout: 45 * time.Second,
+	}
+	return mux
+}
+
+func (m *RouteMux) Serve(client *Conn) error {
+	// TODO could proxy or handle directly, etc
+	target, err := m.GetTargetConn(client.RemoteAddr())
+	if nil != err {
+		return err
+	}
+
+	return Forward(client, target, m.defaultTimeout)
+}
+
+// Forward port-forwards a relay (websocket) client to a target (local) server
+func Forward(client *Conn, target net.Conn, timeout time.Duration) error {
+
+	// Something like ReadAhead(size) should signal
+	// to read and send up to `size` bytes without waiting
+	// for a response - since we can't signal 'non-read' as
+	// is the normal operation of tcp... or can we?
+	// And how do we distinguish idle from dropped?
+	// Maybe this should have been a udp protocol???
+
+	defer client.Close()
+	defer target.Close()
+
+	srcCh := make(chan []byte)
+	dstCh := make(chan []byte)
+	srcErrCh := make(chan error)
+	dstErrCh := make(chan error)
+
+	// Source (Relay) Read Channel
+	go func() {
+		for {
+			b := make([]byte, defaultBufferSize)
+			n, err := client.Read(b)
+			if n > 0 {
+				srcCh <- b
+			}
+			if nil != err {
+				// TODO let client log this server-side error (unless EOF)
+				// (nil here because we probably can't send the error to the relay)
+				srcErrCh <- err
+				break
+			}
+		}
+	}()
+
+	// Target (Local) Read Channel
+	go func() {
+		for {
+			b := make([]byte, defaultBufferSize)
+			n, err := target.Read(b)
+			if n > 0 {
+				dstCh <- b
+			}
+			if nil != err {
+				if io.EOF == err {
+					err = nil
+				}
+				dstErrCh <- err
+				break
+			}
+		}
+	}()
+
+	var err error = nil
+	for {
+		select {
+		// TODO do we need a context here?
+		//case <-ctx.Done():
+		//		break
+		case b := <-srcCh:
+			client.SetDeadline(time.Now().Add(timeout))
+			_, err = target.Write(b)
+			if nil != err {
+				fmt.Printf("write to target failed: %q", err.Error())
+				break
+			}
+		case b := <-dstCh:
+			target.SetDeadline(time.Now().Add(timeout))
+			_, err = client.Write(b)
+			if nil != err {
+				fmt.Printf("write to remote failed: %q", err.Error())
+				break
+			}
+		case err = <-srcErrCh:
+			if nil != err {
+				fmt.Printf("read from remote failed: %q", err.Error())
+			}
+			break
+		case err = <-dstErrCh:
+			if nil != err {
+				fmt.Printf("read from target failed: %q", err.Error())
+			}
+			break
+
+		}
+	}
+
+	client.Close()
+	return err
 }
 
 // this function is very client-specific logic
-func (m *MyMux) LookupTarget(paddr *Addr) (net.Conn, error) {
-	//if target := LookupPort(paddr.Port()); nil != target { }
-	if target := m.LookupServername(paddr.Hostname()); nil != target {
+func (m *RouteMux) GetTargetConn(paddr *Addr) (net.Conn, error) {
+	//if target := GetTargetByPort(paddr.Port()); nil != target { }
+	if target := m.GetTargetByServername(paddr.Hostname()); nil != target {
 		tconn, err := net.Dial(target.Network(), target.Hostname())
 		if nil != err {
 			return nil, err
@@ -185,7 +356,7 @@ func (m *MyMux) LookupTarget(paddr *Addr) (net.Conn, error) {
 	return nil, errors.New("Bad Gateway")
 }
 
-func (m *MyMux) LookupServername(servername string) *Addr {
+func (m *RouteMux) GetTargetByServername(servername string) *Addr {
 	return NewAddr(
 		HTTPS,
 		TCP, // TCP -> termination.None? / Plain?
@@ -195,21 +366,21 @@ func (m *MyMux) LookupServername(servername string) *Addr {
 }
 
 type WSConn struct {
-	c      *websocket.Conn
-	r      io.Reader
-	w      io.WriteCloser
-	pingCh chan struct{}
+	c  *websocket.Conn
+	nr io.Reader
+	//w      io.WriteCloser
+	//pingCh chan struct{}
 }
 
 func (ws *WSConn) Read(b []byte) (int, error) {
-	if nil == ws.r {
+	if nil == ws.nr {
 		_, r, err := ws.c.NextReader()
 		if nil != err {
 			return 0, err
 		}
-		ws.r = r
+		ws.nr = r
 	}
-	n, err := ws.r.Read(b)
+	n, err := ws.nr.Read(b)
 	if io.EOF == err {
 		err = nil
 	}
@@ -218,17 +389,17 @@ func (ws *WSConn) Read(b []byte) (int, error) {
 
 func (ws *WSConn) Write(b []byte) (int, error) {
 	// TODO create or reset ping deadline
+	// TODO document that more complete writes are preferred?
 
 	w, err := ws.c.NextWriter(websocket.BinaryMessage)
 	if nil != err {
 		return 0, err
 	}
-	ws.w = w
-	n, err := ws.w.Write(b)
+	n, err := w.Write(b)
 	if nil != err {
 		return n, err
 	}
-	err = ws.w.Close()
+	err = w.Close()
 	return n, err
 }
 

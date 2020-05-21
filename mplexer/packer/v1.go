@@ -8,19 +8,28 @@ import (
 )
 
 const (
+	// HeaderLengthState is the 2nd (1) state
 	HeaderLengthState State = 1 + iota
+	// HeaderState is the 3rd (2) state
 	HeaderState
+	// PayloadState is the 4th (3) state
 	PayloadState
 )
 
 const (
+	// FamilyIndex is the 1st (0) address element, either IPv4 or IPv6
 	FamilyIndex int = iota
+	// AddressIndex is the 2nd (1) address element, the IP or Hostname
 	AddressIndex
+	// PortIndex is the 3rd (2) address element, the Port
 	PortIndex
+	// LengthIndex is the 4th (3) address element, the Payload size
 	LengthIndex
+	// ServiceIndex is the 5th (4) address element, the Scheme or Control message type
 	ServiceIndex
 )
 
+// Header is the MPLEXY address/control meta data that comes before a packet
 type Header struct {
 	Family  string
 	Address string
@@ -178,7 +187,7 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 		*/
 
 		//fmt.Printf("[debug] [2] payload written: %d | payload length: %d\n", p.state.payloadWritten, p.state.payloadLen)
-		p.handler.WriteMessage(p.state.addr, []byte{})
+		p.handler.RouteBytes(p.state.addr, []byte{})
 		return b, nil
 	}
 
@@ -198,7 +207,7 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 			return b, nil
 		}
 	*/
-	p.handler.WriteMessage(p.state.addr, c)
+	p.handler.RouteBytes(p.state.addr, c)
 	p.consumed += k
 	p.state.payloadWritten += k
 
