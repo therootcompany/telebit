@@ -11,7 +11,7 @@ import (
 // A Listener transforms a multiplexed websocket connection into individual net.Conn-like connections.
 type Listener struct {
 	//wsconn       *websocket.Conn
-	wsw          *WSWrap
+	tun          net.Conn
 	incoming     chan *Conn
 	close        chan struct{}
 	encoder      *Encoder
@@ -22,15 +22,15 @@ type Listener struct {
 }
 
 // Listen creates a new Listener and sets it up to receive and distribute connections.
-func Listen(wsw *WSWrap) *Listener {
+func Listen(tun net.Conn) *Listener {
 	ctx := context.TODO()
 
 	// Feed the socket into the Encoder and Decoder
 	listener := &Listener{
-		wsw:      wsw,
+		tun:      tun,
 		incoming: make(chan *Conn, 1), // buffer ever so slightly
 		close:    make(chan struct{}),
-		encoder:  NewEncoder(ctx, wsw),
+		encoder:  NewEncoder(ctx, tun),
 		conns:    map[string]net.Conn{},
 		//conns:    map[string]*Conn{},
 	}
@@ -40,11 +40,11 @@ func Listen(wsw *WSWrap) *Listener {
 	go func() {
 		err := listener.encoder.Run()
 		fmt.Printf("encoder stopped entirely: %q", err)
-		wsw.Close()
+		tun.Close()
 	}()
 
 	// Decode the stream as it comes in
-	decoder := NewDecoder(wsw)
+	decoder := NewDecoder(tun)
 	go func() {
 		// TODO pass error to Accept()
 		err := decoder.Decode(listener)
@@ -60,8 +60,8 @@ func Listen(wsw *WSWrap) *Listener {
 }
 
 // ListenAndServe listens on a websocket and handles the incomming net.Conn-like connections with a Handler
-func ListenAndServe(wsw *WSWrap, mux Handler) error {
-	listener := Listen(wsw)
+func ListenAndServe(tun net.Conn, mux Handler) error {
+	listener := Listen(tun)
 	return Serve(listener, mux)
 }
 
@@ -102,7 +102,7 @@ func (l *Listener) Accept() (*Conn, error) {
 // Close stops accepting new connections and closes the underlying websocket.
 // TODO return errors.
 func (l *Listener) Close() error {
-	l.wsw.Close()
+	l.tun.Close()
 	close(l.incoming)
 	l.close <- struct{}{}
 	return nil

@@ -10,10 +10,10 @@ func TestDialServer(t *testing.T) {
 	// TODO replace the websocket connection with a mock server
 
 	//ctx := context.Background()
-	wsw := &WSWrap{}
+	tun := &WebsocketTunnel{}
 
 	mux := NewRouteMux()
-	t.Fatal(ListenAndServe(wsw, mux))
+	t.Fatal(ListenAndServe(tun, mux))
 }
 
 var ErrNoImpl error = errors.New("not implemented")

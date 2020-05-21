@@ -1,18 +1,21 @@
 package packer
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-// WSWrap wraps a websocket.Conn instance to behave like net.Conn.
+// WebsocketTunnel wraps a websocket.Conn instance to behave like net.Conn.
 // TODO make conform.
-type WSWrap struct {
+type WebsocketTunnel struct {
 	wsconn WSConn
 	tmpr   io.Reader
 	//w      io.WriteCloser
@@ -26,20 +29,35 @@ type WSConn interface {
 	WriteControl(messageType int, data []byte, deadline time.Time) error
 	WriteMessage(messageType int, data []byte) error
 	SetReadDeadline(t time.Time) error
+	SetWriteDeadline(t time.Time) error
 	Close() error
 	RemoteAddr() net.Addr
 	// LocalAddr() net.Addr
 }
 
-// NewWSWrap allocates a new websocket connection wrapper
-func NewWSWrap(wsconn WSConn) *WSWrap {
-	return &WSWrap{
+// NewWebsocketTunnel allocates a new websocket connection wrapper
+func NewWebsocketTunnel(wsconn WSConn) net.Conn {
+	return &WebsocketTunnel{
 		wsconn: wsconn,
 		tmpr:   nil,
 	}
 }
 
-func (wsw *WSWrap) Read(b []byte) (int, error) {
+// DialWebsocketTunnel connects to the given websocket relay as wraps it as net.Conn
+func DialWebsocketTunnel(ctx context.Context, relay, authz string) (net.Conn, error) {
+	wsd := websocket.Dialer{}
+	headers := http.Header{}
+	headers.Set("Authorization", fmt.Sprintf("Bearer %s", authz))
+	// *http.Response
+	sep := "?"
+	if strings.Contains(relay, sep) {
+		sep = "&"
+	}
+	wsconn, _, err := wsd.DialContext(ctx, relay+sep+"access_token="+authz+"&versions=v1", headers)
+	return NewWebsocketTunnel(wsconn), err
+}
+
+func (wsw *WebsocketTunnel) Read(b []byte) (int, error) {
 	if nil == wsw.tmpr {
 		_, msgr, err := wsw.wsconn.NextReader()
 		if nil != err {
@@ -61,7 +79,7 @@ func (wsw *WSWrap) Read(b []byte) (int, error) {
 	return n, err
 }
 
-func (wsw *WSWrap) Write(b []byte) (int, error) {
+func (wsw *WebsocketTunnel) Write(b []byte) (int, error) {
 	// TODO create or reset ping deadline
 	// TODO document that more complete writes are preferred?
 
@@ -81,7 +99,7 @@ func (wsw *WSWrap) Write(b []byte) (int, error) {
 }
 
 // Close will close the websocket with a control message
-func (wsw *WSWrap) Close() error {
+func (wsw *WebsocketTunnel) Close() error {
 	fmt.Println("[debug] closing the websocket.Conn")
 
 	// TODO handle EOF as websocket.CloseNormal?
@@ -95,27 +113,35 @@ func (wsw *WSWrap) Close() error {
 	return err
 }
 
-// LocalAddr returns the local network address.
-func (wsw *WSWrap) LocalAddr() *Addr {
-	panic("not implemented")
+// LocalAddr is not implemented and will panic
+func (wsw *WebsocketTunnel) LocalAddr() net.Addr {
+	// TODO do we reverse this since the "local" address is that of the relay?
+	// return wsw.wsconn.RemoteAddr()
+	panic("LocalAddr() not implemented")
 }
 
-// RemoteAddr returns the remote network address.
-func (wsw *WSWrap) RemoteAddr() *Addr {
-	panic("not implemented")
+// RemoteAddr is not implemented and will panic. Additionally, it wouldn't mean anything useful anyway.
+func (wsw *WebsocketTunnel) RemoteAddr() net.Addr {
+	// TODO do we reverse this since the "remote" address means nothing / is that of one of the clients?
+	// return wsw.wsconn.LocalAddr()
+	panic("RemoteAddr() not implemented")
 }
 
 // SetDeadline sets the read and write deadlines associated
-func (wsw *WSWrap) SetDeadline(t time.Time) error {
-	panic("not implemented")
+func (wsw *WebsocketTunnel) SetDeadline(t time.Time) error {
+	err := wsw.SetReadDeadline(t)
+	if nil == err {
+		err = wsw.SetWriteDeadline(t)
+	}
+	return err
 }
 
 // SetReadDeadline sets the deadline for future Read calls
-func (wsw *WSWrap) SetReadDeadline(t time.Time) error {
-	panic("not implemented")
+func (wsw *WebsocketTunnel) SetReadDeadline(t time.Time) error {
+	return wsw.wsconn.SetReadDeadline(t)
 }
 
 // SetWriteDeadline sets the deadline for future Write calls
-func (wsw *WSWrap) SetWriteDeadline(t time.Time) error {
-	panic("not implemented")
+func (wsw *WebsocketTunnel) SetWriteDeadline(t time.Time) error {
+	return wsw.wsconn.SetWriteDeadline(t)
 }
