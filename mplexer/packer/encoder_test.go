@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"testing"
 	"time"
 )
@@ -29,7 +30,11 @@ func TestEncodeWholeBlock(t *testing.T) {
 			// TODO check the headers too
 			if len(str) > 0 && 0xFE == str[0] {
 				fmt.Printf("TODO header: %q\n", str)
-				continue
+				parts := strings.Split(str, "\n")
+				if len(parts) <= 1 {
+					continue
+				}
+				str = parts[1]
 			}
 
 			b, ok := m[str]
@@ -89,6 +94,10 @@ func TestEncodeWholeBlock(t *testing.T) {
 			family: "IPv4",
 			addr:   "192.168.1.102",
 			port:   4834,
+		}, Addr{
+			scheme: "https",
+			addr:   "example.com",
+			port:   443,
 		})
 		if nil != err {
 			t.Fatalf("Enc Err 1: %q\n", err)
@@ -108,6 +117,10 @@ func TestEncodeWholeBlock(t *testing.T) {
 			family: "IPv4",
 			addr:   "192.168.1.103",
 			port:   4834,
+		}, Addr{
+			scheme: "https",
+			addr:   "example.com",
+			port:   443,
 		})
 		if nil != err {
 			t.Fatalf("Enc Err 2: %q\n", err)

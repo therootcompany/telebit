@@ -4,15 +4,14 @@ import (
 	"math/rand"
 	"net"
 	"testing"
-	"time"
 )
 
-var src = Addr{
+var srcTestAddr = Addr{
 	family: "IPv4",
 	addr:   "192.168.1.101",
 	port:   6743,
 }
-var dst = Addr{
+var dstTestAddr = Addr{
 	family: "IPv4",
 	port:   80,
 	scheme: "http",
@@ -26,19 +25,21 @@ type testHandler struct {
 	bytesRead    int
 }
 
-func (th *testHandler) WriteMessage(a Addr, b []byte) {
+func (th *testHandler) RouteBytes(srcAddr, dstAddr Addr, b []byte) {
 	th.chunksParsed++
-	addr := &a
-	_, ok := th.conns[addr.Network()]
+	src := &srcAddr
+	dst := &dstAddr
+	_, ok := th.conns[src.Network()]
 	if !ok {
 		rconn, wconn := net.Pipe()
 		conn := &Conn{
-			updated:         time.Now(),
-			relayRemoteAddr: *addr,
+			//updated:         time.Now(),
+			relaySourceAddr: *src,
+			relayRemoteAddr: *dst,
 			relay:           rconn,
 			local:           wconn,
 		}
-		th.conns[addr.Network()] = conn
+		th.conns[src.Network()] = conn
 	}
 	th.bytesRead += len(b)
 }
@@ -96,7 +97,7 @@ func TestParse1AndRest(t *testing.T) {
 
 	p := NewParser(th)
 
-	h, b, err := Encode(src, dst, domain, payload)
+	h, b, err := Encode(payload, srcTestAddr, dstTestAddr)
 	if nil != err {
 		t.Fatal(err)
 	}
@@ -131,7 +132,7 @@ func TestParseRestAnd1(t *testing.T) {
 
 	p := NewParser(th)
 
-	h, b, err := Encode(src, dst, domain, payload)
+	h, b, err := Encode(payload, srcTestAddr, dstTestAddr)
 	if nil != err {
 		t.Fatal(err)
 	}
@@ -168,7 +169,7 @@ func testParseByN(t *testing.T, n int) {
 
 	p := NewParser(th)
 
-	h, b, err := Encode(src, dst, domain, payload)
+	h, b, err := Encode(payload, srcTestAddr, dstTestAddr)
 	if nil != err {
 		t.Fatal(err)
 	}
@@ -233,11 +234,11 @@ func testParseNBlocks(t *testing.T, count int) {
 	raw := []byte{}
 	for i := 0; i < count; i++ {
 		if i > 2 {
-			copied := src
-			src = copied
-			src.port += i
+			copied := srcTestAddr
+			srcTestAddr = copied
+			srcTestAddr.port += i
 		}
-		h, b, err := Encode(src, dst, domain, payload)
+		h, b, err := Encode(payload, srcTestAddr, dstTestAddr)
 		if nil != err {
 			t.Fatal(err)
 		}

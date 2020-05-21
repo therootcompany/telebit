@@ -1,7 +1,6 @@
 package packer
 
 import (
-	"context"
 	"net"
 	"testing"
 )
@@ -13,8 +12,8 @@ func TestDecode1WholeBlock(t *testing.T) {
 func testDecodeNBlocks(t *testing.T, count int) {
 	wp, rp := net.Pipe()
 
-	ctx := context.Background()
-	decoder := NewDecoder(ctx, rp)
+	//ctx := context.Background()
+	decoder := NewDecoder(rp)
 	nAddr := 1
 	if count > 2 {
 		nAddr = count - 2
@@ -23,11 +22,11 @@ func testDecodeNBlocks(t *testing.T, count int) {
 	raw := []byte{}
 	for i := 0; i < count; i++ {
 		if i > 2 {
-			copied := src
-			src = copied
-			src.port += i
+			copied := srcTestAddr
+			srcTestAddr = copied
+			srcTestAddr.port += i
 		}
-		h, b, err := Encode(src, dst, domain, payload)
+		h, b, err := Encode(payload, srcTestAddr, dstTestAddr)
 		if nil != err {
 			t.Fatal(err)
 		}
@@ -53,7 +52,7 @@ func testDecodeNBlocks(t *testing.T, count int) {
 		conns: map[string]*Conn{},
 	}
 	//fmt.Println("streamers gonna stream")
-	err := decoder.StreamDecode(th, 0)
+	err := decoder.Decode(th)
 	if nil != err {
 		t.Fatalf("failed to decode stream: %s", err)
 	}

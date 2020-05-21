@@ -27,6 +27,10 @@ const (
 	LengthIndex
 	// ServiceIndex is the 5th (4) address element, the Scheme or Control message type
 	ServiceIndex
+	// RelayPortIndex is the 6th (5) address element, the port on which the connection was established
+	RelayPortIndex
+	// ServernameIndex is the 7th (6) address element, the SNI Servername or Hostname
+	ServernameIndex
 )
 
 // Header is the MPLEXY address/control meta data that comes before a packet
@@ -140,13 +144,24 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 		return nil, errors.New("'control' messages not implemented")
 	}
 
-	addr := Addr{
+	src := Addr{
 		family: parts[FamilyIndex],
 		addr:   parts[AddressIndex],
 		port:   port,
+		//scheme: Scheme(service),
+	}
+	dst := Addr{
 		scheme: Scheme(service),
 	}
-	p.state.addr = addr
+	if len(parts) > RelayPortIndex {
+		port, _ := strconv.Atoi(parts[RelayPortIndex])
+		dst.port = port
+	}
+	if len(parts) > ServernameIndex {
+		dst.addr = parts[ServernameIndex]
+	}
+	p.state.srcAddr = src
+	p.state.dstAddr = dst
 	/*
 		p.state.conn = p.conns[addr.Network()]
 		if nil == p.state.conn {
@@ -187,7 +202,7 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 		*/
 
 		//fmt.Printf("[debug] [2] payload written: %d | payload length: %d\n", p.state.payloadWritten, p.state.payloadLen)
-		p.handler.RouteBytes(p.state.addr, []byte{})
+		p.handler.RouteBytes(p.state.srcAddr, p.state.dstAddr, []byte{})
 		return b, nil
 	}
 
@@ -207,7 +222,7 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 			return b, nil
 		}
 	*/
-	p.handler.RouteBytes(p.state.addr, c)
+	p.handler.RouteBytes(p.state.srcAddr, p.state.dstAddr, c)
 	p.consumed += k
 	p.state.payloadWritten += k
 

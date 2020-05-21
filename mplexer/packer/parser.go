@@ -21,7 +21,8 @@ type ParserState struct {
 	headerLen      int
 	header         []byte
 	payloadLen     int
-	addr           Addr
+	srcAddr        Addr
+	dstAddr        Addr
 	payloadWritten int
 }
 
@@ -47,7 +48,7 @@ func NewParser(handler Router) *Parser {
 }
 
 type Router interface {
-	RouteBytes(Addr, []byte)
+	RouteBytes(src, dst Addr, payload []byte)
 }
 
 // Write receives tunnel data and creates or writes to connections

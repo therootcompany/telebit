@@ -39,7 +39,7 @@ func NewAddr(s Scheme, t Termination, a string, p int) *Addr {
 }
 
 func (a *Addr) String() string {
-	return fmt.Sprintf("%s:%s:%s:%d", a.Network(), a.Scheme(), a.addr, a.port)
+	return fmt.Sprintf("%s:%s:%s:%d", a.family, a.Scheme(), a.addr, a.port)
 }
 
 func (a *Addr) Network() string {

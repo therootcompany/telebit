@@ -5,8 +5,9 @@ import (
 )
 
 // Encode creates an MPLEXY V1 header for the given addresses and payload
-func Encode(id, tun Addr, domain string, payload []byte) ([]byte, []byte, error) {
+func Encode(payload []byte, id, tun Addr) ([]byte, []byte, error) {
 	n := len(payload)
+	domain := tun.addr
 	header := []byte(fmt.Sprintf(
 		"%s,%s,%d,%d,%s,%d,%s,\n",
 		id.family, id.addr, id.port,

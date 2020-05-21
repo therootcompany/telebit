@@ -3,6 +3,7 @@ package packer
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 )
@@ -55,9 +56,11 @@ func (enc *Encoder) Run() error {
 }
 
 // Encode adds MPLEXY headers to raw net traffic, and is intended to be used on each client connection
-func (enc *Encoder) Encode(rin io.Reader, src Addr) error {
+func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 	rx := make(chan []byte)
 	rxErr := make(chan error)
+
+	fmt.Println("what's the source to encode?", src)
 
 	go func() {
 		for {
@@ -87,11 +90,14 @@ func (enc *Encoder) Encode(rin io.Reader, src Addr) error {
 			//rin.Close()
 			return errors.New("cancelled by context")
 		case b := <-rx:
-			header, _, err := Encode(src, Addr{}, "", b)
+			header, _, err := Encode(b, src, Addr{scheme: src.scheme, addr: "", port: -1})
 			if nil != err {
 				//rin.Close()
 				return err
 			}
+			fmt.Println("[debug] encode header:", string(header))
+			fmt.Println("[debug] encode payload:", string(b))
+
 			_, err = enc.write(header, b)
 			if nil != err {
 				//rin.Close()
@@ -101,12 +107,14 @@ func (enc *Encoder) Encode(rin io.Reader, src Addr) error {
 			// it can be assumed that err will close though, right?
 			//rin.Close()
 			if io.EOF == err {
-				header, _, _ := Encode(src, Addr{scheme: "end"}, "", nil)
+				header, _, _ := Encode(nil, src, Addr{scheme: "end"})
+				fmt.Println("[debug] encode end: ", header)
 				// ignore err, which may have already closed
 				_, _ = enc.write(header, nil)
 				return nil
 			}
-			header, _, _ := Encode(src, Addr{scheme: "error"}, "", []byte(err.Error()))
+			// TODO transmit message , []byte(err.Error())
+			header, _, _ := Encode(nil, src, Addr{scheme: "error"})
 			// ignore err, which may have already closed
 			_, _ = enc.write(header, nil)
 			return err
@@ -119,10 +127,13 @@ func (enc *Encoder) write(h, b []byte) (int, error) {
 	// mutex here so that we can get back error info
 	enc.mux.Lock()
 	var m int
-	n, err := enc.out.Write(h)
-	if nil == err && len(b) > 0 {
-		m, err = enc.out.Write(b)
-	}
+	n, err := enc.out.Write(append(h, b...))
+	/*
+		n, err := enc.out.Write(h)
+		if nil == err && len(b) > 0 {
+			m, err = enc.out.Write(b)
+		}
+	*/
 	enc.mux.Unlock()
 	if nil != err {
 		enc.outErr <- err
