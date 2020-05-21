@@ -31,6 +31,14 @@ type WSConn interface {
 	// LocalAddr() net.Addr
 }
 
+// NewWSWrap allocates a new websocket connection wrapper
+func NewWSWrap(wsconn WSConn) *WSWrap {
+	return &WSWrap{
+		wsconn: wsconn,
+		tmpr:   nil,
+	}
+}
+
 func (wsw *WSWrap) Read(b []byte) (int, error) {
 	if nil == wsw.tmpr {
 		_, msgr, err := wsw.wsconn.NextReader()
@@ -85,4 +93,29 @@ func (wsw *WSWrap) Close() error {
 	}
 	_ = wsw.wsconn.Close()
 	return err
+}
+
+// LocalAddr returns the local network address.
+func (wsw *WSWrap) LocalAddr() *Addr {
+	panic("not implemented")
+}
+
+// RemoteAddr returns the remote network address.
+func (wsw *WSWrap) RemoteAddr() *Addr {
+	panic("not implemented")
+}
+
+// SetDeadline sets the read and write deadlines associated
+func (wsw *WSWrap) SetDeadline(t time.Time) error {
+	panic("not implemented")
+}
+
+// SetReadDeadline sets the deadline for future Read calls
+func (wsw *WSWrap) SetReadDeadline(t time.Time) error {
+	panic("not implemented")
+}
+
+// SetWriteDeadline sets the deadline for future Write calls
+func (wsw *WSWrap) SetWriteDeadline(t time.Time) error {
+	panic("not implemented")
 }

@@ -22,13 +22,11 @@ type Listener struct {
 }
 
 // Listen creates a new Listener and sets it up to receive and distribute connections.
-func Listen(wsconn WSConn) *Listener {
+func Listen(wsw *WSWrap) *Listener {
 	ctx := context.TODO()
 
-	// Wrap the websocket and feed it into the Encoder and Decoder
-	wsw := &WSWrap{wsconn: wsconn, tmpr: nil}
+	// Feed the socket into the Encoder and Decoder
 	listener := &Listener{
-		//wsconn:   wsconn,
 		wsw:      wsw,
 		incoming: make(chan *Conn, 1), // buffer ever so slightly
 		close:    make(chan struct{}),
@@ -42,7 +40,7 @@ func Listen(wsconn WSConn) *Listener {
 	go func() {
 		err := listener.encoder.Run()
 		fmt.Printf("encoder stopped entirely: %q", err)
-		wsw.wsconn.Close()
+		wsw.Close()
 	}()
 
 	// Decode the stream as it comes in
@@ -62,8 +60,8 @@ func Listen(wsconn WSConn) *Listener {
 }
 
 // ListenAndServe listens on a websocket and handles the incomming net.Conn-like connections with a Handler
-func ListenAndServe(wsconn WSConn, mux Handler) error {
-	listener := Listen(wsconn)
+func ListenAndServe(wsw *WSWrap, mux Handler) error {
+	listener := Listen(wsw)
 	return Serve(listener, mux)
 }
 

@@ -72,7 +72,9 @@ func main() {
 	//mux.HandleTLS("*", mux.TerminateTLS(mux))
 	mux.ForwardTCP("*", "localhost:3000", 120*time.Second)
 	// TODO set failure
-	log.Fatal("Closed server: ", packer.ListenAndServe(wsconn, mux))
+
+	wsw := packer.NewWSWrap(wsconn)
+	log.Fatal("Closed server: ", packer.ListenAndServe(wsw, mux))
 }
 
 func getToken(secret string) (token string, err error) {
