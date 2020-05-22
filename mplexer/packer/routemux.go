@@ -36,7 +36,7 @@ func (m *RouteMux) Serve(client net.Conn) error {
 
 	for _, meta := range m.list {
 		if servername == meta.addr || "*" == meta.addr {
-			fmt.Println("[debug] test of route:", meta)
+			//fmt.Println("[debug] test of route:", meta)
 			if err := meta.handler.Serve(client); nil != err {
 				// error should be EOF if successful
 				return err

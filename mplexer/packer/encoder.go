@@ -3,7 +3,6 @@ package packer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 )
@@ -60,7 +59,7 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 	rx := make(chan []byte)
 	rxErr := make(chan error)
 
-	fmt.Println("what's the source to encode?", src)
+	//fmt.Println("[debug] what's the source to encode?", src)
 
 	go func() {
 		for {
@@ -95,8 +94,8 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 				//rin.Close()
 				return err
 			}
-			fmt.Println("[debug] encode header:", string(header))
-			fmt.Println("[debug] encode payload:", string(b))
+			//fmt.Println("[debug] encode header:", string(header))
+			//fmt.Println("[debug] encode payload:", string(b))
 
 			_, err = enc.write(header, b)
 			if nil != err {
@@ -108,7 +107,7 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			//rin.Close()
 			if io.EOF == err {
 				header, _, _ := Encode(nil, src, Addr{scheme: "end"})
-				fmt.Println("[debug] encode end: ", string(header))
+				//fmt.Println("[debug] encode end: ", string(header))
 				// ignore err, which may have already closed
 				_, _ = enc.write(header, nil)
 				return nil

@@ -110,24 +110,34 @@ func Forward(client net.Conn, target net.Conn, timeout time.Duration) error {
 			client.SetDeadline(time.Now().Add(timeout))
 			_, err = target.Write(b)
 			if nil != err {
-				fmt.Printf("write to target failed: %q", err.Error())
+				fmt.Printf("write to target failed: %q\n", err.Error())
 				break
 			}
 		case b := <-dstCh:
 			target.SetDeadline(time.Now().Add(timeout))
 			_, err = client.Write(b)
 			if nil != err {
-				fmt.Printf("write to remote failed: %q", err.Error())
+				fmt.Printf("write to remote failed: %q\n", err.Error())
 				break
 			}
 		case err = <-srcErrCh:
-			if nil != err {
-				fmt.Printf("read from remote failed: %q", err.Error())
+			if nil == err {
+				break
+			}
+			if io.EOF != err {
+				fmt.Printf("read from remote client failed: %q\n", err.Error())
+			} else {
+				fmt.Printf("Connection closed (possibly by remote client)\n")
 			}
 			break
 		case err = <-dstErrCh:
-			if nil != err {
-				fmt.Printf("read from target failed: %q", err.Error())
+			if nil == err {
+				break
+			}
+			if io.EOF != err {
+				fmt.Printf("read from local target failed: %q\n", err.Error())
+			} else {
+				fmt.Printf("Connection closed (possibly by local target)\n")
 			}
 			break
 
@@ -149,6 +159,8 @@ type ACME struct {
 	EnableTLSALPNChallenge bool
 }
 
+var acmecert *certmagic.Config = nil
+
 func NewTerminator(acme *ACME, handler Handler) HandlerFunc {
 	return func(client net.Conn) error {
 		return handler.Serve(TerminateTLS(client, acme))
@@ -156,15 +168,22 @@ func NewTerminator(acme *ACME, handler Handler) HandlerFunc {
 }
 
 func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
-	acme.Storage = &certmagic.FileStorage{Path: acme.StoragePath}
+	var magic *certmagic.Config = nil
 
-	if "" == acme.Directory {
-		acme.Directory = certmagic.LetsEncryptProductionCA
-	}
-	magic, err := newCertMagic(acme)
-	if nil != err {
-		fmt.Fprintf(os.Stderr, "failed to initialize certificate management (discovery url? local folder perms?): %s\n", err)
-		os.Exit(1)
+	if nil == acmecert {
+		acme.Storage = &certmagic.FileStorage{Path: acme.StoragePath}
+
+		if "" == acme.Directory {
+			acme.Directory = certmagic.LetsEncryptProductionCA
+		}
+
+		var err error
+		magic, err = newCertMagic(acme)
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "failed to initialize certificate management (discovery url? local folder perms?): %s\n", err)
+			os.Exit(1)
+		}
+		acmecert = magic
 	}
 
 	tlsConfig := &tls.Config{

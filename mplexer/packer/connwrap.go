@@ -1,7 +1,6 @@
 package packer
 
 import (
-	"fmt"
 	"net"
 	"time"
 )
@@ -61,7 +60,8 @@ func (c *ConnWrap) Servername() string {
 	return ""
 }
 
-// isTerminated returns true if it is certain that the connection has been decrypted at least once
+// isTerminated returns true if net.Conn is either a ConnWrap{ tls.Conn },
+// or a telebit.Conn with a non-encrypted `scheme` such as "tcp" or "http".
 func (c *ConnWrap) isTerminated() bool {
 	if nil != c.Plain {
 		return true
@@ -71,7 +71,6 @@ func (c *ConnWrap) isTerminated() bool {
 	case *ConnWrap:
 		return conn.isTerminated()
 	case *Conn:
-		fmt.Printf("[debug] isTerminated: %#v\n", conn.relayTargetAddr)
 		_, ok := encryptedSchemes[string(conn.relayTargetAddr.scheme)]
 		return !ok
 	}

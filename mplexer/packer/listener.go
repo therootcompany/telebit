@@ -115,10 +115,8 @@ func (l *Listener) RouteBytes(srcAddr, dstAddr Addr, b []byte) {
 
 	src := &srcAddr
 	dst := &dstAddr
-	pipe := l.getPipe(src, dst)
-
-	fmt.Printf("Forwarding bytes\n\tfrom %#v\n\tto %#v:\n", src, dst)
-	fmt.Printf("%s\n", b)
+	pipe := l.getPipe(src, dst, len(b))
+	//fmt.Printf("%s\n", b)
 
 	// handle errors before data writes because I don't
 	// remember where the error message goes
@@ -141,7 +139,7 @@ func (l *Listener) RouteBytes(srcAddr, dstAddr Addr, b []byte) {
 	}
 }
 
-func (l *Listener) getPipe(src, dst *Addr) net.Conn {
+func (l *Listener) getPipe(src, dst *Addr, count int) net.Conn {
 	connID := src.Network()
 	pipe, ok := l.conns[connID]
 
@@ -149,6 +147,7 @@ func (l *Listener) getPipe(src, dst *Addr) net.Conn {
 	if ok {
 		return pipe
 	}
+	fmt.Printf("New client (%d byte hello)\n\tfrom %#v\n\tto %#v:\n", count, src, dst)
 
 	// Create pipe
 	rawPipe, pipe := net.Pipe()
@@ -156,12 +155,7 @@ func (l *Listener) getPipe(src, dst *Addr) net.Conn {
 		//updated:         time.Now(),
 		relaySourceAddr: *src,
 		relayTargetAddr: *dst,
-		/*
-			relayTargetAddr: Addr{
-				scheme: addr.scheme,
-			},
-		*/
-		relay: rawPipe,
+		relay:           rawPipe,
 	}
 	l.conns[connID] = pipe
 	l.incoming <- newconn

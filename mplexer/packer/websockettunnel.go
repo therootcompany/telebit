@@ -61,7 +61,7 @@ func (wsw *WebsocketTunnel) Read(b []byte) (int, error) {
 	if nil == wsw.tmpr {
 		_, msgr, err := wsw.wsconn.NextReader()
 		if nil != err {
-			fmt.Println("debug wsw NextReader err:", err)
+			//fmt.Println("debug wsw NextReader err:", err)
 			return 0, err
 		}
 		wsw.tmpr = msgr
@@ -69,7 +69,7 @@ func (wsw *WebsocketTunnel) Read(b []byte) (int, error) {
 
 	n, err := wsw.tmpr.Read(b)
 	if nil != err {
-		fmt.Println("debug wsw Read err:", err)
+		//fmt.Println("debug wsw Read err:", err)
 		if io.EOF == err {
 			wsw.tmpr = nil
 			// ignore the message EOF because it's not the websocket EOF
@@ -85,12 +85,12 @@ func (wsw *WebsocketTunnel) Write(b []byte) (int, error) {
 
 	msgw, err := wsw.wsconn.NextWriter(websocket.BinaryMessage)
 	if nil != err {
-		fmt.Println("debug wsw NextWriter err:", err)
+		//fmt.Println("debug wsw NextWriter err:", err)
 		return 0, err
 	}
 	n, err := msgw.Write(b)
 	if nil != err {
-		fmt.Println("debug wsw Write err:", err)
+		//fmt.Println("debug wsw Write err:", err)
 		return n, err
 	}
 
@@ -100,7 +100,7 @@ func (wsw *WebsocketTunnel) Write(b []byte) (int, error) {
 
 // Close will close the websocket with a control message
 func (wsw *WebsocketTunnel) Close() error {
-	fmt.Println("[debug] closing the websocket.Conn")
+	//fmt.Println("[debug] closing the websocket.Conn")
 
 	// TODO handle EOF as websocket.CloseNormal?
 	message := websocket.FormatCloseMessage(websocket.CloseGoingAway, "closing connection")
