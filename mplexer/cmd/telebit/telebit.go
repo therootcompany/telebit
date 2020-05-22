@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/packer"
+	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
 
 	"github.com/caddyserver/certmagic"
 	jwt "github.com/dgrijalva/jwt-go"
@@ -109,7 +109,7 @@ func main() {
 
 	ctx := context.Background()
 
-	acme := &packer.ACME{
+	acme := &telebit.ACME{
 		Email:                  *email,
 		StoragePath:            *certpath,
 		Agree:                  *acmeAgree,
@@ -119,14 +119,14 @@ func main() {
 		EnableTLSALPNChallenge: enableTLSALPN01,
 	}
 
-	mux := packer.NewRouteMux()
+	mux := telebit.NewRouteMux()
 	mux.HandleTLS("*", acme, mux)
 	for _, fwd := range forwards {
 		mux.ForwardTCP("*", "localhost:"+fwd.port, 120*time.Second)
 		//mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second)
 	}
 
-	tun, err := packer.DialWebsocketTunnel(ctx, *relay, *token)
+	tun, err := telebit.DialWebsocketTunnel(ctx, *relay, *token)
 	if nil != err {
 		fmt.Println("relay:", relay)
 		log.Fatal(err)
@@ -134,7 +134,7 @@ func main() {
 	}
 
 	fmt.Printf("Listening at %s\n", *relay)
-	log.Fatal("Closed server: ", packer.ListenAndServe(tun, mux))
+	log.Fatal("Closed server: ", telebit.ListenAndServe(tun, mux))
 }
 
 type ACMEProvider struct {

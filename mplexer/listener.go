@@ -1,188 +1,176 @@
-package mplexer
+package telebit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
-	"os"
-	"time"
-
-	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/packer"
-
-	"github.com/gorilla/websocket"
 )
 
-// Listener defines a listener for use with http servers
+// A Listener transforms a multiplexed websocket connection into individual net.Conn-like connections.
 type Listener struct {
-	//ParentAddr net.Addr
-	//Conns  chan *Conn
-	ws     *websocket.Conn
-	ctx    context.Context
-	parser *packer.Parser
+	//wsconn       *websocket.Conn
+	tun          net.Conn
+	incoming     chan *Conn
+	close        chan struct{}
+	encoder      *Encoder
+	chunksParsed int
+	bytesRead    int
+	conns        map[string]net.Conn
+	//conns        map[string]*Conn
 }
 
-// Listen creates a channel for connections and returns the listener
-func (m *MultiplexLocal) Listen(ctx context.Context) (*Listener, error) {
-	authz, err := m.SortingHat.Authz()
-	if nil != err {
-		return nil, err
-	}
+// Listen creates a new Listener and sets it up to receive and distribute connections.
+func Listen(tun net.Conn) *Listener {
+	ctx := context.TODO()
 
-	wsd := websocket.Dialer{}
-	headers := http.Header{}
-	headers.Set("Authorization", fmt.Sprintf("Bearer %s", authz))
-	// *http.Response
-	wsconn, _, err := wsd.DialContext(ctx, m.Relay, headers)
-	if nil != err {
-		return nil, err
-	}
-
-	//conns := make(chan *packer.Conn)
-	//parser := &packer.NewParser(ctx, conns)
-
-	/*
-		go func() {
-			conn, err := packer.Accept()
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "failed to accept new relayed connection: %s\n", err)
-				return
-			}
-			conns <- conn
-		}()
-	*/
-
-	handler := &Handler{}
+	// Feed the socket into the Encoder and Decoder
 	listener := &Listener{
-		//Conns:  conns,
-		parser: packer.NewParser(ctx, handler),
+		tun:      tun,
+		incoming: make(chan *Conn, 1), // buffer ever so slightly
+		close:    make(chan struct{}),
+		encoder:  NewEncoder(ctx, tun),
+		conns:    map[string]net.Conn{},
+		//conns:    map[string]*Conn{},
 	}
-	go m.listen(ctx, wsconn, listener)
-	return listener, nil
-}
 
-type Handler struct {
-}
-
-func (h *Handler) WriteMessage(packer.Addr, []byte) {
-	panic(errors.New("not implemented"))
-}
-
-func (m *MultiplexLocal) listen(ctx context.Context, wsconn *websocket.Conn, listener *Listener) {
-	// will cancel if ws errors out or closes
-	// (TODO: this may also be redundant)
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	// Ping every 15 seconds, or stop listening
+	// TODO perhaps the wrapper should have a mutex
+	// rather than having a goroutine in the encoder
 	go func() {
-		for {
-			time.Sleep(15 * time.Second)
-			deadline := time.Now().Add(45 * time.Second)
-			if err := wsconn.WriteControl(websocket.PingMessage, []byte(""), deadline); nil != err {
-				fmt.Fprintf(os.Stderr, "failed to write ping message to websocket: %s\n", err)
-				cancel()
-				break
-			}
-		}
+		err := listener.encoder.Run()
+		fmt.Printf("encoder stopped entirely: %q", err)
+		tun.Close()
 	}()
 
-	// The write loop (which fails if ping fails)
+	// Decode the stream as it comes in
+	decoder := NewDecoder(tun)
 	go func() {
-		// TODO optimal buffer size
-		b := make([]byte, 128*1024)
-		for {
-			n, err := listener.parser.Read(b)
-			if n > 0 {
-				if err := wsconn.WriteMessage(websocket.BinaryMessage, b); nil != err {
-					fmt.Fprintf(os.Stderr, "failed to write packer message to websocket: %s\n", err)
-					break
-				}
-			}
+		// TODO pass error to Accept()
+		err := decoder.Decode(listener)
+
+		// The listener itself must be closed explicitly because
+		// there's an encoder with a callback between the websocket
+		// and the multiplexer, so it doesn't know to stop listening otherwise
+		listener.Close()
+		fmt.Printf("the main stream is done: %q\n", err)
+	}()
+
+	return listener
+}
+
+// ListenAndServe listens on a websocket and handles the incomming net.Conn-like connections with a Handler
+func ListenAndServe(tun net.Conn, mux Handler) error {
+	listener := Listen(tun)
+	return Serve(listener, mux)
+}
+
+// Serve Accept()s connections which have already been unwrapped and serves them with the given Handler
+func Serve(listener *Listener, mux Handler) error {
+	for {
+		client, err := listener.Accept()
+		if nil != err {
+			return err
+		}
+
+		go func() {
+			err = mux.Serve(client)
 			if nil != err {
 				if io.EOF != err {
-					fmt.Fprintf(os.Stderr, "failed to read message from packer: %s\n", err)
-					break
+					fmt.Printf("client could not be served: %q\n", err.Error())
 				}
-				fmt.Fprintf(os.Stderr, "[TODO debug] closed packer: %s\n", err)
-				break
 			}
+			client.Close()
+		}()
+	}
+}
+
+// Accept returns a tunneled network connection
+func (l *Listener) Accept() (net.Conn, error) {
+	select {
+	case rconn, ok := <-l.incoming:
+		if ok {
+			return rconn, nil
 		}
-		// TODO handle EOF as websocket.CloseNormal?
-		message := websocket.FormatCloseMessage(websocket.CloseGoingAway, "closing connection")
-		deadline := time.Now().Add(10 * time.Second)
-		if err := wsconn.WriteControl(websocket.CloseMessage, message, deadline); nil != err {
-			fmt.Fprintf(os.Stderr, "failed to write close message to websocket: %s\n", err)
-		}
-		_ = wsconn.Close()
+		return nil, io.EOF
+
+	case <-l.close:
+		return nil, http.ErrServerClosed
+	}
+}
+
+// Close stops accepting new connections and closes the underlying websocket.
+// TODO return errors.
+func (l *Listener) Close() error {
+	l.tun.Close()
+	close(l.incoming)
+	l.close <- struct{}{}
+	return nil
+}
+
+// RouteBytes receives address information and a buffer and creates or re-uses a pipe that can be Accept()ed.
+func (l *Listener) RouteBytes(srcAddr, dstAddr Addr, b []byte) {
+	// TODO use context to be able to cancel many at once?
+	l.chunksParsed++
+
+	src := &srcAddr
+	dst := &dstAddr
+	pipe := l.getPipe(src, dst, len(b))
+	//fmt.Printf("%s\n", b)
+
+	// handle errors before data writes because I don't
+	// remember where the error message goes
+	if "error" == string(dst.scheme) {
+		pipe.Close()
+		delete(l.conns, src.Network())
+		fmt.Printf("a stream errored remotely: %v\n", src)
+	}
+
+	// write data, if any
+	if len(b) > 0 {
+		l.bytesRead += len(b)
+		pipe.Write(b)
+	}
+	// EOF, if needed
+	if "end" == string(dst.scheme) {
+		fmt.Println("[debug] end")
+		pipe.Close()
+		delete(l.conns, src.Network())
+	}
+}
+
+func (l *Listener) getPipe(src, dst *Addr, count int) net.Conn {
+	connID := src.Network()
+	pipe, ok := l.conns[connID]
+
+	// Pipe exists
+	if ok {
+		return pipe
+	}
+	fmt.Printf("New client (%d byte hello)\n\tfrom %#v\n\tto %#v:\n", count, src, dst)
+
+	// Create pipe
+	rawPipe, pipe := net.Pipe()
+	newconn := &Conn{
+		//updated:         time.Now(),
+		relaySourceAddr: *src,
+		relayTargetAddr: *dst,
+		relay:           rawPipe,
+	}
+	l.conns[connID] = pipe
+	l.incoming <- newconn
+
+	// Handle encoding
+	go func() {
+		// TODO handle err
+		err := l.encoder.Encode(pipe, *src, *dst)
+		// the error may be EOF or ErrServerClosed or ErrGoingAwawy or some such
+		// or it might be an actual error
+		// In any case, we'll just close it all
+		newconn.Close()
+		pipe.Close()
+		fmt.Printf("a stream is done: %q\n", err)
 	}()
 
-	// The read loop (also fails if ping fails)
-	for {
-		_, message, err := wsconn.ReadMessage()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to read message from websocket: %s\n", err)
-			break
-		}
-
-		//
-		_, err = listener.packer.Write(message)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "failed to process message from websocket: %s\n", err)
-			break
-		}
-	}
-
-	// just to be sure
-	listener.packer.Close()
-	wsconn.Close()
-
-	return
-}
-
-/*
-// Feed will block while pushing a net.Conn onto Conns
-func (l *Listener) Feed(conn *Conn) {
-	l.Conns <- conn
-}
-*/
-
-// net.Listener interface
-
-/*
-// Accept will block and wait for a new net.Conn
-func (l *Listener) Accept() (*Conn, error) {
-	select {
-	case conn, ok := <-l.Conns:
-		if ok {
-			return conn, nil
-		}
-		return nil, io.EOF
-
-	case <-l.ctx.Done():
-		// TODO is another error more suitable?
-		// TODO is this redundant?
-		return nil, io.EOF
-	}
-}
-*/
-
-func (l *Listener) Accept() (*packer.Conn, error) {
-	return l.Accept()
-}
-
-// Close will close the Conns channel
-func (l *Listener) Close() error {
-	//close(l.Conns)
-	//return nil
-	return l.packer.Close()
-}
-
-// Addr returns nil to fulfill the net.Listener interface
-func (l *Listener) Addr() net.Addr {
-	// Addr may (or may not) return the original TCP or TLS listener's address
-	//return l.ParentAddr
-	return nil
+	return pipe
 }
