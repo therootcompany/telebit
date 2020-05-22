@@ -1,11 +1,16 @@
 package packer
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"time"
+
+	"github.com/caddyserver/certmagic"
+	"github.com/go-acme/lego/v3/challenge"
 )
 
 // Note: 64k is the TCP max, but 1460b is the 100mbit Ethernet max (1500 MTU - overhead),
@@ -19,19 +24,20 @@ var ErrBadGateway = errors.New("EBADGATEWAY")
 
 // A Handler routes, proxies, terminates, or responds to a net.Conn.
 type Handler interface {
-	Serve(*Conn) error
+	Serve(net.Conn) error
 }
 
-type HandlerFunc func(*Conn) error
+// HandlerFunc should handle, proxy, or terminate the connection
+type HandlerFunc func(net.Conn) error
 
 // Serve calls f(conn).
-func (f HandlerFunc) Serve(conn *Conn) error {
+func (f HandlerFunc) Serve(conn net.Conn) error {
 	return f(conn)
 }
 
 // NewForwarder creates a handler that port-forwards to a target
 func NewForwarder(target string, timeout time.Duration) HandlerFunc {
-	return func(client *Conn) error {
+	return func(client net.Conn) error {
 		tconn, err := net.Dial("tcp", target)
 		if nil != err {
 			return err
@@ -41,7 +47,7 @@ func NewForwarder(target string, timeout time.Duration) HandlerFunc {
 }
 
 // Forward port-forwards a relay (websocket) client to a target (local) server
-func Forward(client *Conn, target net.Conn, timeout time.Duration) error {
+func Forward(client net.Conn, target net.Conn, timeout time.Duration) error {
 
 	// Something like ReadAhead(size) should signal
 	// to read and send up to `size` bytes without waiting
@@ -93,6 +99,7 @@ func Forward(client *Conn, target net.Conn, timeout time.Duration) error {
 		}
 	}()
 
+	fmt.Println("[debug] forwarding tcp connection")
 	var err error = nil
 	for {
 		select {
@@ -129,4 +136,102 @@ func Forward(client *Conn, target net.Conn, timeout time.Duration) error {
 
 	client.Close()
 	return err
+}
+
+type ACME struct {
+	Agree                  bool
+	Email                  string
+	Directory              string
+	DNSProvider            challenge.Provider
+	Storage                certmagic.Storage
+	StoragePath            string
+	EnableHTTPChallenge    bool
+	EnableTLSALPNChallenge bool
+}
+
+func NewTerminator(acme *ACME, handler Handler) HandlerFunc {
+	return func(client net.Conn) error {
+		return handler.Serve(TerminateTLS(client, acme))
+	}
+}
+
+func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
+	acme.Storage = &certmagic.FileStorage{Path: acme.StoragePath}
+
+	if "" == acme.Directory {
+		acme.Directory = certmagic.LetsEncryptProductionCA
+	}
+	magic, err := newCertMagic(acme)
+	if nil != err {
+		fmt.Fprintf(os.Stderr, "failed to initialize certificate management (discovery url? local folder perms?): %s\n", err)
+		os.Exit(1)
+	}
+
+	tlsConfig := &tls.Config{
+		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			return magic.GetCertificate(hello)
+			/*
+				if false {
+					_, _ = magic.GetCertificate(hello)
+				}
+
+				// TODO
+				// 1. call out to greenlock for validation
+				// 2. push challenges through http channel
+				// 3. receive certificates (or don't)
+				certbundleT, err := tls.LoadX509KeyPair("certs/fullchain.pem", "certs/privkey.pem")
+				certbundle := &certbundleT
+				if err != nil {
+					return nil, err
+				}
+				return certbundle, nil
+			*/
+		},
+	}
+
+	tlsconn := tls.Server(client, tlsConfig)
+	return &ConnWrap{
+		Conn:  tlsconn,
+		Plain: client,
+	}
+}
+
+func newCertMagic(acme *ACME) (*certmagic.Config, error) {
+	if !acme.Agree {
+		fmt.Fprintf(
+			os.Stderr,
+			"\n\nError: must --acme-agree to terms to use Let's Encrypt / ACME issued certificates\n\n",
+		)
+		os.Exit(1)
+	}
+
+	cache := certmagic.NewCache(certmagic.CacheOptions{
+		GetConfigForCert: func(cert certmagic.Certificate) (*certmagic.Config, error) {
+			// do whatever you need to do to get the right
+			// configuration for this certificate; keep in
+			// mind that this config value is used as a
+			// template, and will be completed with any
+			// defaults that are set in the Default config
+			return &certmagic.Config{}, nil
+		},
+	})
+	magic := certmagic.New(cache, certmagic.Config{
+		Storage: acme.Storage,
+		OnDemand: &certmagic.OnDemandConfig{
+			DecisionFunc: func(name string) error {
+				return nil
+			},
+		},
+	})
+	// yes, a circular reference, passing `magic` to its own Issuer
+	magic.Issuer = certmagic.NewACMEManager(magic, certmagic.ACMEManager{
+		DNSProvider:             acme.DNSProvider,
+		CA:                      acme.Directory,
+		Email:                   acme.Email,
+		Agreed:                  acme.Agree,
+		DisableHTTPChallenge:    !acme.EnableHTTPChallenge,
+		DisableTLSALPNChallenge: !acme.EnableTLSALPNChallenge,
+		// plus any other customizations you need
+	})
+	return magic, nil
 }

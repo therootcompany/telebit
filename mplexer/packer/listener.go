@@ -86,7 +86,7 @@ func Serve(listener *Listener, mux Handler) error {
 }
 
 // Accept returns a tunneled network connection
-func (l *Listener) Accept() (*Conn, error) {
+func (l *Listener) Accept() (net.Conn, error) {
 	select {
 	case rconn, ok := <-l.incoming:
 		if ok {
@@ -117,7 +117,7 @@ func (l *Listener) RouteBytes(srcAddr, dstAddr Addr, b []byte) {
 	dst := &dstAddr
 	pipe := l.getPipe(src, dst)
 
-	fmt.Printf("Forwarding bytes to %#v:\n", dst)
+	fmt.Printf("Forwarding bytes\n\tfrom %#v\n\tto %#v:\n", src, dst)
 	fmt.Printf("%s\n", b)
 
 	// handle errors before data writes because I don't
@@ -141,7 +141,6 @@ func (l *Listener) RouteBytes(srcAddr, dstAddr Addr, b []byte) {
 	}
 }
 
-//func (l *Listener) getPipe(addr *Addr) *Conn {
 func (l *Listener) getPipe(src, dst *Addr) net.Conn {
 	connID := src.Network()
 	pipe, ok := l.conns[connID]
@@ -156,8 +155,9 @@ func (l *Listener) getPipe(src, dst *Addr) net.Conn {
 	newconn := &Conn{
 		//updated:         time.Now(),
 		relaySourceAddr: *src,
+		relayTargetAddr: *dst,
 		/*
-			relayRemoteAddr: Addr{
+			relayTargetAddr: Addr{
 				scheme: addr.scheme,
 			},
 		*/

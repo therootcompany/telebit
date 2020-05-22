@@ -168,7 +168,7 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 			rconn, wconn := net.Pipe()
 			conn := Conn{
 				updated:         time.Now(),
-				relayRemoteAddr: addr,
+				relayTargetAddr: addr,
 				relay:           rconn,
 				local:           wconn,
 			}
@@ -192,7 +192,7 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 				bytes: []byte{},
 			}
 
-			addr := &p.state.conn.relayRemoteAddr
+			addr := &p.state.conn.relayTargetAddr
 			if "end" == string(addr.scheme) {
 				if err := p.state.conn.Close(); nil != err {
 					// TODO log potential error?

@@ -1,84 +1,93 @@
 package packer
 
 import (
+	"fmt"
 	"net"
 	"time"
 )
 
-var encryptedSchemes = map[string]struct{}{
-	"tls":   struct{}{},
-	"https": struct{}{},
-	"wss":   struct{}{},
-	"smtps": struct{}{},
+// ConnWrap is just a cheap way to DRY up some switch conn.(type) statements to handle special features of Conn
+type ConnWrap struct {
+	Conn  net.Conn
+	Plain net.Conn
 }
 
-// Conn TODO rename to Pipe, perhaps?
-type Conn struct {
-	relaySourceAddr Addr
-	relayTargetAddr Addr
-	relay           net.Conn
-	local           net.Conn
-	//terminated      bool
-	//updated         time.Time
-}
-
-// TODO conn.go -> conn/conn.go
-// TODO NewConn -> New
-
-/*
-// NewConn checks to see if the connection is already terminated and such
-func NewConn(conn *Conn) *Conn {
-	conn.relayTargetAddr.scheme
-	return conn
-}
-*/
-
-// Read reads data from the connection.
-// Read can be made to time out and return an Error with Timeout() == true
-// after a fixed time limit; see SetDeadline and SetReadDeadline.
-func (c *Conn) Read(b []byte) (n int, err error) {
-	return c.relay.Read(b)
+func (c *ConnWrap) Read(b []byte) (n int, err error) {
+	return c.Conn.Read(b)
 }
 
 // Write writes data to the connection.
 // Write can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetWriteDeadline.
-func (c *Conn) Write(b []byte) (n int, err error) {
-	return c.relay.Write(b)
+func (c *ConnWrap) Write(b []byte) (n int, err error) {
+	return c.Conn.Write(b)
 }
 
 // Close closes the connection.
 // Any blocked Read or Write operations will be unblocked and return errors.
-func (c *Conn) Close() error {
-	return c.relay.Close()
+func (c *ConnWrap) Close() error {
+	return c.Conn.Close()
 }
 
-/*
-// Error signals an error back to the relay
-func (c *Conn) Error(err error) error {
-	panic(errors.New("not implemented"))
-	return nil
-}
-*/
+// Scheme returns one of "https", "http", "tcp", "tls", or ""
+func (c *ConnWrap) Scheme() string {
+	if nil != c.Plain {
+		tlsConn := &ConnWrap{Conn: c.Plain}
+		return tlsConn.Scheme()
+	}
 
-/*
+	switch conn := c.Conn.(type) {
+	case *ConnWrap:
+		return conn.Scheme()
+	case *Conn:
+		return string(conn.relayTargetAddr.scheme)
+	}
+	return ""
+}
+
+// Servername may return Servername or Hostname as hinted by a tunnel or buffered peeking
+func (c *ConnWrap) Servername() string {
+	if nil != c.Plain {
+		tlsConn := &ConnWrap{Conn: c.Plain}
+		return tlsConn.Scheme()
+	}
+
+	switch conn := c.Conn.(type) {
+	case *ConnWrap:
+		return conn.Scheme()
+	case *Conn:
+		return string(conn.relaySourceAddr.scheme)
+	}
+	return ""
+}
+
+// isTerminated returns true if it is certain that the connection has been decrypted at least once
+func (c *ConnWrap) isTerminated() bool {
+	if nil != c.Plain {
+		return true
+	}
+
+	switch conn := c.Conn.(type) {
+	case *ConnWrap:
+		return conn.isTerminated()
+	case *Conn:
+		fmt.Printf("[debug] isTerminated: %#v\n", conn.relayTargetAddr)
+		_, ok := encryptedSchemes[string(conn.relayTargetAddr.scheme)]
+		return !ok
+	}
+	return false
+}
+
 // LocalAddr returns the local network address.
-func (c *Conn) LocalAddr() net.Addr {
-	panic(errors.New("not implemented"))
-	return &net.IPAddr{}
-}
-*/
-
-// LocalAddr returns the local network address.
-func (c *Conn) LocalAddr() net.Addr {
+func (c *ConnWrap) LocalAddr() net.Addr {
 	// TODO is this the right one?
-	return &c.relaySourceAddr
+	return c.Conn.LocalAddr()
 }
 
 // RemoteAddr returns the remote network address.
-func (c *Conn) RemoteAddr() net.Addr {
+func (c *ConnWrap) RemoteAddr() net.Addr {
 	// TODO is this the right one?
-	return &c.relayTargetAddr
+	return c.Conn.RemoteAddr()
 }
 
 // SetDeadline sets the read and write deadlines associated
@@ -103,15 +112,15 @@ func (c *Conn) RemoteAddr() net.Addr {
 // also return a timeout error. On Unix systems a keep-alive
 // failure on I/O can be detected using
 // errors.Is(err, syscall.ETIMEDOUT).
-func (c *Conn) SetDeadline(t time.Time) error {
-	return c.relay.SetDeadline(t)
+func (c *ConnWrap) SetDeadline(t time.Time) error {
+	return c.Conn.SetDeadline(t)
 }
 
 // SetReadDeadline sets the deadline for future Read calls
 // and any currently-blocked Read call.
 // A zero value for t means Read will not time out.
-func (c *Conn) SetReadDeadline(t time.Time) error {
-	return c.relay.SetReadDeadline(t)
+func (c *ConnWrap) SetReadDeadline(t time.Time) error {
+	return c.Conn.SetReadDeadline(t)
 }
 
 // SetWriteDeadline sets the deadline for future Write calls
@@ -119,6 +128,6 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
 // Even if write times out, it may return n > 0, indicating that
 // some of the data was successfully written.
 // A zero value for t means Write will not time out.
-func (c *Conn) SetWriteDeadline(t time.Time) error {
-	return c.relay.SetWriteDeadline(t)
+func (c *ConnWrap) SetWriteDeadline(t time.Time) error {
+	return c.Conn.SetWriteDeadline(t)
 }

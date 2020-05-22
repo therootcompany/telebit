@@ -108,7 +108,7 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			//rin.Close()
 			if io.EOF == err {
 				header, _, _ := Encode(nil, src, Addr{scheme: "end"})
-				fmt.Println("[debug] encode end: ", header)
+				fmt.Println("[debug] encode end: ", string(header))
 				// ignore err, which may have already closed
 				_, _ = enc.write(header, nil)
 				return nil

@@ -35,7 +35,7 @@ func (th *testHandler) RouteBytes(srcAddr, dstAddr Addr, b []byte) {
 		conn := &Conn{
 			//updated:         time.Now(),
 			relaySourceAddr: *src,
-			relayRemoteAddr: *dst,
+			relayTargetAddr: *dst,
 			relay:           rconn,
 			local:           wconn,
 		}
