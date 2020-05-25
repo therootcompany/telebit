@@ -1,3 +1,7 @@
+# git.rootprojects.org/root/go-gitver v1.1.3
+## explicit
+git.rootprojects.org/root/go-gitver
+git.rootprojects.org/root/go-gitver/gitver
 # github.com/caddyserver/certmagic v0.10.12
 ## explicit
 github.com/caddyserver/certmagic

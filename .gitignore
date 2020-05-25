@@ -2,7 +2,9 @@
 .env.*
 certs
 acme.d
+xversion.go
 
+/mplexer/cmd/telebit/telebit
 /telebit
 /cmd/telebit/telebit
 /telebitd
@@ -14,3 +16,5 @@ acme.d
 .*.sw*
 log.txt
 *.log
+.DS_Store
+*.exe

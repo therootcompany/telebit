@@ -188,7 +188,7 @@ func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
 
 	tlsConfig := &tls.Config{
 		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			return magic.GetCertificate(hello)
+			return acmecert.GetCertificate(hello)
 			/*
 				if false {
 					_, _ = magic.GetCertificate(hello)

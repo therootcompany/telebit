@@ -3,6 +3,7 @@ module git.coolaj86.com/coolaj86/go-telebitd
 go 1.14
 
 require (
+	git.rootprojects.org/root/go-gitver v1.1.3
 	github.com/caddyserver/certmagic v0.10.12
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-acme/lego/v3 v3.7.0
