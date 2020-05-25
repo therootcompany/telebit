@@ -1,3 +1,5 @@
+//go:generate go run -mod=vendor git.rootprojects.org/root/go-gitver
+
 package main
 
 import (
@@ -17,6 +19,15 @@ import (
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 	"github.com/go-acme/lego/v3/providers/dns/godaddy"
 	_ "github.com/joho/godotenv/autoload"
+)
+
+var (
+	// GitRev refers to the abbreviated commit hash
+	GitRev = "0000000"
+	// GitVersion refers to the most recent tag, plus any commits made since then
+	GitVersion = "v0.0.0-pre0+0000000"
+	// GitTimestamp refers to the timestamp of the most recent commit
+	GitTimestamp = "0000-00-00T00:00:00+0000"
 )
 
 type Forward struct {
@@ -44,6 +55,13 @@ func main() {
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
 	flag.Parse()
+
+	if len(os.Args) >= 2 {
+		if "version" == os.Args[1] {
+			fmt.Printf("telebit %s %s %s", GitVersion, GitRev, GitTimestamp)
+			os.Exit(0)
+		}
+	}
 
 	if "" != *acmeDirectory {
 		if *acmeStaging {
