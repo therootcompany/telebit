@@ -5,6 +5,7 @@ acme.d
 xversion.go
 
 /mplexer/cmd/mgmt/mgmt
+/mplexer/cmd/signjwt/signjwt
 /mplexer/cmd/telebit/telebit
 /telebit
 /cmd/telebit/telebit
