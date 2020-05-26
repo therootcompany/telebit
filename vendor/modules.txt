@@ -31,6 +31,10 @@ github.com/go-acme/lego/v3/platform/wait
 github.com/go-acme/lego/v3/providers/dns/duckdns
 github.com/go-acme/lego/v3/providers/dns/godaddy
 github.com/go-acme/lego/v3/registration
+# github.com/go-chi/chi v4.1.1+incompatible
+## explicit
+github.com/go-chi/chi
+github.com/go-chi/chi/middleware
 # github.com/gorilla/mux v1.7.4
 ## explicit
 github.com/gorilla/mux

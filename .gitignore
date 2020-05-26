@@ -4,6 +4,7 @@ certs
 acme.d
 xversion.go
 
+/mplexer/cmd/mgmt/mgmt
 /mplexer/cmd/telebit/telebit
 /telebit
 /cmd/telebit/telebit

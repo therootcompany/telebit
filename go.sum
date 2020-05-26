@@ -93,6 +93,8 @@ github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeME
 github.com/go-acme/lego/v3 v3.4.0/go.mod h1:xYbLDuxq3Hy4bMUT1t9JIuz6GWIWb3m5X+TeTHYaT7M=
 github.com/go-acme/lego/v3 v3.7.0 h1:qC5/8/CbltyAE8fGLE6bGlqucj7pXc/vBxiLwLOsmAQ=
 github.com/go-acme/lego/v3 v3.7.0/go.mod h1:4eDjjYkAsDXyNcwN8IhhZAwxz9Ltiks1Zmpv0q20J7A=
+github.com/go-chi/chi v4.1.1+incompatible h1:MmTgB0R8Bt/jccxp+t6S/1VGIKdJw5J74CK/c9tTfA4=
+github.com/go-chi/chi v4.1.1+incompatible/go.mod h1:eB3wogJHnLi3x/kFX2A+IbTBlXxmMeXJVKy9tTv1XzQ=
 github.com/go-cmd/cmd v1.0.5/go.mod h1:y8q8qlK5wQibcw63djSl/ntiHUHXHGdCkPk0j4QeW4s=
 github.com/go-errors/errors v1.0.1/go.mod h1:f4zRHt4oKfwPJE5k8C9vpYG+aDHdBFUsgrm6/TyX73Q=
 github.com/go-gl/glfw v0.0.0-20190409004039-e6da0acd62b1/go.mod h1:vR7hzQXu2zJy9AVAgeJqvqgH9Q5CA+iKCZ2gyEVpxRU=
