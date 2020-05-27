@@ -4,6 +4,8 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"log"
@@ -17,6 +19,7 @@ import (
 	dns01 "git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
 
 	"github.com/caddyserver/certmagic"
+	"github.com/denisbrodbeck/machineid"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-acme/lego/v3/challenge"
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
@@ -46,6 +49,7 @@ func main() {
 	var forwards []Forward
 
 	// TODO replace the websocket connection with a mock server
+	appID := flag.String("app-id", "telebit.io", "a unique identifier for a deploy target environment")
 	email := flag.String("acme-email", "", "email to use for Let's Encrypt / ACME registration")
 	certpath := flag.String("acme-storage", "./acme.d/", "path to ACME storage directory")
 	acmeAgree := flag.Bool("acme-agree", false, "agree to the terms of the ACME service provider (required)")
@@ -60,9 +64,17 @@ func main() {
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
 	flag.Parse()
 
+	muid, err := machineid.ProtectedID(*appID)
+	if nil != err {
+		fmt.Fprintf(os.Stderr, "unauthorized device")
+		os.Exit(1)
+	}
+	muidb, err := hex.DecodeString(muid)
+	muid = base64.RawURLEncoding.EncodeToString(muidb)
+
 	if len(os.Args) >= 2 {
 		if "version" == os.Args[1] {
-			fmt.Printf("telebit %s %s %s", GitVersion, GitRev, GitTimestamp)
+			fmt.Printf("telebit %s %s %s %s", GitVersion, GitRev[:7], GitTimestamp, muid[:24])
 			os.Exit(0)
 		}
 	}
