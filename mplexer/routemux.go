@@ -12,7 +12,7 @@ import (
 // and selects the matching handler.
 type RouteMux struct {
 	defaultTimeout time.Duration
-	list           []meta
+	routes         []meta
 }
 
 type meta struct {
@@ -34,7 +34,7 @@ func (m *RouteMux) Serve(client net.Conn) error {
 	wconn := &ConnWrap{Conn: client}
 	servername := wconn.Servername()
 
-	for _, meta := range m.list {
+	for _, meta := range m.routes {
 		if servername == meta.addr || "*" == meta.addr {
 			//fmt.Println("[debug] test of route:", meta)
 			if err := meta.handler.Serve(client); nil != err {
@@ -52,7 +52,7 @@ func (m *RouteMux) Serve(client net.Conn) error {
 // ForwardTCP creates and returns a connection to a local handler target.
 func (m *RouteMux) ForwardTCP(servername string, target string, timeout time.Duration) error {
 	// TODO check servername
-	m.list = append(m.list, meta{
+	m.routes = append(m.routes, meta{
 		addr:      servername,
 		terminate: false,
 		handler:   NewForwarder(target, timeout),
@@ -63,7 +63,7 @@ func (m *RouteMux) ForwardTCP(servername string, target string, timeout time.Dur
 // HandleTCP creates and returns a connection to a local handler target.
 func (m *RouteMux) HandleTCP(servername string, handler Handler) error {
 	// TODO check servername
-	m.list = append(m.list, meta{
+	m.routes = append(m.routes, meta{
 		addr:      servername,
 		terminate: false,
 		handler:   handler,
@@ -74,7 +74,7 @@ func (m *RouteMux) HandleTCP(servername string, handler Handler) error {
 // HandleTLS creates and returns a connection to a local handler target.
 func (m *RouteMux) HandleTLS(servername string, acme *ACME, handler Handler) error {
 	// TODO check servername
-	m.list = append(m.list, meta{
+	m.routes = append(m.routes, meta{
 		addr:      servername,
 		terminate: true,
 		handler: HandlerFunc(func(client net.Conn) error {

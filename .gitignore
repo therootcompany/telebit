@@ -4,6 +4,7 @@ certs
 acme.d
 xversion.go
 
+/mplexer/cmd/dnsclient/dnsclient
 /mplexer/cmd/mgmt/mgmt
 /mplexer/cmd/signjwt/signjwt
 /mplexer/cmd/telebit/telebit

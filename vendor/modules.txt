@@ -7,6 +7,8 @@ git.rootprojects.org/root/go-gitver/gitver
 github.com/caddyserver/certmagic
 # github.com/cenkalti/backoff/v4 v4.0.0
 github.com/cenkalti/backoff/v4
+# github.com/davecgh/go-spew v1.1.1
+github.com/davecgh/go-spew/spew
 # github.com/dgrijalva/jwt-go v3.2.0+incompatible
 ## explicit
 github.com/dgrijalva/jwt-go
@@ -27,6 +29,7 @@ github.com/go-acme/lego/v3/challenge/tlsalpn01
 github.com/go-acme/lego/v3/lego
 github.com/go-acme/lego/v3/log
 github.com/go-acme/lego/v3/platform/config/env
+github.com/go-acme/lego/v3/platform/tester
 github.com/go-acme/lego/v3/platform/wait
 github.com/go-acme/lego/v3/providers/dns/duckdns
 github.com/go-acme/lego/v3/providers/dns/godaddy
@@ -49,6 +52,12 @@ github.com/joho/godotenv/autoload
 github.com/klauspost/cpuid
 # github.com/miekg/dns v1.1.27
 github.com/miekg/dns
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
+# github.com/stretchr/testify v1.5.1
+## explicit
+github.com/stretchr/testify/assert
+github.com/stretchr/testify/require
 # golang.org/x/crypto v0.0.0-20200302210943-78000ba7a073
 golang.org/x/crypto/ed25519
 golang.org/x/crypto/ed25519/internal/edwards25519
@@ -76,3 +85,5 @@ gopkg.in/natefinch/lumberjack.v2
 gopkg.in/square/go-jose.v2
 gopkg.in/square/go-jose.v2/cipher
 gopkg.in/square/go-jose.v2/json
+# gopkg.in/yaml.v2 v2.2.8
+gopkg.in/yaml.v2

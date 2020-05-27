@@ -40,7 +40,7 @@ func Listen(tun net.Conn) *Listener {
 	go func() {
 		err := listener.encoder.Run()
 		fmt.Printf("encoder stopped entirely: %q", err)
-		tun.Close()
+		listener.Close()
 	}()
 
 	// Decode the stream as it comes in

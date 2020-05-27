@@ -7,11 +7,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
+	dns01 "git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
 
 	"github.com/caddyserver/certmagic"
 	jwt "github.com/dgrijalva/jwt-go"
@@ -39,7 +42,6 @@ type Forward struct {
 func main() {
 	var err error
 	var provider challenge.Provider = nil
-	var enableTLSALPN01 bool
 	var domains []string
 	var forwards []Forward
 
@@ -50,6 +52,8 @@ func main() {
 	acmeStaging := flag.Bool("acme-staging", false, "get fake certificates for testing")
 	acmeDirectory := flag.String("acme-directory", "", "ACME Directory URL")
 	enableHTTP01 := flag.Bool("acme-http-01", false, "enable HTTP-01 ACME challenges")
+	enableTLSALPN01 := flag.Bool("acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
+	acmeRelay := flag.String("acme-relay", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
 	relay := flag.String("relay", "", "the domain (or ip address) at which the relay server is running")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
@@ -98,6 +102,30 @@ func main() {
 		domains = append(domains, domain)
 	}
 
+	if "" == *token {
+		if "" == *secret {
+			*secret = os.Getenv("SECRET")
+		}
+		*token, err = getToken(*secret, domains)
+	}
+	if nil != err {
+		fmt.Fprintf(os.Stderr, "neither secret nor token provided")
+		os.Exit(1)
+		return
+	}
+
+	if "" == *relay {
+		*relay = os.Getenv("RELAY") // "wss://example.com:443"
+	}
+	if "" == *relay {
+		fmt.Fprintf(os.Stderr, "Missing relay url")
+		os.Exit(1)
+		return
+	}
+	if "" == *acmeRelay {
+		*acmeRelay = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
+	}
+
 	if "" != os.Getenv("GODADDY_API_KEY") {
 		id := os.Getenv("GODADDY_API_KEY")
 		secret := os.Getenv("GODADDY_API_SECRET")
@@ -109,23 +137,15 @@ func main() {
 			panic(err)
 		}
 	} else {
-		enableTLSALPN01 = true
-	}
-
-	if "" == *relay {
-		*relay = os.Getenv("RELAY") // "wss://example.com:443"
-	}
-	if "" == *token {
-		if "" == *secret {
-			*secret = os.Getenv("SECRET")
+		endpoint := *acmeRelay
+		if strings.HasSuffix(endpoint, "/") {
+			endpoint = endpoint[:len(endpoint)-1]
 		}
-		*token, err = getToken(*secret, domains)
+		endpoint += "/api/dns/"
+		if provider, err = newAPIDNSProvider(endpoint, *token); nil != err {
+			panic(err)
+		}
 	}
-	if nil != err {
-		panic(err)
-	}
-
-	ctx := context.Background()
 
 	acme := &telebit.ACME{
 		Email:                  *email,
@@ -134,7 +154,7 @@ func main() {
 		Directory:              *acmeDirectory,
 		DNSProvider:            provider,
 		EnableHTTPChallenge:    *enableHTTP01,
-		EnableTLSALPNChallenge: enableTLSALPN01,
+		EnableTLSALPNChallenge: *enableTLSALPN01,
 	}
 
 	mux := telebit.NewRouteMux()
@@ -144,13 +164,24 @@ func main() {
 		//mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second)
 	}
 
-	tun, err := telebit.DialWebsocketTunnel(ctx, *relay, *token)
-	if nil != err {
-		fmt.Println("relay:", relay)
-		log.Fatal(err)
-		return
-	}
+	connected := make(chan net.Conn)
+	go func() {
+		timeoutCtx, cancelTimeout := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+		tun, err := telebit.DialWebsocketTunnel(timeoutCtx, *relay, *token)
+		if nil != err {
+			msg := ""
+			if strings.Contains(err.Error(), "bad handshake") {
+				msg = " (may be auth related)"
+			}
+			fmt.Fprintf(os.Stderr, "Error connecting to %s: %s%s\n", *relay, err, msg)
+			os.Exit(1)
+			return
+		}
+		cancelTimeout()
+		connected <- tun
+	}()
 
+	tun := <-connected
 	fmt.Printf("Listening at %s\n", *relay)
 	log.Fatal("Closed server: ", telebit.ListenAndServe(tun, mux))
 }
@@ -181,6 +212,18 @@ func newGoDaddyDNSProvider(id, secret string) (*godaddy.DNSProvider, error) {
 	config.APIKey = id
 	config.APISecret = secret
 	return godaddy.NewDNSProviderConfig(config)
+}
+
+// newAPIDNSProvider is for the sake of demoing the tunnel
+func newAPIDNSProvider(baseURL string, token string) (*dns01.DNSProvider, error) {
+	config := dns01.NewDefaultConfig()
+	config.Token = token
+	endpoint, err := url.Parse(baseURL)
+	if nil != err {
+		return nil, err
+	}
+	config.Endpoint = endpoint
+	return dns01.NewDNSProviderConfig(config)
 }
 
 /*
