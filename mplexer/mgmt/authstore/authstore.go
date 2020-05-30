@@ -18,6 +18,7 @@ type Authorization struct {
 }
 
 type Store interface {
+	SetMaster(secret string) error
 	Add(auth *Authorization) error
 	Set(auth *Authorization) error
 	Get(id string) (*Authorization, error)

@@ -2,7 +2,9 @@ package authstore
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -39,6 +41,33 @@ func NewStore(pgURL, initSQL string) (Store, error) {
 
 type PGStore struct {
 	dbx *sqlx.DB
+}
+
+func (s *PGStore) SetMaster(secret string) error {
+	ctx, done := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+	defer done()
+
+	pubBytes := sha256.Sum256([]byte(secret))
+  pub := base64.RawURLEncoding.EncodeToString(pubBytes[:])
+  pub = pub[:24]
+	auth := &Authorization{
+		Slug:        "*",
+		SharedKey:   secret,
+		MachinePPID: secret,
+    PublicKey:   pub,
+	}
+	err := s.Add(auth)
+
+	query := `
+		UPDATE authorizations SET
+			machine_ppid=$1,
+			shared_key=$1,
+			public_key=$2,
+      deleted_at='1970-01-01 00:00:00'
+		WHERE slug = '*'
+	`
+	_, err = s.dbx.ExecContext(ctx, query, auth.MachinePPID, auth.PublicKey)
+	return err
 }
 
 func (s *PGStore) Add(auth *Authorization) error {

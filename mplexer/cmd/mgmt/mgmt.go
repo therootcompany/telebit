@@ -83,6 +83,7 @@ func main() {
 		log.Fatal("connection error", err)
 		return
 	}
+	_ = store.SetMaster(*secret)
 	defer store.Close()
 
 	bind := *addr + ":" + *port
