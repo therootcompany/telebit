@@ -5,58 +5,24 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
-type Authorization struct {
-	ID          string    `db:"id,omitempty"`
-	Slug        string    `db:"slug,omitempty"`
-	MachinePPID string    `db:"machine_ppid,omitempty"`
-	PublicKey   string    `db:"public_key,omitempty"`
-	SharedKey   string    `db:"shared_key,omitempty"`
-	CreatedAt   time.Time `db:"created_at,omitempty"`
-	UpdatedAt   time.Time `db:"updated_at,omitempty"`
-	DeletedAt   time.Time `db:"deleted_at,omitempty"`
-}
-
-type Store interface {
-	Add(auth *Authorization) error
-	Set(auth *Authorization) error
-	Get(id string) (*Authorization, error)
-	GetBySlug(id string) (*Authorization, error)
-	GetByPub(id string) (*Authorization, error)
-	Delete(auth *Authorization) error
-	Close() error
-}
-
-type StoreConfig interface {
-	Type() string
-	URL() string
-}
-
-func NewStore(c StoreConfig) (Store, error) {
+func NewStore(pgURL, initSQL string) (Store, error) {
 	// https://godoc.org/github.com/lib/pq
 
-	connStr := "postgres://postgres:postgres@localhost/postgres"
-	if strings.Contains(connStr, "@localhost/") {
-		connStr += "?sslmode=disable"
-	} else {
-		connStr += "?sslmode=required"
-	}
-	// TODO url.Parse
 	dbtype := "postgres"
-	sqlBytes, err := ioutil.ReadFile("./init.sql")
+	sqlBytes, err := ioutil.ReadFile(initSQL)
 	if nil != err {
 		return nil, err
 	}
 
 	ctx, done := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 	defer done()
-	db, err := sql.Open(dbtype, connStr)
+	db, err := sql.Open(dbtype, pgURL)
 	if err := db.PingContext(ctx); nil != err {
 		return nil, err
 	}
@@ -139,7 +105,11 @@ func (s *PGStore) Set(auth *Authorization) error {
 func (s *PGStore) Get(id string) (*Authorization, error) {
 	ctx, done := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 	defer done()
-	query := `SELECT * FROM authorizations WHERE deleted_at = '1970-01-01 00:00:00' AND (slug = $1 OR public_key = $1)`
+	query := `
+    SELECT * FROM authorizations
+    WHERE deleted_at = '1970-01-01 00:00:00'
+      AND (slug = $1 OR public_key = $1 OR shared_key = $1)
+  `
 	row := s.dbx.QueryRowxContext(ctx, query, id)
 	if nil != row {
 		auth := &Authorization{}

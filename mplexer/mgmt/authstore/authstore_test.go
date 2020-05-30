@@ -2,13 +2,24 @@ package authstore
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
 func TestStore(t *testing.T) {
-	// Note: output is cached
+	// Note: test output is cached (running twice will not result in two records)
 
-	store, err := NewStore(nil)
+	connStr := "postgres://postgres:postgres@localhost/postgres"
+	if strings.Contains(connStr, "@localhost/") {
+		connStr += "?sslmode=disable"
+	} else {
+		connStr += "?sslmode=required"
+	}
+	initSQL := "./init.sql"
+
+	// TODO url.Parse
+
+	store, err := NewStore(connStr, initSQL)
 	if nil != err {
 		t.Fatal("connection error", err)
 		return

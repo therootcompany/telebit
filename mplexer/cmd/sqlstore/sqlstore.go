@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/authstore"
+	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt/authstore"
 )
 
 func main() {
