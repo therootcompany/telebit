@@ -131,6 +131,19 @@ func routeAll() chi.Router {
 		handleDNSRoutes(r)
 		handleDeviceRoutes(r)
 
+		r.Post("/inspect", func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
+			if !ok {
+				msg := `{"error":"failure to ping: 1"}`
+				fmt.Println("touch no claims", claims)
+				http.Error(w, msg+"\n", http.StatusBadRequest)
+				return
+			}
+
+			w.Write([]byte(fmt.Sprintf(`{ "domains": [ "%s.%s" ] }`+"\n", claims.Slug, primaryDomain)))
+		})
+
 		r.Route("/register-device", func(r chi.Router) {
 			// r.Use() // must NOT have slug '*'
 

@@ -32,6 +32,11 @@ type MWKey string
 var store authstore.Store
 var provider challenge.Provider = nil // TODO is this concurrency-safe?
 var secret *string
+var primaryDomain string
+
+func help() {
+	fmt.Fprintf(os.Stderr, "Usage: mgmt --domain <example.com> --secret <128-bit secret>\n")
+}
 
 func main() {
 	var err error
@@ -44,7 +49,14 @@ func main() {
 		"database (postgres) connection url",
 	)
 	secret = flag.String("secret", "", "a >= 16-character random string for JWT key signing")
+	domain := flag.String("domain", "", "the base domain to use for all clients")
 	flag.Parse()
+
+	primaryDomain = *domain
+	if "" == primaryDomain {
+		help()
+		os.Exit(1)
+	}
 
 	if "" != os.Getenv("GODADDY_API_KEY") {
 		id := os.Getenv("GODADDY_API_KEY")
@@ -64,7 +76,7 @@ func main() {
 		*secret = os.Getenv("SECRET")
 	}
 	if "" == *secret {
-		fmt.Fprintf(os.Stderr, "Usage: signjwt <secret>")
+		help()
 		os.Exit(1)
 		return
 	}
