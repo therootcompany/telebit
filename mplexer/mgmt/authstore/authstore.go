@@ -1,8 +1,13 @@
 package authstore
 
 import (
+	"crypto/sha256"
+	"encoding/base64"
+	"errors"
 	"time"
 )
+
+var ErrExists = errors.New("token already exists")
 
 type Authorization struct {
 	ID string `db:"id,omitempty" json:"-"`
@@ -21,9 +26,19 @@ type Store interface {
 	SetMaster(secret string) error
 	Add(auth *Authorization) error
 	Set(auth *Authorization) error
+	Touch(id string) error
 	Get(id string) (*Authorization, error)
 	GetBySlug(id string) (*Authorization, error)
 	GetByPub(id string) (*Authorization, error)
 	Delete(auth *Authorization) error
 	Close() error
+}
+
+func ToPublicKeyString(secret string) string {
+	pubBytes := sha256.Sum256([]byte(secret))
+	pub := base64.RawURLEncoding.EncodeToString(pubBytes[:])
+	if len(pub) > 24 {
+		pub = pub[:24]
+	}
+	return pub
 }

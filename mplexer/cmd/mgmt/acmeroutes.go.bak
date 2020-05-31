@@ -1,0 +1,24 @@
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := r.Context()
+				valid, _ := ctx.Value(MWKey("valid")).(bool)
+
+				if !valid {
+					// misdirection
+					time.Sleep(250 * time.Millisecond)
+					w.Write([]byte("{\"success\":true}\n"))
+					//http.Error(w, `{"error":"could not verify token"}`, http.StatusBadRequest)
+					return
+				}
+				/*
+				   if nil != err2 {
+				     // a little misdirection there
+				     msg := `{"error":"internal server error"}`
+				     http.Error(w, msg, http.StatusInternalServerError)
+				     return
+				   }
+				*/
+
+				next.ServeHTTP(w, r.WithContext(ctx))
+			})
+		})

@@ -2,8 +2,9 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
-	"time"
+	"strings"
 
 	"github.com/go-acme/lego/v3/challenge"
 	"github.com/go-chi/chi"
@@ -32,32 +33,16 @@ func (p *acmeProvider) CleanUp(domain, token, keyAuth string) error {
 
 func handleDNSRoutes(r chi.Router) {
 	r.Route("/dns", func(r chi.Router) {
-		r.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				ctx := r.Context()
-				valid, _ := ctx.Value(MWKey("valid")).(bool)
-
-				if !valid {
-					// misdirection
-					time.Sleep(250 * time.Millisecond)
-					w.Write([]byte("{\"success\":true}\n"))
-					//http.Error(w, `{"error":"could not verify token"}`, http.StatusBadRequest)
-					return
-				}
-				/*
-				   if nil != err2 {
-				     // a little misdirection there
-				     msg := `{"error":"internal server error"}`
-				     http.Error(w, msg, http.StatusInternalServerError)
-				     return
-				   }
-				*/
-
-				next.ServeHTTP(w, r.WithContext(ctx))
-			})
-		})
-
 		r.Post("/{domain}", func(w http.ResponseWriter, r *http.Request) {
+			domain := chi.URLParam(r, "domain")
+
+			ctx := r.Context()
+			claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
+			if !ok || !strings.HasPrefix(domain+".", claims.Slug) {
+				msg := `{ "error": "invalid domain" }`
+				http.Error(w, msg+"\n", http.StatusUnprocessableEntity)
+				return
+			}
 
 			ch := Challenge{}
 
@@ -70,7 +55,6 @@ func handleDNSRoutes(r chi.Router) {
 				return
 			}
 
-			domain := chi.URLParam(r, "domain")
 			//domain := chi.URLParam(r, "*")
 			ch.Domain = domain
 
@@ -80,7 +64,8 @@ func handleDNSRoutes(r chi.Router) {
 			presenters <- &ch
 			err = <-ch.error
 			if nil != err || "" == ch.Token || "" == ch.KeyAuth {
-				msg := `{"error":"expected json in the format {\"token\":\"xxx\",\"key_authorization\":\"yyy\"}"}`
+				fmt.Println("presenter err", err, ch.Token, ch.KeyAuth)
+				msg := `{"error":"ACME dns-01 error"}`
 				http.Error(w, msg, http.StatusUnprocessableEntity)
 				return
 			}
@@ -90,6 +75,7 @@ func handleDNSRoutes(r chi.Router) {
 
 		// TODO ugly Delete, but whatever
 		r.Delete("/{domain}/{token}/{keyAuth}", func(w http.ResponseWriter, r *http.Request) {
+			// TODO authenticate
 
 			ch := Challenge{
 				Domain:  chi.URLParam(r, "domain"),

@@ -65,6 +65,7 @@ func routeAll() chi.Router {
 					tokenString,
 					&MgmtClaims{},
 					func(token *jwt.Token) (interface{}, error) {
+						fmt.Println("parsed jwt", token)
 						kid, ok := token.Header["kid"].(string)
 						if !ok {
 							return nil, fmt.Errorf("missing jwt header 'kid' (key id)")
@@ -101,20 +102,27 @@ func routeAll() chi.Router {
 							return []byte(auth.SharedKey), nil
 						*/
 
+						fmt.Println("ppid:", auth.MachinePPID)
+
 						return []byte(auth.MachinePPID), nil
 					},
 				)
 
-				var ctx context.Context
+				ctx := r.Context()
+				if nil != err {
+					fmt.Println("auth err", err)
+					ctx = context.WithValue(ctx, MWKey("error"), err)
+				}
 				if nil != tok {
-					ctx = context.WithValue(r.Context(), MWKey("token"), tok)
+					fmt.Println("any auth?", tok)
 					if tok.Valid {
-						ctx = context.WithValue(r.Context(), MWKey("valid"), nil != tok)
+						ctx = context.WithValue(ctx, MWKey("token"), tok)
+						ctx = context.WithValue(ctx, MWKey("claims"), tok.Claims)
+						ctx = context.WithValue(ctx, MWKey("valid"), true)
 					}
 				}
-				if nil != err {
-					ctx = context.WithValue(r.Context(), MWKey("error"), nil != tok)
-				}
+				fmt.Println("Good Auth?")
+				fmt.Println(ctx.Value(MWKey("claims")))
 
 				next.ServeHTTP(w, r.WithContext(ctx))
 			})
@@ -156,6 +164,16 @@ func routeAll() chi.Router {
 				}
 
 				// TODO hash the PPID and check against the Public Key?
+				pub := authstore.ToPublicKeyString(auth.MachinePPID)
+				if pub != auth.PublicKey {
+					msg, _ := json.Marshal(&struct {
+						Error string `json:"error"`
+					}{
+						Error: "expected `public_key` to be the first 24 bytes of the hash of the `machine_ppid`",
+					})
+					http.Error(w, string(msg), http.StatusUnprocessableEntity)
+					return
+				}
 				original.PublicKey = auth.PublicKey
 				original.MachinePPID = auth.MachinePPID
 				err = store.Set(original)
@@ -172,8 +190,30 @@ func routeAll() chi.Router {
 			})
 		})
 
+		r.Post("/ping", func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
+			if !ok {
+				msg := `{"error":"failure to ping: 1"}`
+				fmt.Println("touch no claims", claims)
+				http.Error(w, msg+"\n", http.StatusBadRequest)
+				return
+			}
+
+			fmt.Println("ping pong??", claims)
+			err := store.Touch(claims.Slug)
+			if nil != err {
+				msg := `{"error":"failure to ping: 2"}`
+				fmt.Println("touch err", err)
+				http.Error(w, msg+"\n", http.StatusBadRequest)
+				return
+			}
+
+			w.Write([]byte(`{ "success": true }` + "\n"))
+		})
+
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("welcome\n"))
+			w.Write([]byte("Hello\n"))
 		})
 	})
 

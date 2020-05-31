@@ -48,13 +48,13 @@ func (s *PGStore) SetMaster(secret string) error {
 	defer done()
 
 	pubBytes := sha256.Sum256([]byte(secret))
-  pub := base64.RawURLEncoding.EncodeToString(pubBytes[:])
-  pub = pub[:24]
+	pub := base64.RawURLEncoding.EncodeToString(pubBytes[:])
+	pub = pub[:24]
 	auth := &Authorization{
 		Slug:        "*",
 		SharedKey:   secret,
 		MachinePPID: secret,
-    PublicKey:   pub,
+		PublicKey:   pub,
 	}
 	err := s.Add(auth)
 
@@ -90,6 +90,7 @@ func (s *PGStore) Add(auth *Authorization) error {
 			SELECT slug FROM authorizations WHERE deleted_at = '1970-01-01 00:00:00' AND slug = $1
 		)
 	`
+	now := time.Now()
 	res, err := tx.ExecContext(ctx, query2, auth.Slug, auth.SharedKey, auth.PublicKey)
 	if nil != err {
 		return err
@@ -97,13 +98,16 @@ func (s *PGStore) Add(auth *Authorization) error {
 
 	// PostgreSQL does support RowsAffected(), but not LastInsertId()
 	if count, _ := res.RowsAffected(); count != 1 {
-		return fmt.Errorf("record not added (probably exists)")
+		// TODO be more sure?
+		return ErrExists // fmt.Errorf("record not added (probably exists)")
 	}
 
 	if err := tx.Commit(); nil != err {
 		return err
 	}
 
+	auth.CreatedAt = now
+	auth.UpdatedAt = now
 	return nil
 }
 
@@ -112,9 +116,10 @@ func (s *PGStore) Set(auth *Authorization) error {
 	defer done()
 	query := `
 		UPDATE authorizations SET
-			machine_ppid=$1,
-			shared_key=$2,
-			public_key=$3
+			machine_ppid = $1,
+			shared_key = $2,
+			public_key = $3,
+			updated_at = 'now'
 		WHERE
 			deleted_at = '1970-01-01 00:00:00'
 				AND shared_key = $2
@@ -131,14 +136,34 @@ func (s *PGStore) Set(auth *Authorization) error {
 	return nil
 }
 
+func (s *PGStore) Touch(pub string) error {
+	ctx, done := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+	defer done()
+	query := `
+		UPDATE authorizations SET
+			updated_at = 'now'
+		WHERE deleted_at = '1970-01-01 00:00:00'
+			AND (public_key = $1 OR slug = $1)
+	`
+	row, err := s.dbx.ExecContext(ctx, query, pub)
+	if nil != err {
+		return err
+	}
+	// PostgreSQL does support RowsAffected()
+	if count, _ := row.RowsAffected(); count != 1 {
+		return fmt.Errorf("record was not updated")
+	}
+	return nil
+}
+
 func (s *PGStore) Get(id string) (*Authorization, error) {
 	ctx, done := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 	defer done()
 	query := `
-    SELECT * FROM authorizations
-    WHERE deleted_at = '1970-01-01 00:00:00'
-      AND (slug = $1 OR public_key = $1 OR shared_key = $1)
-  `
+		SELECT * FROM authorizations
+		WHERE deleted_at = '1970-01-01 00:00:00'
+		  AND (slug = $1 OR public_key = $1 OR shared_key = $1)
+	`
 	row := s.dbx.QueryRowxContext(ctx, query, id)
 	if nil != row {
 		auth := &Authorization{}
@@ -194,7 +219,7 @@ func (s *PGStore) Delete(auth *Authorization) error {
 	}
 	// PostgreSQL does support RowsAffected()
 	if count, _ := row.RowsAffected(); count != 1 {
-		return fmt.Errorf("record exists")
+		return fmt.Errorf("record does not exist")
 	}
 	return nil
 }

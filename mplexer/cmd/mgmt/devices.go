@@ -1,7 +1,10 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -12,18 +15,29 @@ import (
 
 func handleDeviceRoutes(r chi.Router) {
 	r.Route("/devices", func(r chi.Router) {
-		// TODO needs admin auth
-		// r.Use() // must have slug '*'
+		// only the admin can get past this point
+		r.Use(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				ctx := r.Context()
+				claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
+				if !ok || "*" != claims.Slug {
+					msg := `{"error":"missing or invalid authorization token"}`
+					http.Error(w, msg+"\n", http.StatusUnprocessableEntity)
+					return
+				}
+
+				next.ServeHTTP(w, r.WithContext(ctx))
+			})
+		})
 
 		r.Post("/", func(w http.ResponseWriter, r *http.Request) {
-
 			auth := &authstore.Authorization{}
+
+			// Slug is mandatory, ID and MachinePPID must NOT be set
 			decoder := json.NewDecoder(r.Body)
 			err := decoder.Decode(&auth)
-			// Slug is mandatory, ID and MachinePPID must NOT be set
 			epoch := time.Time{}
-			if nil != err || "" != auth.ID || "" != auth.MachinePPID ||
-				"" == auth.Slug || "" == auth.SharedKey ||
+			if nil != err || "" != auth.ID || "" != auth.MachinePPID || "" == auth.Slug ||
 				epoch != auth.CreatedAt || epoch != auth.UpdatedAt || epoch != auth.DeletedAt {
 				result, _ := json.Marshal(&authstore.Authorization{})
 				msg, _ := json.Marshal(&struct {
@@ -35,18 +49,46 @@ func handleDeviceRoutes(r chi.Router) {
 				return
 			}
 
+			if "" == auth.SharedKey {
+				rnd := make([]byte, 16)
+				if _, err := rand.Read(rnd); nil != err {
+					panic(err)
+				}
+				auth.SharedKey = base64.RawURLEncoding.EncodeToString(rnd)
+			}
+			if len(auth.SharedKey) < 20 {
+				msg := `{"error":"shared_key must be >= 16 bytes"}`
+				http.Error(w, string(msg), http.StatusUnprocessableEntity)
+				return
+			}
+
+			pub := authstore.ToPublicKeyString(auth.SharedKey)
+			if "" == auth.PublicKey {
+				auth.PublicKey = pub
+			}
+			if len(auth.PublicKey) > 24 {
+				auth.PublicKey = auth.PublicKey[:24]
+			}
+			if pub != auth.PublicKey {
+				msg := `{"error":"public_key must be the first 24 bytes of the base64-encoded hash of the shared_key"}`
+				http.Error(w, msg+"\n", http.StatusUnprocessableEntity)
+				return
+			}
+
 			err = store.Add(auth)
 			if nil != err {
 				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)"}`
-				log.Printf("/api/devices/\n", auth.Slug)
+				if authstore.ErrExists == err {
+					msg = fmt.Sprintf(`{ "error": "%s" }`, err.Error())
+				}
+				log.Printf("/api/devices/\n")
 				log.Println(err)
 				http.Error(w, msg, http.StatusInternalServerError)
 				return
 			}
 
-			//auth.SharedKey = "[redacted]"
 			result, _ := json.Marshal(auth)
-			w.Write(result)
+			w.Write([]byte(string(result) + "\n"))
 		})
 
 		r.Get("/{slug}", func(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +111,7 @@ func handleDeviceRoutes(r chi.Router) {
 				auth.SharedKey = "[redacted]"
 			}
 			result, _ := json.Marshal(auth)
-			w.Write(result)
+			w.Write([]byte(string(result) + "\n"))
 		})
 
 		r.Delete("/{slug}", func(w http.ResponseWriter, r *http.Request) {
@@ -83,7 +125,7 @@ func handleDeviceRoutes(r chi.Router) {
 				return
 			}
 
-			w.Write([]byte("{\"success\":true}\n"))
+			w.Write([]byte(`{"success":true}` + "\n"))
 		})
 	})
 
