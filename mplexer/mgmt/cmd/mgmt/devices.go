@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt/authstore"
@@ -92,7 +93,13 @@ func handleDeviceRoutes(r chi.Router) {
 		})
 
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-			things, err := store.Active()
+			var things []authstore.Authorization
+			var err error
+			if "true" == strings.Join(r.URL.Query()["inactive"], " ") {
+				things, err = store.Inactive()
+			} else {
+				things, err = store.Active()
+			}
 			if nil != err {
 				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)"}`
 				log.Printf("/api/devices/\n")
@@ -101,7 +108,7 @@ func handleDeviceRoutes(r chi.Router) {
 				return
 			}
 
-			for i, _ := range things {
+			for i := range things {
 				auth := things[i]
 				// Redact private data
 				if "" != auth.MachinePPID {

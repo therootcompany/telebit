@@ -30,6 +30,7 @@ type Store interface {
 	Add(auth *Authorization) error
 	Set(auth *Authorization) error
 	Active() ([]Authorization, error)
+	Inactive() ([]Authorization, error)
 	Touch(id string) error
 	Get(id string) (*Authorization, error)
 	GetBySlug(id string) (*Authorization, error)
