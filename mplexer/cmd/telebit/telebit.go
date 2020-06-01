@@ -199,7 +199,8 @@ func main() {
 
 	connected := make(chan net.Conn)
 	go func() {
-		timeoutCtx, cancelTimeout := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+		timeoutCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
+		defer cancel()
 		tun, err := telebit.DialWebsocketTunnel(timeoutCtx, *relay, *token)
 		if nil != err {
 			msg := ""
@@ -210,8 +211,25 @@ func main() {
 			os.Exit(1)
 			return
 		}
-		cancelTimeout()
+
+		err = mgmt.Ping(*authURL, *token)
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s", err)
+			//os.Exit(1)
+		}
+
 		connected <- tun
+	}()
+
+	go func() {
+		for {
+			time.Sleep(10 * time.Minute)
+			err = mgmt.Ping(*authURL, *token)
+			if nil != err {
+				fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s", err)
+				//os.Exit(1)
+			}
+		}
 	}()
 
 	tun := <-connected

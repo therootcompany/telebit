@@ -29,6 +29,7 @@ type Store interface {
 	SetMaster(secret string) error
 	Add(auth *Authorization) error
 	Set(auth *Authorization) error
+	Active() ([]Authorization, error)
 	Touch(id string) error
 	Get(id string) (*Authorization, error)
 	GetBySlug(id string) (*Authorization, error)

@@ -14,6 +14,29 @@ type Grants struct {
 	Domains []string `json:"domains"`
 }
 
+type SuccessResponse struct {
+	Success bool `json:"success"`
+}
+
+func Ping(authURL, token string) error {
+	msg, err := telebit.Request("POST", authURL+"/ping", token, nil)
+	if nil != err {
+		return err
+	}
+	if nil == msg {
+		return fmt.Errorf("invalid response")
+	}
+	resp := SuccessResponse{}
+	err = json.NewDecoder(msg).Decode(&resp)
+	if err != nil {
+		return err
+	}
+	if true != resp.Success {
+		return fmt.Errorf("expected successful response")
+	}
+	return nil
+}
+
 func Inspect(authURL, token string) (*Grants, error) {
 	msg, err := telebit.Request("GET", authURL+"/inspect", token, nil)
 	if nil != err {

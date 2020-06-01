@@ -91,6 +91,33 @@ func handleDeviceRoutes(r chi.Router) {
 			w.Write([]byte(string(result) + "\n"))
 		})
 
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			things, err := store.Active()
+			if nil != err {
+				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)"}`
+				log.Printf("/api/devices/\n")
+				log.Println(err)
+				http.Error(w, msg, http.StatusInternalServerError)
+				return
+			}
+
+			for i, _ := range things {
+				auth := things[i]
+				// Redact private data
+				if "" != auth.MachinePPID {
+					auth.MachinePPID = "[redacted]"
+				}
+				if "" != auth.SharedKey {
+					auth.SharedKey = "[redacted]"
+				}
+				things[i] = auth
+			}
+
+			encoder := json.NewEncoder(w)
+			encoder.SetEscapeHTML(true)
+			_ = encoder.Encode(things)
+		})
+
 		r.Get("/{slug}", func(w http.ResponseWriter, r *http.Request) {
 			slug := chi.URLParam(r, "slug")
 			// TODO store should be concurrency-safe

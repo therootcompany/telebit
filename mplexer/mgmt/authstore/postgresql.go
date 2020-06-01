@@ -156,6 +156,24 @@ func (s *PGStore) Touch(pub string) error {
 	return nil
 }
 
+func (s *PGStore) Active() ([]Authorization, error) {
+	ctx, done := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+	defer done()
+
+	auths := []Authorization{}
+	query := `
+		SELECT * FROM authorizations
+		WHERE deleted_at = '1970-01-01 00:00:00'
+		  AND updated_at > $1
+	`
+	ago15Min := time.Now().Add(-15 * time.Minute)
+	err := s.dbx.SelectContext(ctx, &auths, query, ago15Min)
+	if nil != err {
+		return nil, err
+	}
+	return auths, nil
+}
+
 func (s *PGStore) Get(id string) (*Authorization, error) {
 	ctx, done := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 	defer done()
