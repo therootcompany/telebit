@@ -20,4 +20,4 @@ echo "PPID: $my_ppid KeyID: $my_keyid"
 
 TOKEN=$(go run cmd/signjwt/*.go $my_ppid)
 curl -X POST http://localhost:3000/api/ping  -H "Authorization: Bearer ${TOKEN}"
-curl -X POST http://localhost:3000/api/inspect  -H "Authorization: Bearer ${TOKEN}"
+curl http://localhost:3000/api/inspect  -H "Authorization: Bearer ${TOKEN}"

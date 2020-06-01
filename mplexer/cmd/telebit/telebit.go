@@ -17,6 +17,8 @@ import (
 
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
 	dns01 "git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
+	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt"
+	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt/authstore"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/denisbrodbeck/machineid"
@@ -58,23 +60,16 @@ func main() {
 	enableHTTP01 := flag.Bool("acme-http-01", false, "enable HTTP-01 ACME challenges")
 	enableTLSALPN01 := flag.Bool("acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
 	acmeRelay := flag.String("acme-relay", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
+	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
 	relay := flag.String("relay", "", "the domain (or ip address) at which the relay server is running")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
 	flag.Parse()
 
-	muid, err := machineid.ProtectedID(*appID)
-	if nil != err {
-		fmt.Fprintf(os.Stderr, "unauthorized device")
-		os.Exit(1)
-	}
-	muidb, err := hex.DecodeString(muid)
-	muid = base64.RawURLEncoding.EncodeToString(muidb)
-
 	if len(os.Args) >= 2 {
 		if "version" == os.Args[1] {
-			fmt.Printf("telebit %s %s %s %s", GitVersion, GitRev[:7], GitTimestamp, muid[:24])
+			fmt.Printf("telebit %s %s %s %s", GitVersion, GitRev[:7], GitTimestamp)
 			os.Exit(0)
 		}
 	}
@@ -114,11 +109,19 @@ func main() {
 		domains = append(domains, domain)
 	}
 
+	ppid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", *appID, *secret))
+	if nil != err {
+		fmt.Fprintf(os.Stderr, "unauthorized device")
+		os.Exit(1)
+	}
+	ppidBytes, err := hex.DecodeString(ppid)
+	ppid = base64.RawURLEncoding.EncodeToString(ppidBytes)
+
 	if "" == *token {
 		if "" == *secret {
 			*secret = os.Getenv("SECRET")
 		}
-		*token, err = getToken(*secret, domains)
+		*token, err = authstore.HMACToken(ppid)
 	}
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "neither secret nor token provided")
@@ -136,6 +139,9 @@ func main() {
 	}
 	if "" == *acmeRelay {
 		*acmeRelay = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
+	}
+	if "" == *authURL {
+		*authURL = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
 	}
 
 	if "" != os.Getenv("GODADDY_API_KEY") {
@@ -158,6 +164,21 @@ func main() {
 			panic(err)
 		}
 	}
+
+	grants, err := mgmt.Inspect(*authURL, *token)
+	if nil != err {
+		_, err := mgmt.Register(*authURL, *secret, ppid)
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "failed to register client: %s", err)
+			os.Exit(1)
+		}
+		grants, err = mgmt.Inspect(*authURL, *token)
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "failed to authenticate after registering client: %s", err)
+			os.Exit(1)
+		}
+	}
+	fmt.Println("grants", grants)
 
 	acme := &telebit.ACME{
 		Email:                  *email,

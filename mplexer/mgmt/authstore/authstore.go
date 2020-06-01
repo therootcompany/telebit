@@ -1,10 +1,13 @@
 package authstore
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"time"
+
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
 var ErrExists = errors.New("token already exists")
@@ -41,4 +44,31 @@ func ToPublicKeyString(secret string) string {
 		pub = pub[:24]
 	}
 	return pub
+}
+
+func HMACToken(secret string) (token string, err error) {
+	keyID := ToPublicKeyString(secret)
+
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	claims := &jwt.StandardClaims{
+		Id:        base64.RawURLEncoding.EncodeToString(b),
+		IssuedAt:  time.Now().Unix(),
+		ExpiresAt: time.Now().Add(5 * time.Minute).Unix(),
+	}
+
+	jwtToken := &jwt.Token{
+		Header: map[string]interface{}{
+			"kid": keyID,
+			"typ": "JWT",
+			"alg": jwt.SigningMethodHS256.Alg(),
+		},
+		Claims: claims,
+		Method: jwt.SigningMethodHS256,
+	}
+
+	if token, err = jwtToken.SignedString([]byte(secret)); err != nil {
+		return "", err
+	}
+	return token, nil
 }

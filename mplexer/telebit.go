@@ -1,11 +1,14 @@
 package telebit
 
 import (
+	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"time"
 
@@ -253,4 +256,37 @@ func newCertMagic(acme *ACME) (*certmagic.Config, error) {
 		// plus any other customizations you need
 	})
 	return magic, nil
+}
+
+func Request(method, fullurl, token string, payload io.Reader) (io.Reader, error) {
+	HTTPClient := &http.Client{
+		Timeout: 15 * time.Second,
+	}
+	req, err := http.NewRequest(method, fullurl, payload)
+	if err != nil {
+		return nil, err
+	}
+	if len(token) > 0 {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	if nil != payload {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("%d: failed to read response body: %w", resp.StatusCode, err)
+	}
+
+	if resp.StatusCode >= http.StatusBadRequest {
+		return nil, fmt.Errorf("%d: request failed: %v", resp.StatusCode, string(body))
+	}
+
+	return bytes.NewBuffer(body), nil
 }

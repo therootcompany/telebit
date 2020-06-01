@@ -131,7 +131,7 @@ func routeAll() chi.Router {
 		handleDNSRoutes(r)
 		handleDeviceRoutes(r)
 
-		r.Post("/inspect", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/inspect", func(w http.ResponseWriter, r *http.Request) {
 			ctx := r.Context()
 			claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
 			if !ok {
