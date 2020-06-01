@@ -10,10 +10,6 @@ import (
 	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt/authstore"
 )
 
-type Grants struct {
-	Domains []string `json:"domains"`
-}
-
 type SuccessResponse struct {
 	Success bool `json:"success"`
 }
@@ -35,23 +31,6 @@ func Ping(authURL, token string) error {
 		return fmt.Errorf("expected successful response")
 	}
 	return nil
-}
-
-func Inspect(authURL, token string) (*Grants, error) {
-	msg, err := telebit.Request("GET", authURL+"/inspect", token, nil)
-	if nil != err {
-		return nil, err
-	}
-	if nil == msg {
-		return nil, fmt.Errorf("invalid response")
-	}
-
-	grants := &Grants{}
-	err = json.NewDecoder(msg).Decode(grants)
-	if err != nil {
-		return nil, err
-	}
-	return grants, nil
 }
 
 func Register(authURL, secret, ppid string) (kid string, err error) {

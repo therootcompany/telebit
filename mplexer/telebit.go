@@ -3,6 +3,7 @@ package telebit
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -256,6 +257,27 @@ func newCertMagic(acme *ACME) (*certmagic.Config, error) {
 		// plus any other customizations you need
 	})
 	return magic, nil
+}
+
+type Grants struct {
+	Domains []string `json:"domains"`
+}
+
+func Inspect(authURL, token string) (*Grants, error) {
+	msg, err := Request("GET", authURL+"/inspect", token, nil)
+	if nil != err {
+		return nil, err
+	}
+	if nil == msg {
+		return nil, fmt.Errorf("invalid response")
+	}
+
+	grants := &Grants{}
+	err = json.NewDecoder(msg).Decode(grants)
+	if err != nil {
+		return nil, err
+	}
+	return grants, nil
 }
 
 func Request(method, fullurl, token string, payload io.Reader) (io.Reader, error) {

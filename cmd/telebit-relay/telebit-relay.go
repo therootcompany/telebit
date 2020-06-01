@@ -14,12 +14,13 @@ import (
 	"strings"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/log"
+	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
 
 	"github.com/caddyserver/certmagic"
-	jwt "github.com/dgrijalva/jwt-go"
+	//jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
@@ -57,6 +58,8 @@ var (
 	acmeAgree         bool
 	acmeStaging       bool
 	allclients        string
+	authURL           string
+	acmeRelay         string
 )
 
 func init() {
@@ -66,6 +69,8 @@ func init() {
 	flag.BoolVar(&acmeAgree, "acme-agree", false, "agree to the terms of the ACME service provider (required)")
 	flag.BoolVar(&acmeStaging, "staging", false, "get fake certificates for testing")
 	flag.StringVar(&adminHostName, "admin-hostname", "", "the management domain")
+	flag.StringVar(&authURL, "auth-url", "http://localhost:3010/api", "the auth server url")
+	flag.StringVar(&acmeRelay, "acme-relay", "", "the ACME DNS-01 relay, if any")
 	flag.StringVar(&wssHostName, "wss-hostname", "", "the wss domain for connecting devices, if different from admin")
 	flag.StringVar(&configPath, "config-path", configPath, "Configuration File Path")
 	flag.StringVar(&secretKey, "secret", "", "a >= 16-character random string for JWT key signing") // SECRET
@@ -220,9 +225,12 @@ func main() {
 			tokenString = r.URL.Query().Get("access_token")
 		}
 
-		tok, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return []byte(secretKey), nil
-		})
+		grants, err := mgmt.Inspect(authURL, tokenString)
+		/*
+			tok, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+				return []byte(secretKey), nil
+			})
+		*/
 		if nil != err {
 			fmt.Println("return an error, do not go on")
 			return nil, err
@@ -230,9 +238,11 @@ func main() {
 		fmt.Printf("client claims:\n%+v\n", tok.Claims)
 
 		domains := []string{}
-		for _, name := range tok.Claims.(jwt.MapClaims)["domains"].([]interface{}) {
-			domains = append(domains, name.(string))
-		}
+		/*
+			for _, name := range tok.Claims.(jwt.MapClaims)["domains"].([]interface{}) {
+				domains = append(domains, name.(string))
+			}
+		*/
 		authz := &mplexy.Authz{
 			Domains: domains,
 		}

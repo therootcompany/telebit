@@ -165,14 +165,14 @@ func main() {
 		}
 	}
 
-	grants, err := mgmt.Inspect(*authURL, *token)
+	grants, err := telebit.Inspect(*authURL, *token)
 	if nil != err {
 		_, err := mgmt.Register(*authURL, *secret, ppid)
 		if nil != err {
 			fmt.Fprintf(os.Stderr, "failed to register client: %s", err)
 			os.Exit(1)
 		}
-		grants, err = mgmt.Inspect(*authURL, *token)
+		grants, err = telebit.Inspect(*authURL, *token)
 		if nil != err {
 			fmt.Fprintf(os.Stderr, "failed to authenticate after registering client: %s", err)
 			os.Exit(1)
