@@ -16,7 +16,7 @@ import (
 	"time"
 
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
-	dns01 "git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
+	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
 	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt"
 	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt/authstore"
 
@@ -159,7 +159,7 @@ func main() {
 		if strings.HasSuffix(endpoint, "/") {
 			endpoint = endpoint[:len(endpoint)-1]
 		}
-		endpoint += "/api/dns/"
+		//endpoint += "/api/dns/"
 		if provider, err = newAPIDNSProvider(endpoint, *token); nil != err {
 			panic(err)
 		}

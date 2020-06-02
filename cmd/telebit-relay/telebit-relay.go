@@ -3,25 +3,30 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
 	golog "log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/log"
+	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
 	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
 
-	"github.com/caddyserver/certmagic"
 	//jwt "github.com/dgrijalva/jwt-go"
+	"github.com/caddyserver/certmagic"
+	"github.com/go-acme/lego/v3/challenge"
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
+	"github.com/go-acme/lego/v3/providers/dns/godaddy"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -68,9 +73,9 @@ func init() {
 	flag.StringVar(&acmeStorage, "acme-storage", "./acme.d/", "path to ACME storage directory")
 	flag.BoolVar(&acmeAgree, "acme-agree", false, "agree to the terms of the ACME service provider (required)")
 	flag.BoolVar(&acmeStaging, "staging", false, "get fake certificates for testing")
-	flag.StringVar(&adminHostName, "admin-hostname", "", "the management domain")
 	flag.StringVar(&authURL, "auth-url", "http://localhost:3010/api", "the auth server url")
 	flag.StringVar(&acmeRelay, "acme-relay", "", "the ACME DNS-01 relay, if any")
+	flag.StringVar(&adminHostName, "admin-hostname", "", "the management domain")
 	flag.StringVar(&wssHostName, "wss-hostname", "", "the wss domain for connecting devices, if different from admin")
 	flag.StringVar(&configPath, "config-path", configPath, "Configuration File Path")
 	flag.StringVar(&secretKey, "secret", "", "a >= 16-character random string for JWT key signing") // SECRET
@@ -89,6 +94,9 @@ type Client struct {
 
 //Main -- main entry point
 func main() {
+	var err error
+	var provider challenge.Provider = nil
+
 	flag.Parse()
 
 	if !acmeAgree {
@@ -168,6 +176,30 @@ func main() {
 
 	Loginfo.Println("startup")
 
+	if "" != os.Getenv("GODADDY_API_KEY") {
+		id := os.Getenv("GODADDY_API_KEY")
+		secret := os.Getenv("GODADDY_API_SECRET")
+		if provider, err = newGoDaddyDNSProvider(id, secret); nil != err {
+			panic(err)
+		}
+	} else if "" != os.Getenv("DUCKDNS_TOKEN") {
+		if provider, err = newDuckDNSProvider(os.Getenv("DUCKDNS_TOKEN")); nil != err {
+			panic(err)
+		}
+	} else {
+		endpoint := acmeRelay
+		if strings.HasSuffix(endpoint, "/") {
+			endpoint = endpoint[:len(endpoint)-1]
+		}
+		endpoint += "/api/dns/"
+		/*
+			if provider, err = newAPIDNSProvider(endpoint, *token); nil != err {
+				panic(err)
+			}
+		*/
+		panic(errors.New("allow for fetching / creating token"))
+	}
+
 	ctx, cancelContext := context.WithCancel(context.Background())
 	defer cancelContext()
 
@@ -176,7 +208,7 @@ func main() {
 	if acmeStaging {
 		directory = certmagic.LetsEncryptStagingCA
 	}
-	magic, err := newCertMagic(directory, acmeEmail, &certmagic.FileStorage{Path: acmeStorage})
+	magic, err := newCertMagic(directory, acmeEmail, provider, &certmagic.FileStorage{Path: acmeStorage})
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "failed to initialize certificate management (discovery url? local folder perms?): %s\n", err)
 		os.Exit(1)
@@ -235,16 +267,18 @@ func main() {
 			fmt.Println("return an error, do not go on")
 			return nil, err
 		}
-		fmt.Printf("client claims:\n%+v\n", tok.Claims)
-
-		domains := []string{}
 		/*
+			fmt.Printf("client claims:\n%+v\n", tok.Claims)
+		*/
+
+		/*
+			domains := []string{}
 			for _, name := range tok.Claims.(jwt.MapClaims)["domains"].([]interface{}) {
 				domains = append(domains, name.(string))
 			}
 		*/
 		authz := &mplexy.Authz{
-			Domains: domains,
+			Domains: grants.Domains,
 		}
 		return authz, err
 
@@ -271,7 +305,12 @@ func main() {
 	r.ListenAndServe(tcpPort)
 }
 
-func newCertMagic(directory string, email string, storage certmagic.Storage) (*certmagic.Config, error) {
+func newCertMagic(
+	directory string,
+	email string,
+	provider challenge.Provider,
+	storage certmagic.Storage,
+) (*certmagic.Config, error) {
 	cache := certmagic.NewCache(certmagic.CacheOptions{
 		GetConfigForCert: func(cert certmagic.Certificate) (*certmagic.Config, error) {
 			// do whatever you need to do to get the right
@@ -282,10 +321,6 @@ func newCertMagic(directory string, email string, storage certmagic.Storage) (*c
 			return &certmagic.Config{}, nil
 		},
 	})
-	provider, err := newDuckDNSProvider(os.Getenv("DUCKDNS_TOKEN"))
-	if err != nil {
-		return nil, err
-	}
 	magic := certmagic.New(cache, certmagic.Config{
 		Storage: storage,
 		OnDemand: &certmagic.OnDemandConfig{
@@ -312,4 +347,24 @@ func newDuckDNSProvider(token string) (*duckdns.DNSProvider, error) {
 	config := duckdns.NewDefaultConfig()
 	config.Token = token
 	return duckdns.NewDNSProviderConfig(config)
+}
+
+// newGoDaddyDNSProvider is for the sake of demoing the tunnel
+func newGoDaddyDNSProvider(id, secret string) (*godaddy.DNSProvider, error) {
+	config := godaddy.NewDefaultConfig()
+	config.APIKey = id
+	config.APISecret = secret
+	return godaddy.NewDNSProviderConfig(config)
+}
+
+// newAPIDNSProvider is for the sake of demoing the tunnel
+func newAPIDNSProvider(baseURL string, token string) (*dns01.DNSProvider, error) {
+	config := dns01.NewDefaultConfig()
+	config.Token = token
+	endpoint, err := url.Parse(baseURL)
+	if nil != err {
+		return nil, err
+	}
+	config.Endpoint = endpoint
+	return dns01.NewDNSProviderConfig(config)
 }
