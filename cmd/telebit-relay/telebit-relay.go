@@ -20,7 +20,6 @@ import (
 	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
-	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
 
 	//jwt "github.com/dgrijalva/jwt-go"
 	"github.com/caddyserver/certmagic"
@@ -245,7 +244,7 @@ func main() {
 		},
 	}
 
-	authorizer := func(r *http.Request) (*mplexy.Authz, error) {
+	authorizer := func(r *http.Request) (*telebit.Grants, error) {
 		// do we have a valid wss_client?
 
 		var tokenString string
@@ -272,15 +271,15 @@ func main() {
 		*/
 
 		/*
-			domains := []string{}
-			for _, name := range tok.Claims.(jwt.MapClaims)["domains"].([]interface{}) {
-				domains = append(domains, name.(string))
+				domains := []string{}
+				for _, name := range tok.Claims.(jwt.MapClaims)["domains"].([]interface{}) {
+					domains = append(domains, name.(string))
+				}
+			authz := &mplexy.Authz{
+				Domains: grants.Domains,
 			}
 		*/
-		authz := &mplexy.Authz{
-			Domains: grants.Domains,
-		}
-		return authz, err
+		return grants, err
 
 		/*
 			tokenString := r.URL.Query().Get("access_token")

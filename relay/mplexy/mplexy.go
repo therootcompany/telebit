@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/log"
+	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 )
 
@@ -34,7 +35,7 @@ type Authz struct {
 }
 
 // Authorizer is called when a new client connects and we need to know something about it
-type Authorizer func(*http.Request) (*Authz, error)
+type Authorizer func(*http.Request) (*telebit.Grants, error)
 
 const (
 	listenerAdded ListenerRegistrationStatus = iota
