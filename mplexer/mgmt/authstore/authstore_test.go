@@ -10,7 +10,7 @@ func TestStore(t *testing.T) {
 	// Note: test output is cached (running twice will not result in two records)
 
 	connStr := "postgres://postgres:postgres@localhost/postgres"
-	if strings.Contains(connStr, "@localhost/") {
+	if strings.Contains(connStr, "@localhost/") || strings.Contains(connStr, "@localhost:") {
 		connStr += "?sslmode=disable"
 	} else {
 		connStr += "?sslmode=required"

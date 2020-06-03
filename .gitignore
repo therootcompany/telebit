@@ -1,20 +1,31 @@
 .env
 .env.*
+*.bak
 certs
 acme.d
 xversion.go
+assets_vfsdata.go
+
+mgmt-server-linux
+mgmt-server-macos
+mgmt-server-windows-debug.exe
+mgmt-server-windows.exe
+
+telebit-client-linux
+telebit-client-macos
+telebit-client-windows-debug.exe
+telebit-client-windows.exe
 
 /mplexer/cmd/dnsclient/dnsclient
-/mplexer/cmd/mgmt/mgmt
+/mplexer/cmd/sqlstore/sqlstore
+/mplexer/mgmt/cmd/mgmt/mgmt
 /mplexer/cmd/signjwt/signjwt
 /mplexer/cmd/telebit/telebit
+
 /telebit
 /cmd/telebit/telebit
-/telebitd
-/cmd/telebitd/telebitd
 /telebit-relay
 /cmd/telebit-relay/telebit-relay
-*.exe
 
 .*.sw*
 log.txt

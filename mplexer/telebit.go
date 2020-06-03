@@ -105,6 +105,8 @@ func Forward(client net.Conn, target net.Conn, timeout time.Duration) error {
 
 	fmt.Println("[debug] forwarding tcp connection")
 	var err error = nil
+
+ForwardData:
 	for {
 		select {
 		// TODO do we need a context here?
@@ -115,35 +117,35 @@ func Forward(client net.Conn, target net.Conn, timeout time.Duration) error {
 			_, err = target.Write(b)
 			if nil != err {
 				fmt.Printf("write to target failed: %q\n", err.Error())
-				break
+				break ForwardData
 			}
 		case b := <-dstCh:
 			target.SetDeadline(time.Now().Add(timeout))
 			_, err = client.Write(b)
 			if nil != err {
 				fmt.Printf("write to remote failed: %q\n", err.Error())
-				break
+				break ForwardData
 			}
 		case err = <-srcErrCh:
 			if nil == err {
-				break
+				break ForwardData
 			}
 			if io.EOF != err {
 				fmt.Printf("read from remote client failed: %q\n", err.Error())
 			} else {
 				fmt.Printf("Connection closed (possibly by remote client)\n")
 			}
-			break
+			break ForwardData
 		case err = <-dstErrCh:
 			if nil == err {
-				break
+				break ForwardData
 			}
 			if io.EOF != err {
 				fmt.Printf("read from local target failed: %q\n", err.Error())
 			} else {
 				fmt.Printf("Connection closed (possibly by local target)\n")
 			}
-			break
+			break ForwardData
 
 		}
 	}

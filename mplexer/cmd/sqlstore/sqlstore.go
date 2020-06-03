@@ -3,12 +3,21 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt/authstore"
 )
 
 func main() {
-	store, err := authstore.NewStore(nil)
+	connStr := "postgres://postgres:postgres@localhost:5432/postgres"
+	if strings.Contains(connStr, "@localhost/") || strings.Contains(connStr, "@localhost:") {
+		connStr += "?sslmode=disable"
+	} else {
+		connStr += "?sslmode=required"
+	}
+	initSQL := "./init.sql"
+
+	store, err := authstore.NewStore(connStr, initSQL)
 	if nil != err {
 		log.Fatal("connection error", err)
 		return

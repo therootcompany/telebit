@@ -9,15 +9,23 @@ import (
 	"io/ioutil"
 	"time"
 
+	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/files"
+
 	"github.com/jmoiron/sqlx"
+	// pq injects itself into sql as 'postgres'
 	_ "github.com/lib/pq"
 )
 
 func NewStore(pgURL, initSQL string) (Store, error) {
 	// https://godoc.org/github.com/lib/pq
 
+	f, err := files.Open(initSQL)
+	if nil != err {
+		return nil, err
+	}
+
 	dbtype := "postgres"
-	sqlBytes, err := ioutil.ReadFile(initSQL)
+	sqlBytes, err := ioutil.ReadAll(f)
 	if nil != err {
 		return nil, err
 	}

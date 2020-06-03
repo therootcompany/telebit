@@ -83,7 +83,7 @@ func main() {
 
 	connStr := *dbURL
 	// TODO url.Parse
-	if strings.Contains(connStr, "@localhost/") {
+	if strings.Contains(connStr, "@localhost/") || strings.Contains(connStr, "@localhost:") {
 		connStr += "?sslmode=disable"
 	} else {
 		connStr += "?sslmode=required"
@@ -100,7 +100,7 @@ func main() {
 
 	bind := *addr + ":" + *port
 	fmt.Println("Listening on", bind)
-	fmt.Fprintf(os.Stderr, "failed:", http.ListenAndServe(bind, routeAll()))
+	fmt.Fprintf(os.Stderr, "failed: %s", http.ListenAndServe(bind, routeAll()))
 }
 
 // newDuckDNSProvider is for the sake of demoing the tunnel
