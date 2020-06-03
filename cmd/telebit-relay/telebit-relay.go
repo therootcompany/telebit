@@ -16,8 +16,8 @@ import (
 	"strings"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/log"
+	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
 	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
-	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
@@ -257,7 +257,7 @@ func main() {
 			tokenString = r.URL.Query().Get("access_token")
 		}
 
-		grants, err := mgmt.Inspect(authURL, tokenString)
+		grants, err := telebit.Inspect(authURL, tokenString)
 		/*
 			tok, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 				return []byte(secretKey), nil

@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt/authstore"
+	"git.coolaj86.com/coolaj86/go-telebitd/mgmt/authstore"
 )
 
 func main() {

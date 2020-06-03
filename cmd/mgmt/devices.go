@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/mgmt/authstore"
+	"git.coolaj86.com/coolaj86/go-telebitd/mgmt/authstore"
 	"github.com/go-chi/chi"
 )
 

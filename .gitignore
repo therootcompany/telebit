@@ -16,16 +16,20 @@ telebit-client-macos
 telebit-client-windows-debug.exe
 telebit-client-windows.exe
 
-/mplexer/cmd/dnsclient/dnsclient
-/mplexer/cmd/sqlstore/sqlstore
-/mplexer/mgmt/cmd/mgmt/mgmt
-/mplexer/cmd/signjwt/signjwt
-/mplexer/cmd/telebit/telebit
+/cmd/dnsclient/dnsclient
+/cmd/sqlstore/sqlstore
+/cmd/mgmt/mgmt
+/cmd/signjwt/signjwt
+/cmd/telebit/telebit
 
 /telebit
 /cmd/telebit/telebit
 /telebit-relay
+/telebit-relay-linux
+/telebit-relay-macos
 /cmd/telebit-relay/telebit-relay
+/cmd/telebit-relay/telebit-relay-linux
+/cmd/telebit-relay/telebit-relay-macos
 
 .*.sw*
 log.txt
