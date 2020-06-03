@@ -89,6 +89,10 @@ func listenAndServeTargets(mx *mplexy.MPlexy, listener net.Listener) error {
 			log.Println("websocket opening ", r.RemoteAddr, " ", r.Host)
 
 			authz, err := mx.AuthorizeTarget(r)
+			if nil != err {
+				log.Println("WebSocket authorization failed", err)
+				return
+			}
 			var upgrader = websocket.Upgrader{
 				ReadBufferSize:  65535,
 				WriteBufferSize: 65535,

@@ -257,6 +257,10 @@ func (c *Connection) Reader(ctx context.Context) {
 
 		// unpack the message.
 		p, err := packer.ReadMessage(message)
+		if nil != err {
+			fmt.Println("error during msg parse:", err)
+			continue
+		}
 		key := fmt.Sprintf("%s:%d", p.Address(), p.Port())
 		track, err := connectionTrack.Lookup(key)
 

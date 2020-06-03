@@ -34,7 +34,7 @@ func NewPacker(header *Header) *Packer {
 func splitHeader(header []byte, names []string) (map[string]string, error) {
 	parts := strings.Split(string(header), ",")
 	if p, n := len(parts), len(names); p > n {
-		return nil, fmt.Errorf("Header contains %d extra fields", p-n)
+		//return nil, fmt.Errorf("Header contains %d extra fields", p-n)
 	} else if p < n {
 		return nil, fmt.Errorf("Header missing fields %q", names[p:])
 	}
