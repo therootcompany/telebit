@@ -21,9 +21,12 @@ For Windows, see https://golang.org/dl
 All dependencies are included, at the correct version in the `./vendor` directory.
 
 ```bash
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-relay-linux ./cmd/telebit-relay/telebit-relay.go
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-relay-macos ./cmd/telebit-relay/telebit-relay.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-relay-windows.exe ./cmd/telebit-relay/telebit-relay.go
+go generate ./...
+
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-relay-linux ./cmd/telebit-relay/*.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-relay-macos ./cmd/telebit-relay/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-relay-windows-debug.exe ./cmd/telebit-relay/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H windowsgui" -o telebit-relay-windows.exe ./cmd/telebit-relay/*.go
 ```
 
 ### Configure
@@ -35,19 +38,103 @@ See `./telebit-relay --help` for all options, and `examples/relay.env` for their
 ### Example
 
 ```bash
-./telebit-relay --acme-agree=true
+./telebit-relay --acme-agree=true --auth-url=http://localhost:3010/api
 ```
 
 Copy `examples/relay.env` as `.env` in the working directory.
+
+## Management Server
+
+```bash
+pushd mplexy/
+
+go generate ./...
+
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o mgmt-server-linux ./mgmt/cmd/mgmt/*.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o mgmt-server-macos ./mgmt/cmd/mgmt/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o mgmt-server-windows-debug.exe ./mgmt/cmd/mgmt/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H windowsgui" -o mgmt-server-windows.exe ./mgmt/cmd/mgmt/*.go
+```
+
+### Example
+
+```bash
+./telebit-mgmt --domain devices.example.com --port 3010
+```
+
+Copy `examples/mgmt.env` as `.env` in the working directory.
+
+### Device Management API
+
+Create a token with the same `SECRET` used with the `mgmt` server,
+and add a device by its `subdomain`.
+
+```bash
+SECRET="xxxxxxxxxxx"
+TOKEN=$(go run -mod=vendor cmd/signjwt/*.go $SECRET)
+```
+
+Authorize a device:
+
+```bash
+my_subdomain="xxxx"
+curl -X POST http://mgmt.example.com:3010/api/devices \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d '{ "slug": "'$my_subdomain'" }'
+```
+
+```json
+{ "shared_key": "ZZZZZZZZ" }
+```
+
+Show data of a single device
+
+```bash
+my_subdomain="xxxx"
+curl -L http://mgmt.example.com:3010/api/devices/${my_subdomain} -H "Authorization: Bearer ${TOKEN}"
+```
+
+```json
+{ "subdomain": "sub1", "updated_at": "2020-05-20T12:00:01Z" }
+```
+
+Get a list of connected devices:
+
+```bash
+curl -L http://mgmt.example.com:3010/api/devices -H "Authorization: Bearer ${TOKEN}"
+```
+
+```json
+[{ "subdomain": "sub1", "updated_at": "2020-05-20T12:00:01Z" }]
+```
+
+Get a list of disconnected devices:
+
+```bash
+curl -L http://mgmt.example.com:3010/api/devices?inactive=true -H "Authorization: Bearer ${TOKEN}"
+```
+
+Deauthorize a device:
+
+```bash
+my_subdomain="xxxx"
+curl -L -X DELETE http://mgmt.example.com:3010/api/devices/${my_subdomain} -H "Authorization: Bearer ${TOKEN}"
+```
 
 ## Relay Client
 
 All dependencies are included, at the correct version in the `./vendor` directory.
 
 ```bash
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-client-linux ./cmd/telebit/telebit.go
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-client-macos ./cmd/telebit/telebit.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-client-windows.exe ./cmd/telebit/telebit.go
+pushd mplexy/
+
+go generate ./...
+
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-client-linux ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-client-macos ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-client-windows-debug.exe ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H windowsgui" -o telebit-client-windows.exe ./cmd/telebit/*.go
 ```
 
 ### Configure
@@ -59,12 +146,12 @@ See `./telebit-client --help` for all options, and `examples/client.env` for the
 ### Example
 
 ```bash
-# For .env
-SECRET=abcdef1234567890
-```
-
-```bash
-node-tunnel-client $ bin/stunnel.js --locals http://hfc.rootprojects.org:8080,http://test1.hfc.rootprojects.org:8080 --relay wss://localhost.rootprojects.org:8443 --secret abcdef1234567890
+./telebit-client --acme-agree=true \
+    --relay wss://devices.example.com \
+    --app-id test-id --secret ZR2rxYmcKJcmtKgmH9D5Qw \
+    --acme-relay http://mgmt.example.com:3010/api/dns \
+    --auth-url http://mgmt.example.com:3010/api \
+    --locals http://xxx.devices.example.com:8080,https://xxx.devices.example.com:8080
 ```
 
 ## Local Web Application
@@ -83,78 +170,4 @@ Hello, World!
 EOF
 
 python3 -m http.server 3000
-```
-
-### Check Results
-
--   you should see traffic going to both node-clients hitting the single webserver on the back end.
--   Browse: https://rvpn.rootprojects.invalid:8443/api/org.rootprojects.rvpn/servers
-
-```javascript
-{
-	"type": "servers/GET",
-	"schema": "",
-	"txts": 1490473843,
-	"txid": 8,
-	"error": "ok",
-	"error_description": "",
-	"error_uri": "",
-	"result": {
-		"servers": [{
-			"server_name": "0xc42014a0c0",
-			"server_id": 1,
-			"domains": [{
-				"domain_name": "hfc.rootprojects.org",
-				"server_id": 1,
-				"bytes_in": 4055,
-				"bytes_out": 8119,
-				"requests": 12,
-				"responses": 12,
-				"source_addr": "127.0.0.1:55875"
-			}, {
-				"domain_name": "test1.hfc.rootprojects.org",
-				"server_id": 1,
-				"bytes_in": 0,
-				"bytes_out": 0,
-				"requests": 0,
-				"responses": 0,
-				"source_addr": "127.0.0.1:55875"
-			}],
-			"duration": 182.561747754,
-			"idle": 21.445976033,
-			"bytes_in": 8119,
-			"bytes_out": 4055,
-			"requests": 12,
-			"responses": 12,
-			"source_address": "127.0.0.1:55875"
-		}, {
-			"server_name": "0xc4200ea3c0",
-			"server_id": 2,
-			"domains": [{
-				"domain_name": "hfc.rootprojects.org",
-				"server_id": 2,
-				"bytes_in": 1098,
-				"bytes_out": 62,
-				"requests": 2,
-				"responses": 2,
-				"source_addr": "127.0.0.1:56318"
-			}, {
-				"domain_name": "test1.hfc.rootprojects.org",
-				"server_id": 2,
-				"bytes_in": 0,
-				"bytes_out": 0,
-				"requests": 0,
-				"responses": 0,
-				"source_addr": "127.0.0.1:56318"
-			}],
-			"duration": 65.481814913,
-			"idle": 23.589609269,
-			"bytes_in": 62,
-			"bytes_out": 1098,
-			"requests": 2,
-			"responses": 2,
-			"source_address": "127.0.0.1:56318"
-		}]
-	}
-}
 ```
