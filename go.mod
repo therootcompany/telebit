@@ -11,7 +11,11 @@ require (
 	github.com/go-chi/chi v4.1.1+incompatible
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/websocket v1.4.2
+	github.com/jmoiron/sqlx v1.2.0
 	github.com/joho/godotenv v1.3.0
+	github.com/lib/pq v1.6.0
+	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
+	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd
 	github.com/stretchr/testify v1.5.1
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
