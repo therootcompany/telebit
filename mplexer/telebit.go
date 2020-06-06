@@ -22,6 +22,7 @@ import (
 // Nerds posting benchmarks on SO show that 8k seems about right,
 // but even 1024b could work well.
 var defaultBufferSize = 8192
+var defaultPeekerSize = 1024
 
 // ErrBadGateway means that the target did not accept the connection
 var ErrBadGateway = errors.New("EBADGATEWAY")

@@ -1,6 +1,7 @@
 package telebit
 
 import (
+	"bufio"
 	"net"
 	"time"
 )
@@ -16,6 +17,7 @@ var encryptedSchemes = map[string]struct{}{
 type Conn struct {
 	relaySourceAddr Addr
 	relayTargetAddr Addr
+	peeker          *bufio.Reader
 	relay           net.Conn
 	local           net.Conn
 	//terminated      bool
@@ -37,7 +39,17 @@ func NewConn(conn *Conn) *Conn {
 // Read can be made to time out and return an Error with Timeout() == true
 // after a fixed time limit; see SetDeadline and SetReadDeadline.
 func (c *Conn) Read(b []byte) (n int, err error) {
+	if nil != c.peeker {
+		return c.peeker.Read(b)
+	}
 	return c.relay.Read(b)
+}
+
+func (c *Conn) Peek(n int) (b []byte, err error) {
+	if nil == c.peeker {
+		c.peeker = bufio.NewReaderSize(c, defaultPeekerSize)
+	}
+	return c.peeker.Peek(n)
 }
 
 // Write writes data to the connection.

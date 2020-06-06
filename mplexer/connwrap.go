@@ -1,17 +1,46 @@
 package telebit
 
 import (
+	"bufio"
 	"net"
 	"time"
 )
 
 // ConnWrap is just a cheap way to DRY up some switch conn.(type) statements to handle special features of Conn
 type ConnWrap struct {
-	Conn  net.Conn
-	Plain net.Conn
+	//Conn  net.Conn
+	peeker *bufio.Reader
+	Conn   net.Conn
+	Plain  net.Conn
+}
+
+type Peeker interface {
+	Peek(n int) ([]byte, error)
+}
+
+func (c *ConnWrap) Peek(n int) ([]byte, error) {
+	if nil != c.peeker {
+		return c.peeker.Peek(n)
+	}
+
+	switch conn := c.Conn.(type) {
+	case *ConnWrap:
+		return conn.Peek(n)
+	case *Conn:
+		return conn.Peek(n)
+	default:
+		// *net.UDPConn,*net.TCPConn,*net.IPConn,*net.UnixConn
+		if nil == c.peeker {
+			c.peeker = bufio.NewReaderSize(c, defaultPeekerSize)
+		}
+		return c.peeker.Peek(n)
+	}
 }
 
 func (c *ConnWrap) Read(b []byte) (n int, err error) {
+	if nil != c.peeker {
+		return c.peeker.Read(b)
+	}
 	return c.Conn.Read(b)
 }
 
@@ -48,7 +77,7 @@ func (c *ConnWrap) Scheme() string {
 func (c *ConnWrap) Servername() string {
 	if nil != c.Plain {
 		tlsConn := &ConnWrap{Conn: c.Plain}
-		return tlsConn.Scheme()
+		return tlsConn.Servername()
 	}
 
 	switch conn := c.Conn.(type) {
@@ -63,6 +92,7 @@ func (c *ConnWrap) Servername() string {
 // isTerminated returns true if net.Conn is either a ConnWrap{ tls.Conn },
 // or a telebit.Conn with a non-encrypted `scheme` such as "tcp" or "http".
 func (c *ConnWrap) isTerminated() bool {
+	// TODO look at SNI, may need context for Peek() timeout
 	if nil != c.Plain {
 		return true
 	}
