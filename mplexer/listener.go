@@ -66,7 +66,7 @@ func ListenAndServe(tun net.Conn, mux Handler) error {
 }
 
 // Serve Accept()s connections which have already been unwrapped and serves them with the given Handler
-func Serve(listener *Listener, mux Handler) error {
+func Serve(listener net.Listener, mux Handler) error {
 	for {
 		client, err := listener.Accept()
 		if nil != err {
@@ -106,6 +106,10 @@ func (l *Listener) Close() error {
 	close(l.incoming)
 	l.close <- struct{}{}
 	return nil
+}
+
+func (l *Listener) Addr() net.Addr {
+	return l.tun.LocalAddr()
 }
 
 // RouteBytes receives address information and a buffer and creates or re-uses a pipe that can be Accept()ed.

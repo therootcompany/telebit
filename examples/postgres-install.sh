@@ -75,11 +75,10 @@ mv "$postgres_tmp/$postgres_dir" "$OPT_DIR/"
 rm -f "$OPT_DIR/$postgres_lnk"
 ln -s "$OPT_DIR/$postgres_dir" "$OPT_DIR/$postgres_lnk"
 
-echo "postgres" > "${postgres_tmp}/pwfile"
-
 mkdir -p "$POSTGRES_DATA_DIR"
 chmod 0700 "$POSTGRES_DATA_DIR"
 if [ ! -f "$POSTGRES_DATA_DIR/postgresql.conf" ]; then
+  echo "postgres" > "${postgres_tmp}/pwfile"
   "$OPT_DIR/$postgres_lnk/bin/initdb" \
     -D "$POSTGRES_DATA_DIR/" \
     --username postgres --pwfile "${postgres_tmp}/pwfile" \

@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,8 +46,6 @@ type Forward struct {
 }
 
 func main() {
-	var err error
-	var provider challenge.Provider = nil
 	var domains []string
 	var forwards []Forward
 
@@ -64,6 +63,7 @@ func main() {
 	relay := flag.String("relay", "", "the domain (or ip address) at which the relay server is running")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
+	bindAddrsStr := flag.String("listen", "", "list of bind addresses on which to listen, such as localhost:80, or :443")
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
 	flag.Parse()
 
@@ -74,17 +74,18 @@ func main() {
 		}
 	}
 
-	if "" != *acmeDirectory {
+	if len(*acmeDirectory) > 0 {
 		if *acmeStaging {
 			fmt.Fprintf(os.Stderr, "pick either acme-directory or acme-staging\n")
 			os.Exit(1)
+			return
 		}
 	}
 	if *acmeStaging {
 		*acmeDirectory = certmagic.LetsEncryptStagingCA
 	}
 
-	if "" == *locals {
+	if 0 == len(*locals) {
 		*locals = os.Getenv("LOCALS")
 	}
 	for _, cfg := range strings.Fields(strings.ReplaceAll(*locals, ",", " ")) {
@@ -109,77 +110,72 @@ func main() {
 		domains = append(domains, domain)
 	}
 
+	bindAddrs, err := parseBindAddrs(*bindAddrsStr)
+	if nil != err {
+		fmt.Fprintf(os.Stderr, "invalid bind address(es) given to --listen\n")
+		os.Exit(1)
+		return
+	}
+
+	if 0 == len(*secret) {
+		*secret = os.Getenv("SECRET")
+	}
 	ppid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", *appID, *secret))
 	if nil != err {
-		fmt.Fprintf(os.Stderr, "unauthorized device")
+		fmt.Fprintf(os.Stderr, "unauthorized device\n")
 		os.Exit(1)
+		return
 	}
 	ppidBytes, err := hex.DecodeString(ppid)
 	ppid = base64.RawURLEncoding.EncodeToString(ppidBytes)
 
-	if "" == *token {
-		if "" == *secret {
-			*secret = os.Getenv("SECRET")
-		}
+	if 0 == len(*token) {
 		*token, err = authstore.HMACToken(ppid)
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "neither secret nor token provided\n")
+			os.Exit(1)
+			return
+		}
 	}
-	if nil != err {
-		fmt.Fprintf(os.Stderr, "neither secret nor token provided")
-		os.Exit(1)
-		return
-	}
-
-	if "" == *relay {
+	if 0 == len(*relay) {
 		*relay = os.Getenv("RELAY") // "wss://example.com:443"
 	}
-	if "" == *relay {
-		fmt.Fprintf(os.Stderr, "Missing relay url")
+	if 0 == len(*relay) {
+		fmt.Fprintf(os.Stderr, "Missing relay url\n")
 		os.Exit(1)
 		return
 	}
-	if "" == *acmeRelay {
+	if 0 == len(*acmeRelay) {
 		*acmeRelay = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
 	}
-	if "" == *authURL {
-		*authURL = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
+
+	if len(*relay) > 0 || len(*acmeRelay) > 0 {
+		if "" == *authURL {
+			*authURL = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
+		}
+		// TODO look at relay rather than authURL?
+		grants, err := telebit.Inspect(*authURL, *token)
+		if nil != err {
+			_, err := mgmt.Register(*authURL, *secret, ppid)
+			if nil != err {
+				fmt.Fprintf(os.Stderr, "failed to register client: %s\n", err)
+				os.Exit(1)
+			}
+			grants, err = telebit.Inspect(*authURL, *token)
+			if nil != err {
+				fmt.Fprintf(os.Stderr, "failed to authenticate after registering client: %s\n", err)
+				os.Exit(1)
+			}
+		}
+		fmt.Println("grants", grants)
 	}
 
-	if "" != os.Getenv("GODADDY_API_KEY") {
-		id := os.Getenv("GODADDY_API_KEY")
-		secret := os.Getenv("GODADDY_API_SECRET")
-		if provider, err = newGoDaddyDNSProvider(id, secret); nil != err {
-			panic(err)
-		}
-	} else if "" != os.Getenv("DUCKDNS_TOKEN") {
-		if provider, err = newDuckDNSProvider(os.Getenv("DUCKDNS_TOKEN")); nil != err {
-			panic(err)
-		}
-	} else {
-		endpoint := *acmeRelay
-		if strings.HasSuffix(endpoint, "/") {
-			endpoint = endpoint[:len(endpoint)-1]
-		}
-		//endpoint += "/api/dns/"
-		if provider, err = newAPIDNSProvider(endpoint, *token); nil != err {
-			panic(err)
-		}
-	}
-
-	grants, err := telebit.Inspect(*authURL, *token)
+	provider, err := getACMEProvider(acmeRelay, token)
 	if nil != err {
-		_, err := mgmt.Register(*authURL, *secret, ppid)
-		if nil != err {
-			fmt.Fprintf(os.Stderr, "failed to register client: %s", err)
-			os.Exit(1)
-		}
-		grants, err = telebit.Inspect(*authURL, *token)
-		if nil != err {
-			fmt.Fprintf(os.Stderr, "failed to authenticate after registering client: %s", err)
-			os.Exit(1)
-		}
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+		return
 	}
-	fmt.Println("grants", grants)
-
 	acme := &telebit.ACME{
 		Email:                  *email,
 		StoragePath:            *certpath,
@@ -190,6 +186,7 @@ func main() {
 		EnableTLSALPNChallenge: *enableTLSALPN01,
 	}
 
+	//mux := telebit.NewRouteMux(acme)
 	mux := telebit.NewRouteMux()
 	mux.HandleTLS("*", acme, mux)
 	for _, fwd := range forwards {
@@ -197,8 +194,30 @@ func main() {
 		//mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second)
 	}
 
-	connected := make(chan net.Conn)
+	done := make(chan error)
+	for _, addr := range bindAddrs {
+		go func() {
+			fmt.Printf("Listening on %s\n", addr)
+			ln, err := net.Listen("tcp", addr)
+			if nil != err {
+				fmt.Fprintf(os.Stderr, "failed to bind to %q: %s", addr, err)
+				done <- err
+				return
+			}
+			if err := telebit.Serve(ln, mux); nil != err {
+				fmt.Fprintf(os.Stderr, "failed to bind to %q: %s", addr, err)
+				done <- err
+				return
+			}
+		}()
+	}
+
+	//connected := make(chan net.Conn)
 	go func() {
+		if "" == *relay {
+			return
+		}
+
 		timeoutCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(10*time.Second))
 		defer cancel()
 		tun, err := telebit.DialWebsocketTunnel(timeoutCtx, *relay, *token)
@@ -214,27 +233,91 @@ func main() {
 
 		err = mgmt.Ping(*authURL, *token)
 		if nil != err {
-			fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s", err)
+			fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s\n", err)
 			//os.Exit(1)
 		}
 
-		connected <- tun
-	}()
-
-	go func() {
-		for {
-			time.Sleep(10 * time.Minute)
-			err = mgmt.Ping(*authURL, *token)
-			if nil != err {
-				fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s", err)
-				//os.Exit(1)
+		go func() {
+			for {
+				time.Sleep(10 * time.Minute)
+				err = mgmt.Ping(*authURL, *token)
+				if nil != err {
+					fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s\n", err)
+					//os.Exit(1)
+				}
 			}
-		}
+		}()
+		//connected <- tun
+		//tun := <-connected
+		fmt.Printf("Listening at %s\n", *relay)
+		err = telebit.ListenAndServe(tun, mux)
+		log.Fatal("Closed server: ", err)
+		done <- err
 	}()
 
-	tun := <-connected
-	fmt.Printf("Listening at %s\n", *relay)
-	log.Fatal("Closed server: ", telebit.ListenAndServe(tun, mux))
+	if err := <-done; nil != err {
+		os.Exit(1)
+	}
+}
+
+func parseBindAddrs(bindAddrsStr string) ([]string, error) {
+	bindAddrs := []string{}
+
+	for _, addr := range strings.Fields(strings.ReplaceAll(bindAddrsStr, ",", " ")) {
+		parts := strings.Split(addr, ":")
+		if len(parts) > 2 {
+			return nil, fmt.Errorf("too many colons (:) in bind address %s", addr)
+		}
+		if "" == addr || "" == parts[0] {
+			continue
+		}
+
+		var hostname, port string
+		if 2 == len(parts) {
+			hostname = parts[0]
+			port = parts[1]
+		} else {
+			port = parts[0]
+		}
+
+		if _, err := strconv.Atoi(port); nil != err {
+			return nil, fmt.Errorf("couldn't parse port of %q", addr)
+		}
+		bindAddrs = append(bindAddrs, hostname+":"+port)
+	}
+
+	return bindAddrs, nil
+}
+
+func getACMEProvider(acmeRelay, token *string) (challenge.Provider, error) {
+	var err error
+	var provider challenge.Provider = nil
+
+	if "" != os.Getenv("GODADDY_API_KEY") {
+		id := os.Getenv("GODADDY_API_KEY")
+		apiSecret := os.Getenv("GODADDY_API_SECRET")
+		if provider, err = newGoDaddyDNSProvider(id, apiSecret); nil != err {
+			return nil, err
+		}
+	} else if "" != os.Getenv("DUCKDNS_TOKEN") {
+		if provider, err = newDuckDNSProvider(os.Getenv("DUCKDNS_TOKEN")); nil != err {
+			return nil, err
+		}
+	} else {
+		if "" == *acmeRelay {
+			return nil, fmt.Errorf("No relay for ACME DNS-01 challenges given to --acme-relay")
+		}
+		endpoint := *acmeRelay
+		if strings.HasSuffix(endpoint, "/") {
+			endpoint = endpoint[:len(endpoint)-1]
+		}
+		//endpoint += "/api/dns/"
+		if provider, err = newAPIDNSProvider(endpoint, *token); nil != err {
+			return nil, err
+		}
+	}
+
+	return provider, nil
 }
 
 type ACMEProvider struct {

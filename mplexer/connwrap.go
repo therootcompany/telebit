@@ -97,6 +97,19 @@ func (c *ConnWrap) isTerminated() bool {
 		return true
 	}
 
+	// how to know how many bytes to read? really needs timeout
+	b, err := c.Peek(2)
+	if len(b) >= 2 {
+		// TODO better detection?
+		// SSL v3.x / TLS v1.x
+		if 0x16 == b[0] && 0x03 == b[1] {
+			return false
+		}
+	}
+	if nil != err {
+		return true
+	}
+
 	switch conn := c.Conn.(type) {
 	case *ConnWrap:
 		return conn.isTerminated()
