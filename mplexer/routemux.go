@@ -2,6 +2,7 @@ package telebit
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -65,7 +66,11 @@ func (m *RouteMux) Serve(client net.Conn) error {
 
 	for _, meta := range m.routes {
 		// TODO '*.example.com'
-		fmt.Println("Meta:", meta.addr)
+		if meta.terminate && "" == servername {
+			wconn.isTerminated()
+			servername = wconn.servername
+		}
+		fmt.Println("Meta:", meta.addr, servername)
 		if servername == meta.addr || "*" == meta.addr || port == meta.addr {
 			//fmt.Println("[debug] test of route:", meta)
 			if err := meta.handler.Serve(wconn); nil != err {
@@ -124,7 +129,11 @@ func (m *RouteMux) HandleTLS(servername string, acme *ACME, handler Handler) err
 
 			//NewTerminator(acme, handler)(client)
 			//return handler.Serve(client)
-			return handler.Serve(TerminateTLS(wconn, acme))
+			err := handler.Serve(TerminateTLS(wconn, acme))
+			if nil == err || io.EOF == err {
+				return io.EOF
+			}
+			return err
 		}),
 	})
 	return nil

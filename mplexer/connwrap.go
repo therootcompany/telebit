@@ -2,17 +2,22 @@ package telebit
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"time"
+
+	"git.coolaj86.com/coolaj86/go-telebitd/sni"
 )
 
 // ConnWrap is just a cheap way to DRY up some switch conn.(type) statements to handle special features of Conn
 type ConnWrap struct {
 	// TODO use io.MultiReader to unbuffer the peeker
 	//Conn  net.Conn
-	peeker *bufio.Reader
-	Conn   net.Conn
-	Plain  net.Conn
+	peeker     *bufio.Reader
+	servername string
+	scheme     string
+	Conn       net.Conn
+	Plain      net.Conn
 }
 
 type Peeker interface {
@@ -60,10 +65,18 @@ func (c *ConnWrap) Close() error {
 
 // Scheme returns one of "https", "http", "tcp", "tls", or ""
 func (c *ConnWrap) Scheme() string {
-	if nil != c.Plain {
-		tlsConn := &ConnWrap{Conn: c.Plain}
-		return tlsConn.Scheme()
+	if "" != c.scheme {
+		return c.scheme
 	}
+
+	/*
+		if nil != c.Plain {
+			tlsConn := &ConnWrap{Conn: c.Plain}
+			// TODO upgrade tls+http => https
+			c.scheme = tlsConn.Scheme()
+			return c.scheme
+		}
+	*/
 
 	switch conn := c.Conn.(type) {
 	case *ConnWrap:
@@ -74,20 +87,34 @@ func (c *ConnWrap) Scheme() string {
 	return ""
 }
 
+/*
+func (c *ConnWrap) SetServername(name string) {
+	c.servername = name
+}
+*/
+
 // Servername may return Servername or Hostname as hinted by a tunnel or buffered peeking
 func (c *ConnWrap) Servername() string {
+	if "" != c.servername {
+		return c.servername
+	}
+
 	if nil != c.Plain {
 		tlsConn := &ConnWrap{Conn: c.Plain}
-		return tlsConn.Servername()
+		c.servername = tlsConn.Servername()
+		return c.servername
 	}
 
 	switch conn := c.Conn.(type) {
 	case *ConnWrap:
-		return conn.Scheme()
+		//c.servername = conn.Servername()
+		return conn.Servername()
 	case *Conn:
-		return string(conn.relaySourceAddr.scheme)
+		// TODO XXX
+		//c.servername = string(conn.relayTargetAddr.addr)
+		return string(conn.relayTargetAddr.addr)
 	}
-	return ""
+	return c.servername
 }
 
 // isTerminated returns true if net.Conn is either a ConnWrap{ tls.Conn },
@@ -104,16 +131,24 @@ func (c *ConnWrap) isTerminated() bool {
 	c.SetDeadline(time.Now().Add(5 * time.Second))
 	n := 6
 	b, _ := c.Peek(n)
+	fmt.Println("Peek(n)", b)
 	defer c.SetDeadline(time.Time{})
 	if len(b) >= n {
 		// SSL v3.x / TLS v1.x
 		// 0: TLS Byte
 		// 1: Major Version
-		// 2: 0-Indexed Minor Version
+		// 2: Minor Version - 1
 		// 3-4: Header Length
+
+		// Payload
 		// 5: TLS Client Hello Marker Byte
 		if 0x16 == b[0] && 0x03 == b[1] && 0x01 == b[5] {
-			//length := (int(b[3]) << 8) + int(b[4])
+			length := (int(b[3]) << 8) + int(b[4])
+			b, err := c.Peek(n - 1 + length)
+			if nil != err {
+				return true
+			}
+			c.servername, _ = sni.GetHostname(b)
 			return false
 		}
 	}

@@ -208,8 +208,8 @@ func main() {
 	}
 	mux.HandleTLS("*", acme, mux)
 	for _, fwd := range forwards {
-		mux.ForwardTCP("*", "localhost:"+fwd.port, 120*time.Second)
-		//mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second)
+		//mux.ForwardTCP("*", "localhost:"+fwd.port, 120*time.Second)
+		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second)
 	}
 
 	done := make(chan error)

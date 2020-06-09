@@ -83,13 +83,11 @@ func (c *Conn) LocalAddr() net.Addr {
 
 // LocalAddr returns the local network address.
 func (c *Conn) LocalAddr() net.Addr {
-	// TODO is this the right one?
 	return &c.relaySourceAddr
 }
 
 // RemoteAddr returns the remote network address.
 func (c *Conn) RemoteAddr() net.Addr {
-	// TODO is this the right one?
 	return &c.relayTargetAddr
 }
 

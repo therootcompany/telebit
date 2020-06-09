@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 )
 
 // A Listener transforms a multiplexed websocket connection into individual net.Conn-like connections.
@@ -76,7 +77,7 @@ func Serve(listener net.Listener, mux Handler) error {
 		go func() {
 			err = mux.Serve(client)
 			if nil != err {
-				if io.EOF != err {
+				if io.EOF != err && io.ErrClosedPipe != err && !strings.Contains(err.Error(), errNetClosing) {
 					fmt.Printf("client could not be served: %q\n", err.Error())
 				}
 			}

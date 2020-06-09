@@ -180,11 +180,15 @@ type ACME struct {
 
 var acmecert *certmagic.Config = nil
 
-func NewTerminator(acme *ACME, handler Handler) HandlerFunc {
+/*
+func NewTerminator(servername string, acme *ACME, handler Handler) HandlerFunc {
 	return func(client net.Conn) error {
-		return handler.Serve(TerminateTLS(client, acme))
+		return handler.Serve(TerminateTLS("", client, acme))
 	}
 }
+*/
+
+//func TerminateTLS(client *ConnWrap, acme *ACME) net.Conn
 
 func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
 	var magic *certmagic.Config = nil
@@ -231,10 +235,40 @@ func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
 		},
 	}
 
+	var servername string
+	var scheme string
+	// I think this must always be ConnWrap, but I'm not sure
+	switch conn := client.(type) {
+	case *ConnWrap:
+		servername = conn.Servername()
+		scheme = conn.Scheme()
+		client = conn
+	default:
+		wconn := &ConnWrap{
+			Conn: client,
+		}
+		wconn.isTerminated()
+		servername = wconn.Servername()
+		scheme = wconn.Scheme()
+		client = wconn
+	}
+
+	/*
+		// TODO ?
+		if "" == scheme {
+			scheme = "tls"
+		}
+		if "http" == scheme {
+			scheme = "https"
+		}
+	*/
+
 	tlsconn := tls.Server(client, tlsConfig)
 	return &ConnWrap{
-		Conn:  tlsconn,
-		Plain: client,
+		Conn:       tlsconn,
+		Plain:      client,
+		servername: servername,
+		scheme:     scheme,
 	}
 }
 
