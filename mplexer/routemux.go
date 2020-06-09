@@ -3,6 +3,8 @@ package telebit
 import (
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -31,13 +33,42 @@ func NewRouteMux() *RouteMux {
 
 // Serve dispatches the connection to the handler whose selectors matches the attributes.
 func (m *RouteMux) Serve(client net.Conn) error {
-	wconn := &ConnWrap{Conn: client}
-	servername := wconn.Servername()
+	var wconn *ConnWrap
+	switch conn := client.(type) {
+	case *ConnWrap:
+		wconn = conn
+	default:
+		wconn = &ConnWrap{Conn: client}
+	}
+
+	var servername string
+	var port string
+	// TODO go back to Servername on conn, but with SNI
+	//servername := wconn.Servername()
+	fam := wconn.LocalAddr().Network()
+	if "tun" == fam {
+		switch laddr := wconn.LocalAddr().(type) {
+		case *Addr:
+			servername = laddr.Hostname()
+			port = ":" + strconv.Itoa(laddr.Port())
+		default:
+			panic("impossible type switch: Addr is 'tun' but didn't match")
+		}
+	} else {
+		// TODO make an AddrWrap to do this switch
+		addr := wconn.LocalAddr().String()
+		parts := strings.Split(addr, ":")
+		port = ":" + parts[len(parts)-1]
+		servername = strings.Join(parts[:len(parts)-1], ":")
+	}
+	fmt.Println("Addr:", fam, servername, port)
 
 	for _, meta := range m.routes {
-		if servername == meta.addr || "*" == meta.addr {
+		// TODO '*.example.com'
+		fmt.Println("Meta:", meta.addr)
+		if servername == meta.addr || "*" == meta.addr || port == meta.addr {
 			//fmt.Println("[debug] test of route:", meta)
-			if err := meta.handler.Serve(client); nil != err {
+			if err := meta.handler.Serve(wconn); nil != err {
 				// error should be EOF if successful
 				return err
 			}
@@ -78,14 +109,22 @@ func (m *RouteMux) HandleTLS(servername string, acme *ACME, handler Handler) err
 		addr:      servername,
 		terminate: true,
 		handler: HandlerFunc(func(client net.Conn) error {
-			wrap := &ConnWrap{Conn: client}
-			if wrap.isTerminated() {
+			var wconn *ConnWrap
+			switch conn := client.(type) {
+			case *ConnWrap:
+				wconn = conn
+			default:
+				panic("HandleTLS is special in that it must receive &ConnWrap{ Conn: conn }")
+			}
+
+			if wconn.isTerminated() {
 				// nil to skip
 				return nil
 			}
+
 			//NewTerminator(acme, handler)(client)
 			//return handler.Serve(client)
-			return handler.Serve(TerminateTLS(client, acme))
+			return handler.Serve(TerminateTLS(wconn, acme))
 		}),
 	})
 	return nil

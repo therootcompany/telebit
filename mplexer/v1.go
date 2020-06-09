@@ -126,6 +126,7 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 		return b, nil
 	}
 	parts := strings.Split(string(p.state.header), ",")
+	fmt.Println("[debug] Tun Header", string(p.state.header))
 	p.state.header = nil
 	if len(parts) < 5 {
 		return nil, errors.New("error unpacking header")

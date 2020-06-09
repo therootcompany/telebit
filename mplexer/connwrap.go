@@ -8,6 +8,7 @@ import (
 
 // ConnWrap is just a cheap way to DRY up some switch conn.(type) statements to handle special features of Conn
 type ConnWrap struct {
+	// TODO use io.MultiReader to unbuffer the peeker
 	//Conn  net.Conn
 	peeker *bufio.Reader
 	Conn   net.Conn
@@ -31,7 +32,7 @@ func (c *ConnWrap) Peek(n int) ([]byte, error) {
 	default:
 		// *net.UDPConn,*net.TCPConn,*net.IPConn,*net.UnixConn
 		if nil == c.peeker {
-			c.peeker = bufio.NewReaderSize(c, defaultPeekerSize)
+			c.peeker = bufio.NewReaderSize(c.Conn, defaultPeekerSize)
 		}
 		return c.peeker.Peek(n)
 	}
@@ -93,31 +94,44 @@ func (c *ConnWrap) Servername() string {
 // or a telebit.Conn with a non-encrypted `scheme` such as "tcp" or "http".
 func (c *ConnWrap) isTerminated() bool {
 	// TODO look at SNI, may need context for Peek() timeout
-	if nil != c.Plain {
-		return true
-	}
+	/*
+		if nil != c.Plain {
+			return true
+		}
+	*/
 
 	// how to know how many bytes to read? really needs timeout
-	b, err := c.Peek(2)
-	if len(b) >= 2 {
-		// TODO better detection?
+	c.SetDeadline(time.Now().Add(5 * time.Second))
+	n := 6
+	b, _ := c.Peek(n)
+	defer c.SetDeadline(time.Time{})
+	if len(b) >= n {
 		// SSL v3.x / TLS v1.x
-		if 0x16 == b[0] && 0x03 == b[1] {
+		// 0: TLS Byte
+		// 1: Major Version
+		// 2: 0-Indexed Minor Version
+		// 3-4: Header Length
+		// 5: TLS Client Hello Marker Byte
+		if 0x16 == b[0] && 0x03 == b[1] && 0x01 == b[5] {
+			//length := (int(b[3]) << 8) + int(b[4])
 			return false
 		}
 	}
-	if nil != err {
-		return true
-	}
+	return true
+	/*
+		if nil != err {
+			return true
+		}
 
-	switch conn := c.Conn.(type) {
-	case *ConnWrap:
-		return conn.isTerminated()
-	case *Conn:
-		_, ok := encryptedSchemes[string(conn.relayTargetAddr.scheme)]
-		return !ok
-	}
-	return false
+		switch conn := c.Conn.(type) {
+		case *ConnWrap:
+			return conn.isTerminated()
+		case *Conn:
+			_, ok := encryptedSchemes[string(conn.relayTargetAddr.scheme)]
+			return !ok
+		}
+		return false
+	*/
 }
 
 // LocalAddr returns the local network address.

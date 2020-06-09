@@ -1,9 +1,6 @@
 package telebit
 
-import (
-	"fmt"
-	"strconv"
-)
+import "fmt"
 
 type Scheme string
 
@@ -39,11 +36,15 @@ func NewAddr(s Scheme, t Termination, a string, p int) *Addr {
 }
 
 func (a *Addr) String() string {
-	return fmt.Sprintf("%s:%s:%s:%d", a.family, a.Scheme(), a.addr, a.port)
+	//return a.addr + ":" + strconv.Itoa(a.port)
+	return fmt.Sprintf("%s+%s:%s:%d", a.family, a.Scheme(), a.addr, a.port)
 }
 
+// Network s typically network "family", such as "tcp" or "ip",
+// but in this case will be "tun", which is a cue to do a `switch`
+// to actually use the specific features of a telebit.Addr
 func (a *Addr) Network() string {
-	return a.addr + ":" + strconv.Itoa(a.port)
+	return "tun"
 }
 
 func (a *Addr) Port() int {

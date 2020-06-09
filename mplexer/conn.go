@@ -47,7 +47,7 @@ func (c *Conn) Read(b []byte) (n int, err error) {
 
 func (c *Conn) Peek(n int) (b []byte, err error) {
 	if nil == c.peeker {
-		c.peeker = bufio.NewReaderSize(c, defaultPeekerSize)
+		c.peeker = bufio.NewReaderSize(c.relay, defaultPeekerSize)
 	}
 	return c.peeker.Peek(n)
 }

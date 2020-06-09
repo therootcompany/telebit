@@ -126,7 +126,7 @@ func (l *Listener) RouteBytes(srcAddr, dstAddr Addr, b []byte) {
 	// remember where the error message goes
 	if "error" == string(dst.scheme) {
 		pipe.Close()
-		delete(l.conns, src.Network())
+		delete(l.conns, src.String())
 		fmt.Printf("a stream errored remotely: %v\n", src)
 	}
 
@@ -139,12 +139,12 @@ func (l *Listener) RouteBytes(srcAddr, dstAddr Addr, b []byte) {
 	if "end" == string(dst.scheme) {
 		fmt.Println("[debug] end")
 		pipe.Close()
-		delete(l.conns, src.Network())
+		delete(l.conns, src.String())
 	}
 }
 
 func (l *Listener) getPipe(src, dst *Addr, count int) net.Conn {
-	connID := src.Network()
+	connID := src.String()
 	pipe, ok := l.conns[connID]
 
 	// Pipe exists
@@ -157,8 +157,8 @@ func (l *Listener) getPipe(src, dst *Addr, count int) net.Conn {
 	rawPipe, pipe := net.Pipe()
 	newconn := &Conn{
 		//updated:         time.Now(),
-		relaySourceAddr: *src,
-		relayTargetAddr: *dst,
+		relaySourceAddr: *dst,
+		relayTargetAddr: *src,
 		relay:           rawPipe,
 	}
 	l.conns[connID] = pipe
@@ -173,7 +173,11 @@ func (l *Listener) getPipe(src, dst *Addr, count int) net.Conn {
 		// In any case, we'll just close it all
 		newconn.Close()
 		pipe.Close()
-		fmt.Printf("a stream is done: %q\n", err)
+		if nil != err {
+			fmt.Printf("a stream is done: %q\n", err)
+		} else {
+			fmt.Printf("a stream is done\n")
+		}
 	}()
 
 	return pipe

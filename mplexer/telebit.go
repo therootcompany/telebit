@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/caddyserver/certmagic"
@@ -26,6 +27,11 @@ var defaultPeekerSize = 1024
 
 // ErrBadGateway means that the target did not accept the connection
 var ErrBadGateway = errors.New("EBADGATEWAY")
+
+// The proper handling of this error
+// is still being debated as of Jun 9, 2020
+// https://github.com/golang/go/issues/4373
+var errNetClosing = "use of closed network connection"
 
 // A Handler routes, proxies, terminates, or responds to a net.Conn.
 type Handler interface {
@@ -104,7 +110,13 @@ func Forward(client net.Conn, target net.Conn, timeout time.Duration) error {
 		}
 	}()
 
-	fmt.Println("[debug] forwarding tcp connection")
+	fmt.Println(
+		"[debug] forwarding tcp connection",
+		client.LocalAddr(),
+		client.RemoteAddr(),
+		target.LocalAddr(),
+		target.RemoteAddr(),
+	)
 	var err error = nil
 
 ForwardData:
@@ -131,7 +143,7 @@ ForwardData:
 			if nil == err {
 				break ForwardData
 			}
-			if io.EOF != err {
+			if io.EOF != err && io.ErrClosedPipe != err && !strings.Contains(err.Error(), errNetClosing) {
 				fmt.Printf("read from remote client failed: %q\n", err.Error())
 			} else {
 				fmt.Printf("Connection closed (possibly by remote client)\n")
@@ -141,7 +153,7 @@ ForwardData:
 			if nil == err {
 				break ForwardData
 			}
-			if io.EOF != err {
+			if io.EOF != err && io.ErrClosedPipe != err && !strings.Contains(err.Error(), errNetClosing) {
 				fmt.Printf("read from local target failed: %q\n", err.Error())
 			} else {
 				fmt.Printf("Connection closed (possibly by local target)\n")
@@ -187,7 +199,11 @@ func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
 		var err error
 		magic, err = newCertMagic(acme)
 		if nil != err {
-			fmt.Fprintf(os.Stderr, "failed to initialize certificate management (discovery url? local folder perms?): %s\n", err)
+			fmt.Fprintf(
+				os.Stderr,
+				"failed to initialize certificate management (discovery url? local folder perms?): %s\n",
+				err,
+			)
 			os.Exit(1)
 		}
 		acmecert = magic

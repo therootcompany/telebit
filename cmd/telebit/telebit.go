@@ -48,6 +48,7 @@ type Forward struct {
 func main() {
 	var domains []string
 	var forwards []Forward
+	var portForwards []Forward
 
 	// TODO replace the websocket connection with a mock server
 	appID := flag.String("app-id", "telebit.io", "a unique identifier for a deploy target environment")
@@ -65,6 +66,7 @@ func main() {
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 	bindAddrsStr := flag.String("listen", "", "list of bind addresses on which to listen, such as localhost:80, or :443")
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
+	portToPorts := flag.String("port-forward", "", "a list of <from-port>:<to-port> for raw port-forwarding")
 	flag.Parse()
 
 	if len(os.Args) >= 2 {
@@ -108,6 +110,16 @@ func main() {
 			continue
 		}
 		domains = append(domains, domain)
+	}
+
+	if 0 == len(*portToPorts) {
+		*portToPorts = os.Getenv("PORT_FORWARDS")
+	}
+	portForwards, err := parsePortForwards(portToPorts)
+	if nil != err {
+		fmt.Fprintf(os.Stderr, "%s", err)
+		os.Exit(1)
+		return
 	}
 
 	bindAddrs, err := parseBindAddrs(*bindAddrsStr)
@@ -188,6 +200,12 @@ func main() {
 
 	//mux := telebit.NewRouteMux(acme)
 	mux := telebit.NewRouteMux()
+
+	// Port forward without TerminatingTLS
+	for _, fwd := range portForwards {
+		fmt.Println("Fwd:", fwd.pattern, fwd.port)
+		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second)
+	}
 	mux.HandleTLS("*", acme, mux)
 	for _, fwd := range forwards {
 		mux.ForwardTCP("*", "localhost:"+fwd.port, 120*time.Second)
@@ -258,6 +276,31 @@ func main() {
 	if err := <-done; nil != err {
 		os.Exit(1)
 	}
+}
+
+func parsePortForwards(portToPorts *string) ([]Forward, error) {
+	var portForwards []Forward
+
+	for _, cfg := range strings.Fields(strings.ReplaceAll(*portToPorts, ",", " ")) {
+		parts := strings.Split(cfg, ":")
+		if 2 != len(parts) {
+			return nil, fmt.Errorf("--port-forward should be in the format 1234:5678, not %q", cfg)
+		}
+
+		if _, err := strconv.Atoi(parts[0]); nil != err {
+			return nil, fmt.Errorf("couldn't parse port %q of %q", parts[0], cfg)
+		}
+		if _, err := strconv.Atoi(parts[1]); nil != err {
+			return nil, fmt.Errorf("couldn't parse port %q of %q", parts[1], cfg)
+		}
+
+		portForwards = append(portForwards, Forward{
+			pattern: ":" + parts[0],
+			port:    parts[1],
+		})
+	}
+
+	return portForwards, nil
 }
 
 func parseBindAddrs(bindAddrsStr string) ([]string, error) {
@@ -386,8 +429,8 @@ func newAPIDNSProvider(baseURL string, token string) (*dns01.DNSProvider, error)
 	t.ListenAndServe("wss://example.com", mux)
 */
 
-func getToken(secret string, domains []string) (token string, err error) {
-	tokenData := jwt.MapClaims{"domains": domains}
+func getToken(secret string, domains, ports []string) (token string, err error) {
+	tokenData := jwt.MapClaims{"domains": domains, "ports": ports}
 
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, tokenData)
 	if token, err = jwtToken.SignedString([]byte(secret)); err != nil {
