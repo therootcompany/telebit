@@ -18,6 +18,7 @@ type ConnWrap struct {
 	scheme     string
 	Conn       net.Conn
 	Plain      net.Conn
+	encrypted  *bool
 }
 
 type Peeker interface {
@@ -114,6 +115,9 @@ func (c *ConnWrap) Servername() string {
 		//c.servername = string(conn.relayTargetAddr.addr)
 		return string(conn.relayTargetAddr.addr)
 	}
+
+	// this will get the servername
+	c.isTerminated()
 	return c.servername
 }
 
@@ -126,6 +130,9 @@ func (c *ConnWrap) isTerminated() bool {
 			return true
 		}
 	*/
+	if nil != c.encrypted {
+		return !*c.encrypted
+	}
 
 	// how to know how many bytes to read? really needs timeout
 	c.SetDeadline(time.Now().Add(5 * time.Second))
@@ -146,13 +153,16 @@ func (c *ConnWrap) isTerminated() bool {
 			length := (int(b[3]) << 8) + int(b[4])
 			b, err := c.Peek(n - 1 + length)
 			if nil != err {
-				return true
+				*c.encrypted = false
+				return !*c.encrypted
 			}
 			c.servername, _ = sni.GetHostname(b)
-			return false
+			*c.encrypted = true
+			return !*c.encrypted
 		}
 	}
-	return true
+	*c.encrypted = false
+	return !*c.encrypted
 	/*
 		if nil != err {
 			return true

@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"net"
-	"net/http"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/log"
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
@@ -33,9 +32,6 @@ type ListenerRegistrationStatus int
 type Authz struct {
 	Domains []string
 }
-
-// Authorizer is called when a new client connects and we need to know something about it
-type Authorizer func(*http.Request) (*telebit.Grants, error)
 
 const (
 	listenerAdded ListenerRegistrationStatus = iota
@@ -77,8 +73,8 @@ type MPlexy struct {
 	ctx                context.Context
 	connnectionTable   *api.Table
 	connectionTracking *api.Tracking
-	AuthorizeTarget    Authorizer
-	AuthorizeAdmin     Authorizer
+	AuthorizeTarget    telebit.Authorizer
+	AuthorizeAdmin     telebit.Authorizer
 	tlsConfig          *tls.Config
 	register           chan *ListenerRegistration
 	wssHostName        string
@@ -94,8 +90,8 @@ type MPlexy struct {
 func New(
 	ctx context.Context,
 	tlsConfig *tls.Config,
-	authAdmin Authorizer,
-	authz Authorizer,
+	authAdmin telebit.Authorizer,
+	authz telebit.Authorizer,
 	serverStatus *api.Status,
 ) (mx *MPlexy) {
 	mx = &MPlexy{

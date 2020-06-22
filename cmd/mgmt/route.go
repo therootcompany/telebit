@@ -93,6 +93,10 @@ func routeAll() chi.Router {
 							return nil, fmt.Errorf("extra jwt payload 'slug' (unknown)")
 						}
 						claims.Slug = auth.Slug
+						if "" != claims.Subject && auth.Slug != claims.Subject {
+							return nil, fmt.Errorf("invalid jwt payload 'sub' (mismatch)")
+						}
+						claims.Issuer = primaryDomain
 
 						/*
 							// a little misdirection there
@@ -102,7 +106,7 @@ func routeAll() chi.Router {
 							return []byte(auth.SharedKey), nil
 						*/
 
-						fmt.Println("ppid:", auth.MachinePPID)
+						//fmt.Println("ppid:", auth.MachinePPID)
 
 						return []byte(auth.MachinePPID), nil
 					},
@@ -141,7 +145,12 @@ func routeAll() chi.Router {
 				return
 			}
 
-			w.Write([]byte(fmt.Sprintf(`{ "domains": [ "%s.%s" ] }`+"\n", claims.Slug, primaryDomain)))
+			w.Write([]byte(fmt.Sprintf(
+				`{ "sub": "%s", "domains": [ "%s.%s" ], "ports": [] }`+"\n",
+				claims.Subject,
+				claims.Slug,
+				primaryDomain,
+			)))
 		})
 
 		r.Route("/register-device", func(r chi.Router) {

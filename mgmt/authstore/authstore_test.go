@@ -64,6 +64,12 @@ func TestStore(t *testing.T) {
 		return
 	}
 
+	auth, err := store.Get(slug)
+	if nil == err {
+		t.Fatal("should get nothing back")
+		return
+	}
+
 	store.Close()
 
 	fmt.Printf("%#v\n", auth)

@@ -55,6 +55,8 @@ func HMACToken(secret string) (token string, err error) {
 	_, _ = rand.Read(b)
 	claims := &jwt.StandardClaims{
 		Id:        base64.RawURLEncoding.EncodeToString(b),
+		Subject:   "", // TODO
+		Issuer:    "", // TODO
 		IssuedAt:  time.Now().Unix(),
 		ExpiresAt: time.Now().Add(5 * time.Minute).Unix(),
 	}

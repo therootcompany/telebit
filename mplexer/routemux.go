@@ -66,9 +66,8 @@ func (m *RouteMux) Serve(client net.Conn) error {
 
 	for _, meta := range m.routes {
 		// TODO '*.example.com'
-		if meta.terminate && "" == servername {
-			wconn.isTerminated()
-			servername = wconn.servername
+		if meta.terminate {
+			servername = wconn.Servername()
 		}
 		fmt.Println("Meta:", meta.addr, servername)
 		if servername == meta.addr || "*" == meta.addr || port == meta.addr {

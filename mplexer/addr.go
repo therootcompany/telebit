@@ -5,6 +5,7 @@ import "fmt"
 type Scheme string
 
 const (
+	None    = Scheme("")
 	HTTPS   = Scheme("https")
 	HTTP    = Scheme("http")
 	SSH     = Scheme("ssh")
@@ -14,20 +15,22 @@ const (
 type Termination string
 
 const (
-	TCP = Termination("none")
-	TLS = Termination("tls")
+	Unknown = Termination("")
+	TCP     = Termination("none")
+	TLS     = Termination("tls")
 )
 
 type Addr struct {
+	family      string // TODO what should be the format? "tcpv6"?
 	scheme      Scheme
 	termination Termination
-	family      string // TODO what should be the format? "tcpv6"?
 	addr        string
 	port        int
 }
 
 func NewAddr(s Scheme, t Termination, a string, p int) *Addr {
 	return &Addr{
+		family:      "tun",
 		scheme:      s,
 		termination: t,
 		addr:        a,

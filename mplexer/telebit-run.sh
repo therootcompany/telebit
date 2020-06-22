@@ -1,1 +1,0 @@
-go run cmd/telebit/*.go --acme-agree=true --acme-relay http://devices.rootprojects.org:3010/api/dns --auth-url http://devices.rootprojects.org:3010/api --app-id test-id --secret k7nsLSwNKbOeBhDFpbhwGHv --listen 3443

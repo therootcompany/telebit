@@ -4,7 +4,7 @@
 certs
 acme.d
 xversion.go
-assets_vfsdata.go
+*_vfsdata.go
 
 mgmt-server-linux
 mgmt-server-macos

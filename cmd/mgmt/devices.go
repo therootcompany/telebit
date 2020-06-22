@@ -158,7 +158,12 @@ func handleDeviceRoutes(r chi.Router) {
 				http.Error(w, msg, http.StatusInternalServerError)
 				return
 			}
-
+			if err := store.Delete(auth); nil != err {
+				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)"}`
+				log.Printf("/api/devices/%s\n", slug)
+				log.Println(err)
+				http.Error(w, msg, http.StatusInternalServerError)
+			}
 			w.Write([]byte(`{"success":true}` + "\n"))
 		})
 	})

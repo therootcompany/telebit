@@ -35,11 +35,15 @@ var errNetClosing = "use of closed network connection"
 
 // A Handler routes, proxies, terminates, or responds to a net.Conn.
 type Handler interface {
+	// TODO ServeTCP
 	Serve(net.Conn) error
 }
 
 // HandlerFunc should handle, proxy, or terminate the connection
 type HandlerFunc func(net.Conn) error
+
+// Authorizer is called when a new client connects and we need to know something about it
+type Authorizer func(*http.Request) (*Grants, error)
 
 // Serve calls f(conn).
 func (f HandlerFunc) Serve(conn net.Conn) error {
@@ -313,7 +317,9 @@ func newCertMagic(acme *ACME) (*certmagic.Config, error) {
 }
 
 type Grants struct {
+	Subject string   `json:"sub"`
 	Domains []string `json:"domains"`
+	Ports   []int    `json:"ports"`
 }
 
 func Inspect(authURL, token string) (*Grants, error) {

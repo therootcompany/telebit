@@ -253,7 +253,11 @@ func main() {
 			tokenString = auth[1]
 		}
 		if "" == tokenString {
+			// Browsers do not allow Authorization Headers and must use access_token query string
 			tokenString = r.URL.Query().Get("access_token")
+		}
+		if "" != r.URL.Query().Get("access_token") {
+			r.URL.Query().Set("access_token", "[redacted]")
 		}
 
 		grants, err := telebit.Inspect(authURL, tokenString)
@@ -266,6 +270,10 @@ func main() {
 			fmt.Println("return an error, do not go on")
 			return nil, err
 		}
+		if "" != r.URL.Query().Get("access_token") {
+			r.URL.Query().Set("access_token", "[redacted:"+grants.Subject+"]")
+		}
+
 		/*
 			fmt.Printf("client claims:\n%+v\n", tok.Claims)
 		*/

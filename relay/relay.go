@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 
+	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/admin"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/api"
 	"git.coolaj86.com/coolaj86/go-telebitd/relay/mplexy"
@@ -25,7 +26,7 @@ type Relay struct {
 }
 
 // New initializes and returns a relay service
-func New(ctx context.Context, tlsConfig *tls.Config, authz mplexy.Authorizer, status *api.Status, table *api.Table) *Relay {
+func New(ctx context.Context, tlsConfig *tls.Config, authz telebit.Authorizer, status *api.Status, table *api.Table) *Relay {
 	// TODO do we need this already setup here? or is it just for logging?
 	status.ConnectionTracking = api.NewTracking()
 	status.ConnectionTable = table

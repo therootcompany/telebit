@@ -1,0 +1,32 @@
+/* TEAM */
+
+    Gopher: AJ ONeal
+    Site: https://coolaj86.com
+    Twitter: @coolaj86
+    Location: Provo, UT, USA.
+
+    Permanent Beta Tester: Ryan Burnette
+    Site: https://ryanburnette.com
+    Twitter: @ryanburnette
+    Location: GA, USA.
+
+    Moral Support: John Shaver
+    Site: https://jshaver.net
+    Twitter: @thejshaver
+    Location: USA.
+
+/* THANKS */
+
+    Name: Brian Turley
+
+    Name: Seth Gibelyou
+
+    Name: Henry Camacho
+
+/* SITE */
+
+    Last update: 2020/06/10
+    Standards: HTML5, WebSockets.
+    Components: Chi, Cert Magic, vfsgen.
+    Software: Golang
+    IDE: vim

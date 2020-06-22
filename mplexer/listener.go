@@ -48,12 +48,13 @@ func Listen(tun net.Conn) *Listener {
 	decoder := NewDecoder(tun)
 	go func() {
 		// TODO pass error to Accept()
+		// (this listener is also a telebit.Router)
 		err := decoder.Decode(listener)
 
 		// The listener itself must be closed explicitly because
 		// there's an encoder with a callback between the websocket
 		// and the multiplexer, so it doesn't know to stop listening otherwise
-		listener.Close()
+		_ = listener.Close()
 		fmt.Printf("the main stream is done: %q\n", err)
 	}()
 
