@@ -78,7 +78,8 @@ Authorize a device:
 
 ```bash
 my_subdomain="xxxx"
-curl -X POST http://mgmt.example.com:3010/api/devices \
+my_mgmt_host=http://mgmt.example.com:3010
+curl -X POST $my_mgmt_host/api/devices \
     -H "Authorization: Bearer ${TOKEN}" \
     -H "Content-Type: application/json" \
     -d '{ "slug": "'$my_subdomain'" }'

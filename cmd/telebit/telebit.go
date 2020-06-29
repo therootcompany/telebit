@@ -243,7 +243,7 @@ func main() {
 
 	done := make(chan error)
 	for _, addr := range bindAddrs {
-		go func() {
+		go func(addr string) {
 			fmt.Printf("Listening on %s\n", addr)
 			ln, err := net.Listen("tcp", addr)
 			if nil != err {
@@ -256,7 +256,7 @@ func main() {
 				done <- err
 				return
 			}
-		}()
+		}(addr)
 	}
 
 	//connected := make(chan net.Conn)
@@ -296,7 +296,7 @@ func main() {
 		}()
 		//connected <- tun
 		//tun := <-connected
-		fmt.Printf("Listening at %s\n", *relay)
+		fmt.Printf("Listening through %s\n", *relay)
 		err = telebit.ListenAndServe(tun, mux)
 		log.Fatal("Closed server: ", err)
 		done <- err
