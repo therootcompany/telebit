@@ -16,7 +16,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/mgmt"
@@ -24,6 +23,7 @@ import (
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
 	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
 	httpshim "git.coolaj86.com/coolaj86/go-telebitd/relay/tunnel"
+	"git.coolaj86.com/coolaj86/go-telebitd/table"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/denisbrodbeck/machineid"
@@ -363,28 +363,10 @@ func routeSubscribersAndClients(client net.Conn) error {
 
 // tryToServeName picks the server tunnel with the least connections, if any
 func tryToServeName(servername string, wconn *telebit.ConnWrap) bool {
-	var srv *SubscriberConn
-	load := -1
-	srvMapX, ok := Table.Load(servername)
+	srv, ok := table.GetServer(servername)
 	if !ok {
 		return false
 	}
-
-	srvMap := srvMapX.(*sync.Map)
-	srvMap.Range(func(k, v interface{}) bool {
-		myLoad := 0
-		mySrv := v.(*SubscriberConn)
-		mySrv.clients.Range(func(k, v interface{}) bool {
-			load += 1
-			return true
-		})
-		// pick the least loaded server
-		if -1 == load || myLoad < load {
-			load = myLoad
-			srv = mySrv
-		}
-		return true
-	})
 
 	// async so that the call stack can complete and be released
 	//srv.clients.Store(wconn.LocalAddr().String(), wconn)
