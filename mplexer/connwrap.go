@@ -138,8 +138,9 @@ func (c *ConnWrap) isTerminated() bool {
 	c.SetDeadline(time.Now().Add(5 * time.Second))
 	n := 6
 	b, _ := c.Peek(n)
-	fmt.Println("Peek(n)", b)
+	fmt.Println("Peek(n)", b, string(b))
 	defer c.SetDeadline(time.Time{})
+	var encrypted bool
 	if len(b) >= n {
 		// SSL v3.x / TLS v1.x
 		// 0: TLS Byte
@@ -153,15 +154,16 @@ func (c *ConnWrap) isTerminated() bool {
 			length := (int(b[3]) << 8) + int(b[4])
 			b, err := c.Peek(n - 1 + length)
 			if nil != err {
-				*c.encrypted = false
+				c.encrypted = &encrypted
 				return !*c.encrypted
 			}
 			c.servername, _ = sni.GetHostname(b)
-			*c.encrypted = true
+			encrypted = true
+			c.encrypted = &encrypted
 			return !*c.encrypted
 		}
 	}
-	*c.encrypted = false
+	c.encrypted = &encrypted
 	return !*c.encrypted
 	/*
 		if nil != err {

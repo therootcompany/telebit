@@ -21,9 +21,10 @@ import (
 	"git.coolaj86.com/coolaj86/go-telebitd/mgmt"
 	"git.coolaj86.com/coolaj86/go-telebitd/mgmt/authstore"
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
-	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
+	tbDns01 "git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
 	httpshim "git.coolaj86.com/coolaj86/go-telebitd/relay/tunnel"
 	"git.coolaj86.com/coolaj86/go-telebitd/table"
+	legoDns01 "github.com/go-acme/lego/v3/challenge/dns01"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/denisbrodbeck/machineid"
@@ -77,8 +78,6 @@ func main() {
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
 	portToPorts := flag.String("port-forward", "", "a list of <from-port>:<to-port> for raw port-forwarding")
 	flag.Parse()
-
-	authorizer = NewAuthorizer(*authURL)
 
 	if len(os.Args) >= 2 {
 		if "version" == os.Args[1] {
@@ -164,14 +163,21 @@ func main() {
 		*relay = os.Getenv("RELAY") // "wss://example.com:443"
 	}
 	if 0 == len(*relay) {
-		fmt.Fprintf(os.Stderr, "Missing relay url\n")
-		os.Exit(1)
-		return
+		if len(bindAddrs) > 0 {
+			fmt.Fprintf(os.Stderr, "Acting as Relay\n")
+		} else {
+			fmt.Fprintf(os.Stderr, "error: must provider or act as Relay\n")
+			os.Exit(1)
+			return
+		}
 	}
 	if 0 == len(*acmeRelay) {
 		*acmeRelay = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
 	}
 
+	if 0 == len(*authURL) {
+		*authURL = os.Getenv("AUTH_URL")
+	}
 	if len(*relay) > 0 || len(*acmeRelay) > 0 {
 		if "" == *authURL {
 			*authURL = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
@@ -192,6 +198,7 @@ func main() {
 		}
 		fmt.Println("grants", grants)
 	}
+	authorizer = NewAuthorizer(*authURL)
 
 	provider, err := getACMEProvider(acmeRelay, token)
 	if nil != err {
@@ -199,12 +206,22 @@ func main() {
 		os.Exit(1)
 		return
 	}
+	fmt.Printf("Email: %q\n", *email)
 	acme := &telebit.ACME{
-		Email:                  *email,
-		StoragePath:            *certpath,
-		Agree:                  *acmeAgree,
-		Directory:              *acmeDirectory,
-		DNSProvider:            provider,
+		Email:       *email,
+		StoragePath: *certpath,
+		Agree:       *acmeAgree,
+		Directory:   *acmeDirectory,
+		DNSProvider: provider,
+		//DNSChallengeOption:     legoDns01.DNSProviderOption,
+		DNSChallengeOption: legoDns01.WrapPreCheck(func(domain, fqdn, value string, orig legoDns01.PreCheckFunc) (bool, error) {
+			ok, err := orig(fqdn, value)
+			if ok {
+				fmt.Println("[Telebit-ACME-DNS] sleeping an additional 5 seconds")
+				time.Sleep(5 * time.Second)
+			}
+			return ok, err
+		}),
 		EnableHTTPChallenge:    *enableHTTP01,
 		EnableTLSALPNChallenge: *enableTLSALPN01,
 	}
@@ -229,8 +246,11 @@ func main() {
 		go func() {
 			httpsrv.Serve(listener)
 		}()
+		fmt.Printf("Will respond to Websocket and API requests to %q\n", *apiHostname)
 		mux.HandleTCP(*apiHostname, telebit.HandlerFunc(func(client net.Conn) error {
+			fmt.Printf("[debug] Accepting API or WebSocket client %q\n", *apiHostname)
 			listener.Feed(client)
+			fmt.Printf("[debug] done with %q client\n", *apiHostname)
 			// TODO use a more correct non-error error?
 			// or perhaps (ok, error) or (handled, error)?
 			return io.EOF
@@ -332,6 +352,7 @@ func routeSubscribersAndClients(client net.Conn) error {
 	servername := strings.ToLower(wconn.Servername())
 	if "" != servername && !isHostname(servername) {
 		_ = client.Close()
+		fmt.Println("[debug] invalid servername")
 		return fmt.Errorf("invalid servername")
 	}
 
@@ -365,6 +386,7 @@ func routeSubscribersAndClients(client net.Conn) error {
 func tryToServeName(servername string, wconn *telebit.ConnWrap) bool {
 	srv, ok := table.GetServer(servername)
 	if !ok {
+		fmt.Println("[debug] no server to server", servername)
 		return false
 	}
 
@@ -493,15 +515,15 @@ func newGoDaddyDNSProvider(id, secret string) (*godaddy.DNSProvider, error) {
 }
 
 // newAPIDNSProvider is for the sake of demoing the tunnel
-func newAPIDNSProvider(baseURL string, token string) (*dns01.DNSProvider, error) {
-	config := dns01.NewDefaultConfig()
+func newAPIDNSProvider(baseURL string, token string) (*tbDns01.DNSProvider, error) {
+	config := tbDns01.NewDefaultConfig()
 	config.Token = token
 	endpoint, err := url.Parse(baseURL)
 	if nil != err {
 		return nil, err
 	}
 	config.Endpoint = endpoint
-	return dns01.NewDNSProviderConfig(config)
+	return tbDns01.NewDNSProviderConfig(config)
 }
 
 /*

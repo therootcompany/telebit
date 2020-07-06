@@ -21,7 +21,20 @@ var httpsrv *http.Server
 func init() {
 	r := chi.NewRouter()
 
-	r.HandleFunc("/ws", upgradeWebsocket)
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Println("[debug] should be handled by API or websocket upgrade")
+			next.ServeHTTP(w, r)
+		})
+	})
+
+	r.Mount("/ws", http.HandlerFunc(upgradeWebsocket))
+
+	r.HandleFunc("/api/ping", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("[debug] hit /api/ping and replying\n")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(apiPingContent)
+	}))
 
 	r.Route("/api", func(r chi.Router) {
 		// TODO token needs a globally unique subject
@@ -40,6 +53,7 @@ func init() {
 				if "*" != grants.Subject {
 					log.Println("only admins allowed", err)
 					w.Write(apiNotAuthorizedContent)
+					return
 				}
 
 				next.ServeHTTP(w, r)
@@ -59,6 +73,7 @@ func init() {
 	}
 }
 
+var apiPingContent = []byte("{ \"success\": true, \"error\": \"\" }\n")
 var apiNotFoundContent = []byte("{ \"error\": \"not found\" }\n")
 var apiNotAuthorizedContent = []byte("{ \"error\": \"not authorized\" }\n")
 
@@ -146,6 +161,7 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
+	fmt.Println("[debug] grants", grants)
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("WebSocket upgrade failed", err)

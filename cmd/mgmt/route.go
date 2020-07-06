@@ -139,7 +139,7 @@ func routeAll() chi.Router {
 			ctx := r.Context()
 			claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
 			if !ok {
-				msg := `{"error":"failure to ping: 1"}`
+				msg := `{"error":"failure to ping: 3"}`
 				fmt.Println("touch no claims", claims)
 				http.Error(w, msg+"\n", http.StatusBadRequest)
 				return

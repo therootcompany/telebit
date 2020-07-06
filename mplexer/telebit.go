@@ -16,6 +16,7 @@ import (
 
 	"github.com/caddyserver/certmagic"
 	"github.com/go-acme/lego/v3/challenge"
+	"github.com/go-acme/lego/v3/challenge/dns01"
 )
 
 // Note: 64k is the TCP max, but 1460b is the 100mbit Ethernet max (1500 MTU - overhead),
@@ -176,6 +177,7 @@ type ACME struct {
 	Email                  string
 	Directory              string
 	DNSProvider            challenge.Provider
+	DNSChallengeOption     dns01.ChallengeOption
 	Storage                certmagic.Storage
 	StoragePath            string
 	EnableHTTPChallenge    bool
@@ -205,7 +207,7 @@ func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
 		}
 
 		var err error
-		magic, err = newCertMagic(acme)
+		magic, err = NewCertMagic(acme)
 		if nil != err {
 			fmt.Fprintf(
 				os.Stderr,
@@ -276,7 +278,7 @@ func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
 	}
 }
 
-func newCertMagic(acme *ACME) (*certmagic.Config, error) {
+func NewCertMagic(acme *ACME) (*certmagic.Config, error) {
 	if !acme.Agree {
 		fmt.Fprintf(
 			os.Stderr,
@@ -304,8 +306,10 @@ func newCertMagic(acme *ACME) (*certmagic.Config, error) {
 		},
 	})
 	// yes, a circular reference, passing `magic` to its own Issuer
+	fmt.Printf("[debug] ACME Email: %q\n", acme.Email)
 	magic.Issuer = certmagic.NewACMEManager(magic, certmagic.ACMEManager{
 		DNSProvider:             acme.DNSProvider,
+		DNSChallengeOption:      acme.DNSChallengeOption,
 		CA:                      acme.Directory,
 		Email:                   acme.Email,
 		Agreed:                  acme.Agree,
