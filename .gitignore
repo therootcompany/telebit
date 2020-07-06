@@ -18,6 +18,8 @@ telebit-client-windows.exe
 
 /cmd/dnsclient/dnsclient
 /cmd/sqlstore/sqlstore
+/cmd/wsserve/wsserve
+/cmd/wsconnect/wsconnect
 /cmd/mgmt/mgmt
 /cmd/signjwt/signjwt
 /cmd/telebit/telebit

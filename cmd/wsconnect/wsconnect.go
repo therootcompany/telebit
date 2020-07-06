@@ -147,7 +147,7 @@ func NewAuthorizer(authURL string) telebit.Authorizer {
 		grants, err := telebit.Inspect(authURL, tokenString)
 
 		if nil != err {
-			fmt.Println("return an error, do not go on")
+			fmt.Println("[wsconnect] return an error, do not go on")
 			return nil, err
 		}
 		if "" != r.URL.Query().Get("access_token") {
