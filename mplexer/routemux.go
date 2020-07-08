@@ -3,7 +3,6 @@ package telebit
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"strconv"
 	"strings"
@@ -129,11 +128,7 @@ func (m *RouteMux) HandleTLS(servername string, acme *ACME, handler Handler) err
 
 			//NewTerminator(acme, handler)(client)
 			//return handler.Serve(client)
-			err := handler.Serve(TerminateTLS(wconn, acme))
-			if nil == err || io.EOF == err {
-				return io.EOF
-			}
-			return err
+			return handler.Serve(TerminateTLS(wconn, acme))
 		}),
 	})
 	return nil
