@@ -253,7 +253,7 @@ func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
 		wconn := &ConnWrap{
 			Conn: client,
 		}
-		wconn.isTerminated()
+		_ = wconn.isEncrypted()
 		servername = wconn.Servername()
 		scheme = wconn.Scheme()
 		client = wconn

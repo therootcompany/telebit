@@ -76,13 +76,16 @@ func Serve(listener net.Listener, mux Handler) error {
 		}
 
 		go func() {
-			err = mux.Serve(client)
-			if nil != err {
+			// nil means being handled
+			// non-nil means handled
+			// io.EOF means handled with success
+			if err := mux.Serve(client); nil != err {
 				if io.EOF != err && io.ErrClosedPipe != err && !strings.Contains(err.Error(), errNetClosing) {
 					fmt.Printf("client could not be served: %q\n", err.Error())
 				}
+				fmt.Println("[debug] closing original client", err)
+				client.Close()
 			}
-			client.Close()
 		}()
 	}
 }

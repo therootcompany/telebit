@@ -117,28 +117,21 @@ func (c *ConnWrap) Servername() string {
 	}
 
 	// this will get the servername
-	c.isTerminated()
+	_ = c.isEncrypted()
 	return c.servername
 }
 
-// isTerminated returns true if net.Conn is either a ConnWrap{ tls.Conn },
-// or a telebit.Conn with a non-encrypted `scheme` such as "tcp" or "http".
-func (c *ConnWrap) isTerminated() bool {
-	// TODO look at SNI, may need context for Peek() timeout
-	/*
-		if nil != c.Plain {
-			return true
-		}
-	*/
+// isEncrypted returns true if peeking at net.Conn reveals that it is TLS-encrypted
+func (c *ConnWrap) isEncrypted() bool {
 	if nil != c.encrypted {
-		return !*c.encrypted
+		return *c.encrypted
 	}
 
-	// how to know how many bytes to read? really needs timeout
+	// TODO: how to allow / detect / handle protocols where the server hello happens first?
 	c.SetDeadline(time.Now().Add(5 * time.Second))
 	n := 6
 	b, _ := c.Peek(n)
-	fmt.Println("Peek(n)", b, string(b))
+	fmt.Println("[debug] Peek(n)", b, string(b))
 	defer c.SetDeadline(time.Time{})
 	var encrypted bool
 	if len(b) >= n {
@@ -155,30 +148,16 @@ func (c *ConnWrap) isTerminated() bool {
 			b, err := c.Peek(n - 1 + length)
 			if nil != err {
 				c.encrypted = &encrypted
-				return !*c.encrypted
+				return *c.encrypted
 			}
 			c.servername, _ = sni.GetHostname(b)
 			encrypted = true
 			c.encrypted = &encrypted
-			return !*c.encrypted
+			return *c.encrypted
 		}
 	}
 	c.encrypted = &encrypted
-	return !*c.encrypted
-	/*
-		if nil != err {
-			return true
-		}
-
-		switch conn := c.Conn.(type) {
-		case *ConnWrap:
-			return conn.isTerminated()
-		case *Conn:
-			_, ok := encryptedSchemes[string(conn.relayTargetAddr.scheme)]
-			return !ok
-		}
-		return false
-	*/
+	return *c.encrypted
 }
 
 // LocalAddr returns the local network address.

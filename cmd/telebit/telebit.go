@@ -251,9 +251,9 @@ func main() {
 			fmt.Printf("[debug] Accepting API or WebSocket client %q\n", *apiHostname)
 			listener.Feed(client)
 			fmt.Printf("[debug] done with %q client\n", *apiHostname)
-			// TODO use a more correct non-error error?
-			// or perhaps (ok, error) or (handled, error)?
-			return io.EOF
+			// nil now means handler in-progress (go routine)
+			// EOF now means handler finished
+			return nil
 		}))
 	}
 	for _, fwd := range forwards {
@@ -369,7 +369,8 @@ func routeSubscribersAndClients(client net.Conn) error {
 	labels := strings.Split(servername, ".")
 	n := len(labels)
 	if n < 3 {
-		return nil
+		// skip
+		return telebit.ErrNotHandled
 	}
 	for i := 1; i < n-1; i++ {
 		wildname := "*." + strings.Join(labels[1:], ".")
@@ -379,7 +380,7 @@ func routeSubscribersAndClients(client net.Conn) error {
 	}
 
 	// skip
-	return nil
+	return telebit.ErrNotHandled
 }
 
 // tryToServeName picks the server tunnel with the least connections, if any

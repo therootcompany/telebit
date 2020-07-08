@@ -1,6 +1,7 @@
 package telebit
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -17,6 +18,8 @@ type RouteMux struct {
 	defaultTimeout time.Duration
 	routes         []meta
 }
+
+var ErrNotHandled = errors.New("connection not handled")
 
 type meta struct {
 	addr      string
@@ -72,11 +75,10 @@ func (m *RouteMux) Serve(client net.Conn) error {
 		fmt.Println("Meta:", meta.addr, servername)
 		if servername == meta.addr || "*" == meta.addr || port == meta.addr {
 			//fmt.Println("[debug] test of route:", meta)
-			if err := meta.handler.Serve(wconn); nil != err {
-				// error should be EOF if successful
+			// Only keep trying handlers if ErrNotHandled was returned
+			if err := meta.handler.Serve(wconn); ErrNotHandled != err {
 				return err
 			}
-			// nil err means skipped
 		}
 	}
 
@@ -121,9 +123,8 @@ func (m *RouteMux) HandleTLS(servername string, acme *ACME, handler Handler) err
 				panic("HandleTLS is special in that it must receive &ConnWrap{ Conn: conn }")
 			}
 
-			if wconn.isTerminated() {
-				// nil to skip
-				return nil
+			if !wconn.isEncrypted() {
+				return ErrNotHandled
 			}
 
 			//NewTerminator(acme, handler)(client)
