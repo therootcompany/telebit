@@ -96,6 +96,14 @@ func main() {
 	if *acmeStaging {
 		*acmeDirectory = certmagic.LetsEncryptStagingCA
 	}
+	if !*acmeAgree {
+		if "true" == os.Getenv("ACME_AGREE") {
+			*acmeAgree = true
+		}
+	}
+	if 0 == len(*email) {
+		*email = os.Getenv("ACME_EMAIL")
+	}
 
 	if 0 == len(*locals) {
 		*locals = os.Getenv("LOCALS")
@@ -172,7 +180,10 @@ func main() {
 		}
 	}
 	if 0 == len(*acmeRelay) {
-		*acmeRelay = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
+		*acmeRelay = os.Getenv("ACME_RELAY_URL")
+	}
+	if 0 == len(*acmeRelay) {
+		*acmeRelay = strings.Replace(*relay, "ws", "http", 1) + "/dns" // "https://example.com:443"
 	}
 
 	if 0 == len(*authURL) {
@@ -183,6 +194,8 @@ func main() {
 			*authURL = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
 		}
 		// TODO look at relay rather than authURL?
+		fmt.Println("Auth URL", *authURL)
+		authorizer = NewAuthorizer(*authURL)
 		grants, err := telebit.Inspect(*authURL, *token)
 		if nil != err {
 			_, err := mgmt.Register(*authURL, *secret, ppid)
