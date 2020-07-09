@@ -229,6 +229,9 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		MultiEncoder: telebit.NewEncoder(context.TODO(), wsTun),
 		MultiDecoder: telebit.NewDecoder(wsTun),
 	}
+	// TODO should this happen at NewEncoder()?
+	// (or is it even necessary anymore?)
+	_ = server.MultiEncoder.Start()
 
 	go func() {
 		// (this listener is also a telebit.Router)

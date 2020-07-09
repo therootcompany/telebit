@@ -16,7 +16,7 @@ ACME_EMAIL="${ACME_EMAIL:-}"
 
 ./telebit --acme-agree=true \
     --admin-hostname $ADMIN_HOSTNAME \
-    --auth-url $AUTH_URL/api \
+    --auth-url $AUTH_URL \
     --acme-email "$ACME_EMAIL" \
     --secret "$SECRET" \
     --listen 3020,3030

@@ -359,7 +359,7 @@ func routeSubscribersAndClients(client net.Conn) error {
 	// Match full servername "sub.domain.example.com"
 	if tryToServeName(servername, wconn) {
 		// TODO better non-error
-		return io.EOF
+		return nil
 	}
 
 	// Match wild names

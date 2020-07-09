@@ -54,6 +54,11 @@ func (enc *Encoder) Run() error {
 	}
 }
 
+func (enc *Encoder) Start() error {
+	go enc.Run()
+	return nil
+}
+
 // Encode adds MPLEXY headers to raw net traffic, and is intended to be used on each client connection
 func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 	rx := make(chan []byte)

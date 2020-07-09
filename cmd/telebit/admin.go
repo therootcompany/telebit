@@ -178,6 +178,9 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		MultiEncoder: telebit.NewEncoder(context.TODO(), wsTun),
 		MultiDecoder: telebit.NewDecoder(wsTun),
 	}
+	// TODO should this happen at NewEncoder()?
+	// (or is it even necessary anymore?)
+	_ = server.MultiEncoder.Start()
 
 	go func() {
 		// (this listener is also a telebit.Router)
@@ -187,6 +190,7 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		// there's an encoder with a callback between the websocket
 		// and the multiplexer, so it doesn't know to stop listening otherwise
 		_ = wsTun.Close()
+		// TODO close all clients
 		fmt.Printf("a subscriber stream is done: %q\n", err)
 	}()
 

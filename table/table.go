@@ -124,8 +124,8 @@ func (s *SubscriberConn) Serve(client net.Conn) error {
 	id := client.RemoteAddr().String()
 	s.Clients.Store(id, client)
 
-	fmt.Println("[debug] cancel all the clients")
-	_ = client.Close()
+	//fmt.Println("[debug] immediately cancel client to simplify testing / debugging")
+	//_ = client.Close()
 
 	// TODO
 	// - Encode each client to the tunnel
