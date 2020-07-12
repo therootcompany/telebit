@@ -168,7 +168,18 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	//fmt.Printf("LocalAddr: %#v\n", r.LocalAddr)
+
 	wsTun := telebit.NewWebsocketTunnel(conn)
+	fmt.Printf("[debug] http.req.RemoteAddr: %+v\n", r.RemoteAddr)
+	fmt.Printf("[debug] conn.RemoteAddr(): %+v\n", conn.RemoteAddr())
+	fmt.Printf("[debug] conn.LocalAddr(): %+v\n", conn.LocalAddr())
+	//fmt.Printf("wsTun.RemoteAddr(): %+v\n", wsTun.RemoteAddr())
+	//fmt.Printf("wsTun.LocalAddr(): %#v\n", wsTun.LocalAddr())
+
+	// The remote address of the server is useful for identification.
+	// The local address of the server (port to which it connected) is not very meaningful.
+	// Rather the client's local address (the specific relay server) would be more useful.
 	server := &table.SubscriberConn{
 		RemoteAddr:   r.RemoteAddr,
 		WSConn:       conn,
@@ -192,6 +203,8 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		_ = wsTun.Close()
 		// TODO close all clients
 		fmt.Printf("a subscriber stream is done: %q\n", err)
+		// TODO check what happens when we leave a junk connection
+		table.Remove(server.Grants.Subject)
 	}()
 
 	table.Add(server)

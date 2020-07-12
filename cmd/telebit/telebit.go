@@ -354,6 +354,9 @@ func routeSubscribersAndClients(client net.Conn) error {
 	//dstAddr := dstParts[0]
 	dstPort, _ := strconv.Atoi(dstParts[1])
 
+	fmt.Printf("[debug] wconn.LocalAddr() %+v\n", wconn.LocalAddr())
+	fmt.Printf("[debug] wconn.RemoteAddr() %+v\n", wconn.RemoteAddr())
+
 	if 80 != dstPort && 443 != dstPort {
 		// TODO handle by port without peeking at Servername / Hostname
 		// if tryToServePort(client.LocalAddr().String(), wconn) {
@@ -369,6 +372,7 @@ func routeSubscribersAndClients(client net.Conn) error {
 		return fmt.Errorf("invalid servername")
 	}
 
+	fmt.Printf("[debug] wconn.Servername() %+v\n", servername)
 	// Match full servername "sub.domain.example.com"
 	if tryToServeName(servername, wconn) {
 		// TODO better non-error
@@ -407,6 +411,7 @@ func tryToServeName(servername string, wconn *telebit.ConnWrap) bool {
 	// async so that the call stack can complete and be released
 	//srv.clients.Store(wconn.LocalAddr().String(), wconn)
 	go func() {
+		fmt.Printf("[debug] found server to handle client:\n%#v\n", srv)
 		err := srv.Serve(wconn)
 		fmt.Printf("a browser client stream is done: %q\n", err)
 		//srv.clients.Delete(wconn.LocalAddr().String())

@@ -36,21 +36,27 @@ func Add(server *SubscriberConn) {
 	Servers.Store(server.Grants.Subject, srvMap)
 
 	// Add this server to the domain name matrix
-	for _, name := range server.Grants.Domains {
+	for _, domainname := range server.Grants.Domains {
 		var srvMap *sync.Map
-		srvMapX, ok := Table.Load(name)
+		srvMapX, ok := Table.Load(domainname)
 		if ok {
 			srvMap = srvMapX.(*sync.Map)
 		} else {
 			srvMap = &sync.Map{}
 		}
 		srvMap.Store(server.RemoteAddr, server)
-		Table.Store(name, srvMap)
+		Table.Store(domainname, srvMap)
 	}
+}
+
+func RemoveByAddr(subject string) bool {
+	// TODO
+	return false
 }
 
 func Remove(subject string) bool {
 	srvMapX, ok := Servers.Load(subject)
+	fmt.Printf("[debug] has server for %s? %t\n", subject, ok)
 	if !ok {
 		return false
 	}
@@ -64,6 +70,23 @@ func Remove(subject string) bool {
 			return true
 		})
 		srv.WSConn.Close()
+		for _, domainname := range srv.Grants.Domains {
+			srvMapX, ok := Table.Load(domainname)
+			if !ok {
+				continue
+			}
+			srvMap = srvMapX.(*sync.Map)
+			srvMap.Delete(srv.RemoteAddr)
+			n := 0
+			srvMap.Range(func(k, v interface{}) bool {
+				n++
+				return true
+			})
+			if 0 == n {
+				// TODO comment out to handle the bad case of 0 servers / empty map
+				Table.Delete(domainname)
+			}
+		}
 		return true
 	})
 	Servers.Delete(subject)

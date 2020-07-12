@@ -123,8 +123,11 @@ func (m *RouteMux) HandleTLS(servername string, acme *ACME, handler Handler) err
 			}
 
 			if !wconn.isEncrypted() {
+				fmt.Println("[debug] conn is not encrypted")
 				return ErrNotHandled
 			}
+
+			fmt.Println("[debug] terminated encrypted connection")
 
 			//NewTerminator(acme, handler)(client)
 			//return handler.Serve(client)
