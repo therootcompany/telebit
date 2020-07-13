@@ -81,6 +81,7 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 		}
 	}()
 
+	// TODO set a timeout as a failsafe
 	for {
 		//fmt.Println("poopers gonna poop")
 		select {
@@ -89,10 +90,10 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 		case <-enc.ctx.Done():
 			// TODO: verify that closing the reader will cause the goroutine to be released
 			//rin.Close()
-			return errors.New("cancelled by context")
+			return errors.New("cancelled by encoder read or parent context")
 		case <-enc.subctx.Done():
 			//rin.Close()
-			return errors.New("cancelled by context")
+			return errors.New("cancelled by encoder write context")
 		case b := <-rx:
 			header, _, err := Encode(b, src, Addr{scheme: src.scheme, addr: "", port: -1})
 			if nil != err {

@@ -180,13 +180,14 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 	// The remote address of the server is useful for identification.
 	// The local address of the server (port to which it connected) is not very meaningful.
 	// Rather the client's local address (the specific relay server) would be more useful.
+	ctxEncoder, cancelEncoder := context.WithCancel(context.Background())
 	server := &table.SubscriberConn{
 		RemoteAddr:   r.RemoteAddr,
 		WSConn:       conn,
 		WSTun:        wsTun,
 		Grants:       grants,
 		Clients:      &sync.Map{},
-		MultiEncoder: telebit.NewEncoder(context.TODO(), wsTun),
+		MultiEncoder: telebit.NewEncoder(ctxEncoder, wsTun),
 		MultiDecoder: telebit.NewDecoder(wsTun),
 	}
 	// TODO should this happen at NewEncoder()?
@@ -196,6 +197,8 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		// (this listener is also a telebit.Router)
 		err := server.MultiDecoder.Decode(server)
+		cancelEncoder() // TODO why don't failed writes solve this?
+		//_ = server.MultiEncoder.Close()
 
 		// The tunnel itself must be closed explicitly because
 		// there's an encoder with a callback between the websocket
@@ -204,7 +207,8 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		// TODO close all clients
 		fmt.Printf("a subscriber stream is done: %q\n", err)
 		// TODO check what happens when we leave a junk connection
-		table.Remove(server.Grants.Subject)
+		//fmt.Println("[debug] [warn] removing server turned off")
+		table.RemoveServer(server)
 	}()
 
 	table.Add(server)

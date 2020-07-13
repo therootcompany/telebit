@@ -49,9 +49,11 @@ func Add(server *SubscriberConn) {
 	}
 }
 
-func RemoveByAddr(subject string) bool {
-	// TODO
-	return false
+func RemoveServer(server *SubscriberConn) bool {
+	// TODO remove by RemoteAddr
+	//return false
+	fmt.Printf("[warn] RemoveServer() still calls Remove(subject) instead of removing by RemoteAddr\n")
+	return Remove(server.Grants.Subject)
 }
 
 func Remove(subject string) bool {
@@ -158,10 +160,12 @@ func (s *SubscriberConn) Serve(client net.Conn) error {
 	srcParts := strings.Split(client.RemoteAddr().String(), ":")
 	srcAddr := srcParts[0]
 	srcPort, _ := strconv.Atoi(srcParts[1])
+	fmt.Println("[debug] srcParts", srcParts)
 
 	dstParts := strings.Split(client.LocalAddr().String(), ":")
 	dstAddr := dstParts[0]
 	dstPort, _ := strconv.Atoi(dstParts[1])
+	fmt.Println("[debug] dstParts", dstParts)
 
 	termination := telebit.Unknown
 	scheme := telebit.None
@@ -185,8 +189,11 @@ func (s *SubscriberConn) Serve(client net.Conn) error {
 		dstAddr,
 		dstPort,
 	)
+	fmt.Println("[debug] NewAddr src", src)
+	fmt.Println("[debug] NewAddr dst", dst)
 
 	err := s.MultiEncoder.Encode(wconn, *src, *dst)
+	_ = wconn.Close()
 	s.Clients.Delete(id)
 	return err
 }
