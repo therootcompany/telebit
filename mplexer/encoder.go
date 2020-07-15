@@ -2,7 +2,9 @@ package telebit
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"sync"
 )
@@ -71,10 +73,12 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			b := make([]byte, enc.bufferSize)
 			//fmt.Println("loopers gonna loop")
 			n, err := rin.Read(b)
+			fmt.Println("[debug] [encoder] [srv] Browser read", n)
 			if n > 0 {
 				rx <- b[:n]
 			}
 			if nil != err {
+				fmt.Println("[debug] [encoder] [srv] Browser read error", err)
 				rxErr <- err
 				return
 			}
@@ -90,21 +94,27 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 		case <-enc.ctx.Done():
 			// TODO: verify that closing the reader will cause the goroutine to be released
 			//rin.Close()
+			fmt.Println("[debug] [encoder] [srv] Browser ctx.Done()")
 			return errors.New("cancelled by encoder read or parent context")
 		case <-enc.subctx.Done():
 			//rin.Close()
+			fmt.Println("[debug] [encoder] [srv] Browser subctx.Done()")
 			return errors.New("cancelled by encoder write context")
 		case b := <-rx:
-			header, _, err := Encode(b, src, Addr{scheme: src.scheme, addr: "", port: -1})
+			header, _, err := Encode(b, src, Addr{scheme: src.scheme, addr: dst.Hostname(), port: dst.Port()})
 			if nil != err {
 				//rin.Close()
+				fmt.Println("[debug] [encoder] [srv] Browser Encode err", err)
 				return err
 			}
 			//fmt.Println("[debug] encode header:", string(header))
 			//fmt.Println("[debug] encode payload:", string(b))
 
 			_, err = enc.write(header, b)
+			fmt.Println("[debug] [encoder] [srv] Browser-to-tun write", len(header), header)
+			fmt.Println("[debug] [encoder] [srv]", len(b), hex.EncodeToString(b))
 			if nil != err {
+				fmt.Println("[debug] [encoder] [srv] Browser-to-tun write err", err)
 				//rin.Close()
 				return err
 			}

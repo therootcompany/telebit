@@ -1,6 +1,7 @@
 package telebit
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -29,12 +30,13 @@ func (d *Decoder) Decode(out Router) error {
 	go func() {
 		for {
 			b := make([]byte, d.bufferSize)
-			//fmt.Println("loopers gonna loop")
 			n, err := d.in.Read(b)
+			fmt.Println("[debug] [decoder] [srv] Tunnel read", n)
 			if n > 0 {
 				rx <- b[:n]
 			}
 			if nil != err {
+				fmt.Println("[debug] [decoder] [srv] Tunnel read err", err)
 				rxErr <- err
 				return
 			}
@@ -47,8 +49,10 @@ func (d *Decoder) Decode(out Router) error {
 		// TODO, do we actually need ctx here?
 		// would it be sufficient to expect the reader to be closed by the caller instead?
 		case b := <-rx:
+			fmt.Println("[debug] [decoder] [srv] Tunnel write", len(b), string(b))
 			_, err := p.Write(b)
 			if nil != err {
+				fmt.Println("[debug] [decoder] [srv] Tunnel write error")
 				// an error to write represents an unrecoverable error,
 				// not just a downstream client error
 				//d.in.Close()
