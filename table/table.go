@@ -230,7 +230,7 @@ func GetServer(servername string) (*SubscriberConn, bool) {
 		myLoad := 0
 		mySrv := v.(*SubscriberConn)
 		mySrv.Clients.Range(func(k, v interface{}) bool {
-			load += 1
+			myLoad += 1
 			return true
 		})
 		// pick the least loaded server
