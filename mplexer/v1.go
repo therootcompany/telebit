@@ -125,8 +125,7 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 	if p.state.headerLen != len(p.state.header) {
 		return b, nil
 	}
-	parts := strings.Split(string(p.state.header), ",")
-	fmt.Println("[debug] Tun Header", string(p.state.header))
+	parts := strings.Split(strings.TrimSpace(string(p.state.header)), ",")
 	p.state.header = nil
 	if len(parts) < 5 {
 		return nil, errors.New("error unpacking header")
@@ -141,8 +140,7 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 	port, _ := strconv.Atoi(parts[PortIndex])
 	service := parts[ServiceIndex]
 
-	fmt.Printf("[debug] parts: %s\n", parts)
-	fmt.Printf("[debug] service: %s\n", service)
+	fmt.Printf("[debug] parts: %s\n", strings.Join(parts, " | "))
 	if "control" == service {
 		fmt.Printf("[debug] control: %s\n", service)
 		return nil, errors.New("'control' messages not implemented")

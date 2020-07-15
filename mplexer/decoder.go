@@ -1,6 +1,7 @@
 package telebit
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io"
 )
@@ -44,12 +45,9 @@ func (d *Decoder) Decode(out Router) error {
 	}()
 
 	for {
-		//fmt.Println("poopers gonna poop")
 		select {
-		// TODO, do we actually need ctx here?
-		// would it be sufficient to expect the reader to be closed by the caller instead?
 		case b := <-rx:
-			fmt.Println("[debug] [decoder] [srv] Tunnel write", len(b), string(b))
+			fmt.Println("[debug] [decoder] [srv] Tunnel write", len(b), hex.EncodeToString(b))
 			_, err := p.Write(b)
 			if nil != err {
 				fmt.Println("[debug] [decoder] [srv] Tunnel write error")
