@@ -88,11 +88,15 @@ func (c *ConnWrap) Scheme() string {
 	return ""
 }
 
-/*
+// CheckServername returns the servername without detection
+func (c *ConnWrap) CheckServername() string {
+	return c.servername
+}
+
+// SetServername sets the servername without detection
 func (c *ConnWrap) SetServername(name string) {
 	c.servername = name
 }
-*/
 
 // Servername may return Servername or Hostname as hinted by a tunnel or buffered peeking
 func (c *ConnWrap) Servername() string {
@@ -127,13 +131,18 @@ func (c *ConnWrap) isEncrypted() bool {
 		return *c.encrypted
 	}
 
+	var encrypted bool
+
 	// TODO: how to allow / detect / handle protocols where the server hello happens first?
 	c.SetDeadline(time.Now().Add(5 * time.Second))
 	n := 6
-	b, _ := c.Peek(n)
-	fmt.Println("[debug] Peek(n)", b, string(b))
+	b, err := c.Peek(n)
+	fmt.Printf("[debug] [wrap] Peek(%d): %s %s %s\n", n, b, string(b), err)
+	if nil != err {
+		// TODO return error on error?
+		return encrypted
+	}
 	defer c.SetDeadline(time.Time{})
-	var encrypted bool
 	if len(b) >= n {
 		// SSL v3.x / TLS v1.x
 		// 0: TLS Byte

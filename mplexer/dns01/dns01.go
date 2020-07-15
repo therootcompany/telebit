@@ -67,12 +67,12 @@ type DNSProvider struct {
 func NewDNSProvider() (*DNSProvider, error) {
 	values, err := env.Get(EnvEndpoint)
 	if err != nil {
-		return nil, fmt.Errorf("api: %w", err)
+		return nil, fmt.Errorf("dns01 api: %w", err)
 	}
 
 	endpoint, err := url.Parse(values[EnvEndpoint])
 	if err != nil {
-		return nil, fmt.Errorf("api: %w", err)
+		return nil, fmt.Errorf("dns01 api: %w", err)
 	}
 
 	config := NewDefaultConfig()

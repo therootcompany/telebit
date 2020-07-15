@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log"
 )
 
 // Decoder handles a Reader stream containing mplexy-encoded clients
@@ -32,7 +33,7 @@ func (d *Decoder) Decode(out Router) error {
 		for {
 			b := make([]byte, d.bufferSize)
 			n, err := d.in.Read(b)
-			fmt.Println("[debug] [decoder] [srv] Tunnel read", n)
+			log.Println("[debug] [decoder] [srv] Tunnel read", n, string(b[:n]))
 			if n > 0 {
 				rx <- b[:n]
 			}

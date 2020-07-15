@@ -179,9 +179,9 @@ func (l *Listener) getPipe(src, dst *Addr, count int) net.Conn {
 		newconn.Close()
 		pipe.Close()
 		if nil != err {
-			fmt.Printf("a stream is done: %q\n", err)
+			fmt.Printf("[debug] [ln-pipe] encode stream ended:\n%+v\n%+v\n%q\n", *src, *dst, err)
 		} else {
-			fmt.Printf("a stream is done\n")
+			fmt.Printf("[debug] [ln-pipe] encode stream ended gracefully:\n%+v\n%+v\n", *src, *dst)
 		}
 	}()
 

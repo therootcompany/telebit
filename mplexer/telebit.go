@@ -149,7 +149,7 @@ ForwardData:
 				break ForwardData
 			}
 			if io.EOF != err && io.ErrClosedPipe != err && !strings.Contains(err.Error(), errNetClosing) {
-				fmt.Printf("read from remote client failed: %q\n", err.Error())
+				fmt.Printf("error: data source (websocket client) read failed: %q\n", err.Error())
 			} else {
 				fmt.Printf("Connection closed (possibly by remote client)\n")
 			}
@@ -159,7 +159,7 @@ ForwardData:
 				break ForwardData
 			}
 			if io.EOF != err && io.ErrClosedPipe != err && !strings.Contains(err.Error(), errNetClosing) {
-				fmt.Printf("read from local target failed: %q\n", err.Error())
+				fmt.Printf("error: data sink (local target) read failed: %q\n", err.Error())
 			} else {
 				fmt.Printf("Connection closed (possibly by local target)\n")
 			}
@@ -327,7 +327,9 @@ type Grants struct {
 }
 
 func Inspect(authURL, token string) (*Grants, error) {
-	msg, err := Request("GET", authURL+"/inspect", token, nil)
+	inspectURL := authURL + "/inspect"
+	//fmt.Fprintf(os.Stderr, "[debug] telebit.Inspect(\n\tinspectURL = %s,\n\ttoken = %s,\n)", inspectURL, token)
+	msg, err := Request("GET", inspectURL, token, nil)
 	if nil != err {
 		return nil, err
 	}

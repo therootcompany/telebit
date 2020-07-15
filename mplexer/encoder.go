@@ -111,7 +111,7 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			//fmt.Println("[debug] encode payload:", string(b))
 
 			_, err = enc.write(header, b)
-			fmt.Println("[debug] [encoder] [srv] Browser-to-tun write", len(header), header)
+			fmt.Println("[debug] [encoder] [srv] Browser-to-tun write", len(header), string(header))
 			fmt.Println("[debug] [encoder] [srv]", len(b), hex.EncodeToString(b))
 			if nil != err {
 				fmt.Println("[debug] [encoder] [srv] Browser-to-tun write err", err)
