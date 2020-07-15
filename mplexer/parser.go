@@ -2,6 +2,7 @@ package telebit
 
 import (
 	"errors"
+	"fmt"
 )
 
 type Parser struct {
@@ -68,7 +69,7 @@ func (p *Parser) Write(b []byte) (int, error) {
 
 	switch p.parseState {
 	case VersionState:
-		//fmt.Println("[debug] version state", b[0])
+		fmt.Println("[debug] version state", b[0])
 		p.state.version = b[0]
 		b = b[1:]
 		p.consumed++
@@ -79,7 +80,7 @@ func (p *Parser) Write(b []byte) (int, error) {
 
 	switch p.state.version {
 	case V1:
-		//fmt.Println("[debug] v1 unmarshal")
+		fmt.Println("[debug] v1 unmarshal")
 		return p.unpackV1(b)
 	default:
 		return 0, errors.New("incorrect version or version not implemented")

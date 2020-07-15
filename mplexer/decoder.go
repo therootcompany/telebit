@@ -48,8 +48,9 @@ func (d *Decoder) Decode(out Router) error {
 	for {
 		select {
 		case b := <-rx:
-			fmt.Println("[debug] [decoder] [srv] Tunnel write", len(b), hex.EncodeToString(b))
-			_, err := p.Write(b)
+			n, err := p.Write(b)
+			fmt.Println("[debug] [decoder] [srv] Tunnel write", n, len(b), hex.EncodeToString(b))
+			// TODO BUG: handle when 'n' bytes written is less than len(b)
 			if nil != err {
 				fmt.Println("[debug] [decoder] [srv] Tunnel write error")
 				// an error to write represents an unrecoverable error,

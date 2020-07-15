@@ -1,6 +1,7 @@
 package table
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net"
 	"sync"
@@ -112,27 +113,37 @@ type SubscriberConn struct {
 }
 
 func (s *SubscriberConn) RouteBytes(src, dst telebit.Addr, payload []byte) {
-	id := src.String()
-	fmt.Println("Routing some more bytes:")
-	fmt.Println("src", id, src)
-	fmt.Println("dst", dst)
+	id := fmt.Sprintf("%s:%d", src.Hostname(), src.Port())
+	fmt.Println("[debug] Routing some more bytes:", len(payload))
+	fmt.Printf("id %s\nsrc %+v\n", id, src)
+	fmt.Printf("dst %s %+v\n", dst.Scheme(), dst)
 	clientX, ok := s.Clients.Load(id)
 	if !ok {
 		// TODO send back closed client error
+		fmt.Println("[debug] no client found for", id)
 		return
 	}
 
 	client, _ := clientX.(net.Conn)
+	if "end" == dst.Scheme() {
+		fmt.Println("[debug] closing client", id)
+		_ = client.Close()
+		return
+	}
+
 	for {
 		n, err := client.Write(payload)
-		if nil != err {
-			if n > 0 && io.ErrShortWrite == err {
-				payload = payload[n:]
-				continue
-			}
-			// TODO send back closed client error
+		fmt.Println("[debug] table Write", len(payload), hex.EncodeToString(payload))
+		if nil == err || io.EOF == err {
 			break
 		}
+		if n > 0 && io.ErrShortWrite == err {
+			payload = payload[n:]
+			continue
+		}
+		break
+		// TODO send back closed client error
+		//return err
 	}
 }
 
@@ -147,6 +158,7 @@ func (s *SubscriberConn) Serve(client net.Conn) error {
 	}
 
 	id := client.RemoteAddr().String()
+	fmt.Printf("[DEBUG] NEW ID (ip:port) %s\n", id)
 	s.Clients.Store(id, client)
 
 	//fmt.Println("[debug] immediately cancel client to simplify testing / debugging")
@@ -166,15 +178,20 @@ func (s *SubscriberConn) Serve(client net.Conn) error {
 	dstAddr := dstParts[0]
 	dstPort, _ := strconv.Atoi(dstParts[1])
 	fmt.Println("[debug] dstParts", dstParts)
+	servername := wconn.Servername()
 
 	termination := telebit.Unknown
 	scheme := telebit.None
+	if "" != servername {
+		dstAddr = servername
+		//scheme = telebit.TLS
+		scheme = telebit.HTTPS
+	}
 	if 80 == dstPort {
+		scheme = telebit.HTTPS
+	} else if 443 == dstPort {
 		// TODO dstAddr = wconn.Servername()
 		scheme = telebit.HTTP
-	} else if 443 == dstPort {
-		dstAddr = wconn.Servername()
-		scheme = telebit.HTTPS
 	}
 
 	src := telebit.NewAddr(
@@ -189,11 +206,12 @@ func (s *SubscriberConn) Serve(client net.Conn) error {
 		dstAddr,
 		dstPort,
 	)
-	fmt.Println("[debug] NewAddr src", src)
-	fmt.Println("[debug] NewAddr dst", dst)
+	fmt.Printf("[debug] NewAddr src %+v\n", src)
+	fmt.Printf("[debug] NewAddr dst %+v\n", dst)
 
 	err := s.MultiEncoder.Encode(wconn, *src, *dst)
 	_ = wconn.Close()
+	fmt.Printf("[debug] Encoder Complete %+v %+v\n", id, err)
 	s.Clients.Delete(id)
 	return err
 }

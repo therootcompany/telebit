@@ -13,9 +13,9 @@ import (
 
 // Encoder converts TCP to MPLEXY-TCP
 type Encoder struct {
-	ctx    context.Context
-	subctx context.Context
-	mux    sync.Mutex
+	ctx context.Context
+	//subctx context.Context
+	mux sync.Mutex
 	//out        io.WriteCloser
 	out        io.Writer
 	outErr     chan error
@@ -37,10 +37,10 @@ func NewEncoder(ctx context.Context, wout io.Writer) *Encoder {
 // to cancel and close south-side connections, if needed.
 // TODO should this be pushed elsewhere to handled?
 func (enc *Encoder) Run() error {
-	ctx, cancel := context.WithCancel(enc.ctx)
-	defer cancel()
+	//ctx, cancel := context.WithCancel(enc.ctx)
+	//defer cancel()
 
-	enc.subctx = ctx
+	//enc.subctx = ctx
 
 	for {
 		select {
@@ -73,7 +73,7 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			b := make([]byte, enc.bufferSize)
 			//fmt.Println("loopers gonna loop")
 			n, err := rin.Read(b)
-			fmt.Println("[debug] [encoder] [srv] Browser read", n)
+			fmt.Println("[debug] [encoder] [srv] Browser read", n, hex.EncodeToString(b[:n]))
 			if n > 0 {
 				rx <- b[:n]
 			}
@@ -96,10 +96,12 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			//rin.Close()
 			fmt.Println("[debug] [encoder] [srv] Browser ctx.Done()")
 			return errors.New("cancelled by encoder read or parent context")
-		case <-enc.subctx.Done():
-			//rin.Close()
-			fmt.Println("[debug] [encoder] [srv] Browser subctx.Done()")
-			return errors.New("cancelled by encoder write context")
+		/*
+			case <-enc.subctx.Done():
+				//rin.Close()
+				fmt.Println("[debug] [encoder] [srv] Browser subctx.Done()")
+				return errors.New("cancelled by encoder write context")
+		*/
 		case b := <-rx:
 			header, _, err := Encode(b, src, Addr{scheme: src.scheme, addr: dst.Hostname(), port: dst.Port()})
 			if nil != err {

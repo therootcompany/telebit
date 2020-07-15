@@ -182,16 +182,17 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 		}
 	*/
 	p.parseState++
-	fmt.Printf("[debug] parse state: %v\n", p.parseState)
+	fmt.Printf("[debug] unpackV1 parse state: %v\n", p.parseState)
 
 	if "end" == service {
+		fmt.Println("[debug] unpackV1 end")
 		p.handler.RouteBytes(p.state.srcAddr, p.state.dstAddr, []byte{})
 	}
 	return b, nil
 }
 
 func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
-	fmt.Printf("[debug] state: %+v\n", p.state)
+	fmt.Printf("[debug] unpackV1 payload state: %+v\n", p.state)
 	// Handle "connect" and "end"
 	if 0 == p.state.payloadLen {
 		/*
@@ -210,7 +211,7 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 		*/
 
 		//fmt.Printf("[debug] [2] payload written: %d | payload length: %d\n", p.state.payloadWritten, p.state.payloadLen)
-		fmt.Printf("[debug] RouteBytes: %#v %#v %s\n", p.state.srcAddr, p.state.dstAddr, p.state.dstAddr.scheme)
+		fmt.Printf("[debug] unpackV1 RouteBytes: %#v %#v %s\n", p.state.srcAddr, p.state.dstAddr, p.state.dstAddr.scheme)
 		p.handler.RouteBytes(p.state.srcAddr, p.state.dstAddr, []byte{})
 		return b, nil
 	}
