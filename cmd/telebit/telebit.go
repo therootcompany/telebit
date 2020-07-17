@@ -54,6 +54,10 @@ var authorizer telebit.Authorizer
 
 var isHostname = regexp.MustCompile(`^[A-Za-z0-9_\.\-]+$`).MatchString
 
+// ClientID may be baked in, or may be supplied via command line
+var ClientID string
+var ClientSecret string
+
 func main() {
 	var domains []string
 	var forwards []Forward
@@ -150,10 +154,20 @@ func main() {
 		return
 	}
 
-	if 0 == len(*secret) {
-		*secret = os.Getenv("SECRET")
+	// Baked-in takes precedence
+	if 0 == len(ClientID) {
+		ClientID = *appID
 	}
-	ppid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", *appID, *secret))
+	if 0 == len(ClientID) {
+		ClientID = os.Getenv("APP_ID")
+	}
+	if 0 == len(ClientSecret) {
+		ClientSecret = *secret
+	}
+	if 0 == len(ClientSecret) {
+		ClientSecret = os.Getenv("SECRET")
+	}
+	ppid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", ClientID, ClientSecret))
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "unauthorized device\n")
 		os.Exit(1)
@@ -162,6 +176,9 @@ func main() {
 	ppidBytes, err := hex.DecodeString(ppid)
 	ppid = base64.RawURLEncoding.EncodeToString(ppidBytes)
 
+	if 0 == len(*token) {
+		*token = os.Getenv("TOKEN")
+	}
 	if 0 == len(*token) {
 		*token, err = authstore.HMACToken(ppid)
 		if nil != err {
@@ -194,14 +211,14 @@ func main() {
 	}
 	if len(*relay) > 0 /* || len(*acmeRelay) > 0 */ {
 		if "" == *authURL {
-			*authURL = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
+			*authURL = strings.Replace(*relay, "ws", "http", 1) + "/api" // "https://example.com:443"
 		}
 		// TODO look at relay rather than authURL?
 		fmt.Println("Auth URL", *authURL)
 		authorizer = NewAuthorizer(*authURL)
 		grants, err := telebit.Inspect(*authURL, *token)
 		if nil != err {
-			_, err := mgmt.Register(*authURL, *secret, ppid)
+			_, err := mgmt.Register(*authURL, ClientSecret, ppid)
 			if nil != err {
 				fmt.Fprintf(os.Stderr, "failed to register client: %s\n", err)
 				os.Exit(1)
