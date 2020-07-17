@@ -157,15 +157,35 @@ func main() {
 	// Baked-in takes precedence
 	if 0 == len(ClientID) {
 		ClientID = *appID
+	} else if 0 != len(*appID) {
+		if ClientID != *appID {
+			fmt.Fprintf(os.Stderr, "invalid --app-id\n")
+			os.Exit(1)
+		}
 	}
 	if 0 == len(ClientID) {
 		ClientID = os.Getenv("APP_ID")
+	} else if 0 != len(os.Getenv("APP_ID")) {
+		if ClientID != os.Getenv("APP_ID") {
+			fmt.Fprintf(os.Stderr, "invalid APP_ID\n")
+			os.Exit(1)
+		}
 	}
 	if 0 == len(ClientSecret) {
 		ClientSecret = *secret
+	} else if 0 != len(*secret) {
+		if ClientSecret != *secret {
+			fmt.Fprintf(os.Stderr, "invalid --secret\n")
+			os.Exit(1)
+		}
 	}
 	if 0 == len(ClientSecret) {
 		ClientSecret = os.Getenv("SECRET")
+	} else if 0 != len(os.Getenv("SECRET")) {
+		if ClientSecret != os.Getenv("SECRET") {
+			fmt.Fprintf(os.Stderr, "invalid SECRET\n")
+			os.Exit(1)
+		}
 	}
 	ppid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", ClientID, ClientSecret))
 	if nil != err {
