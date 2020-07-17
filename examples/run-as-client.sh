@@ -8,11 +8,11 @@ go build -mod=vendor -o telebit cmd/telebit/*.go
 
 source .env
 
-ACME_RELAY_BASEURL=${ACME_RELAY_BASEURL:-"https://devices.examples.com"}
-AUTH_BASEURL=${AUTH_BASEURL:-"https://devices.examples.com"}
+ACME_RELAY_URL=${ACME_RELAY_URL:-"https://devices.examples.com"}
+AUTH_URL=${AUTH_URL:-"https://devices.examples.com"}
 CLIENT_SECRET=${CLIENT_SECRET:-"yyyyyyyyyyyyyyyy"}
 
 ./telebit --acme-agree=true \
-    --acme-relay $ACME_RELAY_BASEURL/api \
-    --auth-url $AUTH_BASEURL/api \
+    --acme-relay-url $ACME_RELAY_URL/api \
+    --auth-url $AUTH_URL/api \
     --app-id test-id --secret "$CLIENT_SECRET"

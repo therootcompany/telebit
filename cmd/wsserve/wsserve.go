@@ -61,9 +61,8 @@ func main() {
 	acmeDirectory := flag.String("acme-directory", "", "ACME Directory URL")
 	enableHTTP01 := flag.Bool("acme-http-01", false, "enable HTTP-01 ACME challenges")
 	enableTLSALPN01 := flag.Bool("acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
-	acmeRelay := flag.String("acme-relay", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
+	acmeRelay := flag.String("acme-relay-url", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
 	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
-	//apiHostname := flag.String("admin-hostname", "", "the hostname used to manage clients")
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 	flag.Parse()
 
@@ -73,7 +72,7 @@ func main() {
 	authorizer = NewAuthorizer(*authURL)
 
 	if 0 == len(*acmeRelay) {
-		*acmeRelay = os.Getenv("ACME_RELAY_BASEURL")
+		*acmeRelay = os.Getenv("ACME_RELAY_URL")
 	}
 	provider, err := getACMEProvider(acmeRelay, token)
 	if nil != err {
@@ -263,7 +262,7 @@ func getACMEProvider(acmeRelay, token *string) (challenge.Provider, error) {
 		}
 	} else {
 		if "" == *acmeRelay {
-			return nil, fmt.Errorf("No relay for ACME DNS-01 challenges given to --acme-relay")
+			return nil, fmt.Errorf("No relay for ACME DNS-01 challenges given to --acme-relay-url")
 		}
 		endpoint := *acmeRelay
 		if strings.HasSuffix(endpoint, "/") {

@@ -3,20 +3,34 @@
 set -e
 set -u
 
-#go generate -mod=vendor ./...
-go build -mod=vendor -o telebit cmd/telebit/*.go
+go mod tidy
+go mod vendor
+go generate -mod=vendor ./...
+go build -mod=vendor -o ./telebit ./cmd/telebit/*.go
+if [ -n "$(command -v setcap)" ]; then
+    sudo setcap 'cap_net_bind_service=+ep' ./telebit
+fi
 
 source .env
 
-ADMIN_HOSTNAME=${ADMIN_HOSTNAME:-"devices.example.com"}
-AUTH_BASEURL=${AUTH_BASEURL:-"https://devices.example.com"}
-AUTH_URL=${AUTH_URL:-"$AUTH_BASEURL/api"}
-SECRET=${SECRET:-"xxxxxxxxxxxxxxxx"}
+# For Tunnel Relay Server
+API_HOSTNAME=${API_HOSTNAME:-"devices.example.com"}
+LISTEN="${LISTEN:-":80 :443"}"
+
+# For Device Management & Authentication
+AUTH_URL=${AUTH_URL:-"https://devices.example.com/api"}
+
+# For Let's Encrypt / ACME challenges
+ACME_RELAY_URL=${ACME_RELAY_URL:-"http://localhost:4200"}
+
+# For Let's Encrypt / ACME registration
+ACME_AGREE=${ACME_AGREE:-}
 ACME_EMAIL="${ACME_EMAIL:-}"
 
-./telebit --acme-agree=true \
-    --admin-hostname $ADMIN_HOSTNAME \
+./telebit \
+    --api-hostname $API_HOSTNAME \
     --auth-url $AUTH_URL \
+    --acme-agree "$ACME_AGREE" \
     --acme-email "$ACME_EMAIL" \
-    --secret "$SECRET" \
-    --listen 3020,3030
+    --acme-relay-url "$ACME_RELAY_URL" \
+    --listen "$LISTEN"

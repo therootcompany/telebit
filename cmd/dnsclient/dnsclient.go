@@ -32,7 +32,7 @@ func main() {
 	var domains []string
 
 	// TODO replace the websocket connection with a mock server
-	acmeRelay := flag.String("acme-relay", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
+	acmeRelay := flag.String("acme-relay-url", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 	flag.Parse()

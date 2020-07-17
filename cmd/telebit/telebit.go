@@ -68,10 +68,10 @@ func main() {
 	acmeDirectory := flag.String("acme-directory", "", "ACME Directory URL")
 	enableHTTP01 := flag.Bool("acme-http-01", false, "enable HTTP-01 ACME challenges")
 	enableTLSALPN01 := flag.Bool("acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
-	acmeRelay := flag.String("acme-relay", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
+	acmeRelay := flag.String("acme-relay-url", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
 	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
 	relay := flag.String("relay", "", "the domain (or ip address) at which the relay server is running")
-	apiHostname := flag.String("admin-hostname", "", "the hostname used to manage clients")
+	apiHostname := flag.String("api-hostname", "", "the hostname used to manage clients")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 	bindAddrsStr := flag.String("listen", "", "list of bind addresses on which to listen, such as localhost:80, or :443")
@@ -140,6 +140,9 @@ func main() {
 		return
 	}
 
+	if 0 == len(*bindAddrsStr) {
+		*bindAddrsStr = os.Getenv("LISTEN")
+	}
 	bindAddrs, err := parseBindAddrs(*bindAddrsStr)
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "invalid bind address(es) given to --listen\n")
@@ -174,7 +177,7 @@ func main() {
 		if len(bindAddrs) > 0 {
 			fmt.Fprintf(os.Stderr, "Acting as Relay\n")
 		} else {
-			fmt.Fprintf(os.Stderr, "error: must provider or act as Relay\n")
+			fmt.Fprintf(os.Stderr, "error: must provide Relay, or act as Relay\n")
 			os.Exit(1)
 			return
 		}
@@ -189,7 +192,7 @@ func main() {
 	if 0 == len(*authURL) {
 		*authURL = os.Getenv("AUTH_URL")
 	}
-	if len(*relay) > 0 || len(*acmeRelay) > 0 {
+	if len(*relay) > 0 /* || len(*acmeRelay) > 0 */ {
 		if "" == *authURL {
 			*authURL = strings.Replace(*relay, "ws", "http", 1) // "https://example.com:443"
 		}
@@ -403,7 +406,11 @@ func routeSubscribersAndClients(client net.Conn) error {
 // tryToServeName picks the server tunnel with the least connections, if any
 func tryToServeName(servername string, wconn *telebit.ConnWrap) bool {
 	srv, ok := table.GetServer(servername)
-	if !ok {
+	if !ok || nil == srv {
+		if ok {
+			// TODO BUG: Sometimes srv=nil & ok=true, which should not be possible
+			fmt.Println("[bug] found 'srv=nil'", servername, srv)
+		}
 		fmt.Println("[debug] no server to server", servername)
 		return false
 	}
@@ -413,8 +420,7 @@ func tryToServeName(servername string, wconn *telebit.ConnWrap) bool {
 	go func() {
 		fmt.Printf("[debug] found server to handle client:\n%#v\n", srv)
 		err := srv.Serve(wconn)
-		fmt.Printf("a browser client stream is done: %q\n", err)
-		//srv.clients.Delete(wconn.LocalAddr().String())
+		fmt.Printf("[debug] a browser client stream is done: %v\n", err)
 	}()
 
 	return true
@@ -453,7 +459,7 @@ func parseBindAddrs(bindAddrsStr string) ([]string, error) {
 		if len(parts) > 2 {
 			return nil, fmt.Errorf("too many colons (:) in bind address %s", addr)
 		}
-		if "" == addr || "" == parts[0] {
+		if "" == addr {
 			continue
 		}
 
@@ -490,7 +496,7 @@ func getACMEProvider(acmeRelay, token *string) (challenge.Provider, error) {
 		}
 	} else {
 		if "" == *acmeRelay {
-			return nil, fmt.Errorf("No relay for ACME DNS-01 challenges given to --acme-relay")
+			return nil, fmt.Errorf("No relay for ACME DNS-01 challenges given to --acme-relay-url")
 		}
 		endpoint := *acmeRelay
 		if strings.HasSuffix(endpoint, "/") {

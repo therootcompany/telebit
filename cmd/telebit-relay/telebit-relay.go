@@ -73,7 +73,7 @@ func init() {
 	flag.BoolVar(&acmeAgree, "acme-agree", false, "agree to the terms of the ACME service provider (required)")
 	flag.BoolVar(&acmeStaging, "staging", false, "get fake certificates for testing")
 	flag.StringVar(&authURL, "auth-url", "http://localhost:3010/api", "the auth server url")
-	flag.StringVar(&acmeRelay, "acme-relay", "", "the ACME DNS-01 relay, if any")
+	flag.StringVar(&acmeRelay, "acme-relay-url", "", "the ACME DNS-01 relay, if any")
 	flag.StringVar(&adminHostName, "admin-hostname", "", "the management domain")
 	flag.StringVar(&wssHostName, "wss-hostname", "", "the wss domain for connecting devices, if different from admin")
 	flag.StringVar(&configPath, "config-path", configPath, "Configuration File Path")
