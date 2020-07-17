@@ -516,10 +516,15 @@ func getACMEProvider(acmeRelay, token *string) (challenge.Provider, error) {
 			return nil, fmt.Errorf("No relay for ACME DNS-01 challenges given to --acme-relay-url")
 		}
 		endpoint := *acmeRelay
-		if strings.HasSuffix(endpoint, "/") {
-			endpoint = endpoint[:len(endpoint)-1]
+		if !strings.HasSuffix(endpoint, "/") {
+			endpoint += "/"
 		}
-		//endpoint += "/api/dns/"
+		/*
+			if strings.HasSuffix(endpoint, "/") {
+				endpoint = endpoint[:len(endpoint)-1]
+			}
+			endpoint += "/api/dns/"
+		*/
 		if provider, err = newAPIDNSProvider(endpoint, *token); nil != err {
 			return nil, err
 		}

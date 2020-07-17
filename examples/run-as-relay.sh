@@ -21,7 +21,7 @@ LISTEN="${LISTEN:-":80 :443"}"
 AUTH_URL=${AUTH_URL:-"https://devices.example.com/api"}
 
 # For Let's Encrypt / ACME challenges
-ACME_RELAY_URL=${ACME_RELAY_URL:-"http://localhost:4200"}
+ACME_RELAY_URL=${ACME_RELAY_URL:-"http://localhost:4200/api/dns"}
 SECRET=${SECRET:-"xxxxxxxxxxxxxxxx"}
 
 # For Let's Encrypt / ACME registration
