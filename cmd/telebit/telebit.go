@@ -287,45 +287,7 @@ func main() {
 		EnableTLSALPNChallenge: *enableTLSALPN01,
 	}
 
-	//mux := telebit.NewRouteMux(acme)
-	mux := telebit.NewRouteMux()
-
-	// Port forward without TerminatingTLS
-	for _, fwd := range portForwards {
-		msg := fmt.Sprintf("Fwd: %s %s", fwd.pattern, fwd.port)
-		fmt.Println(msg)
-		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, msg, "[Port Forward]")
-	}
-	// TODO close connection on invalid hostname
-	mux.HandleTCP("*", telebit.HandlerFunc(routeSubscribersAndClients), "[Tun => Remote Servers]")
-	mux.HandleTLS("*", acme, mux, "[Terminate TLS & Recurse]")
-
-	if 0 == len(*apiHostname) {
-		*apiHostname = os.Getenv("API_HOSTNAME")
-	}
-	if "" != *apiHostname {
-		listener := httpshim.NewListener()
-		go func() {
-			httpsrv.Serve(listener)
-		}()
-		fmt.Printf("Will respond to Websocket and API requests to %q\n", *apiHostname)
-		mux.HandleTCP(*apiHostname, telebit.HandlerFunc(func(client net.Conn) error {
-			if dbg.Debug {
-				fmt.Printf("[debug] Accepting API or WebSocket client %q\n", *apiHostname)
-			}
-			listener.Feed(client)
-			if dbg.Debug {
-				fmt.Printf("[debug] done with %q client\n", *apiHostname)
-			}
-			// nil now means handler in-progress (go routine)
-			// EOF now means handler finished
-			return nil
-		}), "[Admin API & Server Relays]")
-	}
-	for _, fwd := range forwards {
-		//mux.ForwardTCP("*", "localhost:"+fwd.port, 120*time.Second)
-		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, "[Servername Forward]")
-	}
+	mux := muxAll(portForwards, forwards, acme, apiHostname)
 
 	done := make(chan error)
 	if dbg.Debug {
@@ -394,6 +356,54 @@ func main() {
 	if err := <-done; nil != err {
 		os.Exit(1)
 	}
+}
+
+func muxAll(portForwards, forwards []Forward, acme *telebit.ACME, apiHostname *string) *telebit.RouteMux {
+	//mux := telebit.NewRouteMux(acme)
+	mux := telebit.NewRouteMux()
+
+	// Port forward without TerminatingTLS
+	for _, fwd := range portForwards {
+		msg := fmt.Sprintf("Fwd: %s %s", fwd.pattern, fwd.port)
+		fmt.Println(msg)
+		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, msg, "[Port Forward]")
+	}
+	// TODO close connection on invalid hostname
+	mux.HandleTCP("*", telebit.HandlerFunc(routeSubscribersAndClients), "[Tun => Remote Servers]")
+	mux.HandleTLS("*", acme, mux, "[Terminate TLS & Recurse]")
+	//mux.HandleTLSFunc(func (sni) bool {
+	//	// do whatever
+	//	return false
+	//}, acme, mux, "[Terminate TLS & Recurse]")
+
+	if 0 == len(*apiHostname) {
+		*apiHostname = os.Getenv("API_HOSTNAME")
+	}
+	if "" != *apiHostname {
+		listener := httpshim.NewListener()
+		go func() {
+			httpsrv.Serve(listener)
+		}()
+		fmt.Printf("Will respond to Websocket and API requests to %q\n", *apiHostname)
+		mux.HandleTCP(*apiHostname, telebit.HandlerFunc(func(client net.Conn) error {
+			if dbg.Debug {
+				fmt.Printf("[debug] Accepting API or WebSocket client %q\n", *apiHostname)
+			}
+			listener.Feed(client)
+			if dbg.Debug {
+				fmt.Printf("[debug] done with %q client\n", *apiHostname)
+			}
+			// nil now means handler in-progress (go routine)
+			// EOF now means handler finished
+			return nil
+		}), "[Admin API & Server Relays]")
+	}
+	for _, fwd := range forwards {
+		//mux.ForwardTCP("*", "localhost:"+fwd.port, 120*time.Second)
+		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, "[Servername Forward]")
+	}
+
+	return mux
 }
 
 func routeSubscribersAndClients(client net.Conn) error {
