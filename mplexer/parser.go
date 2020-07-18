@@ -3,6 +3,8 @@ package telebit
 import (
 	"errors"
 	"fmt"
+
+	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
 )
 
 type Parser struct {
@@ -69,7 +71,9 @@ func (p *Parser) Write(b []byte) (int, error) {
 
 	switch p.parseState {
 	case VersionState:
-		fmt.Println("[debug] version state", b[0])
+		if dbg.Debug {
+			fmt.Println("[debug] MPLEXY version byte", b[0], string(b))
+		}
 		p.state.version = b[0]
 		b = b[1:]
 		p.consumed++
@@ -80,7 +84,9 @@ func (p *Parser) Write(b []byte) (int, error) {
 
 	switch p.state.version {
 	case V1:
-		fmt.Println("[debug] v1 unmarshal")
+		if dbg.Debug {
+			fmt.Println("[debug] MPLEXY packet is of type v1")
+		}
 		return p.unpackV1(b)
 	default:
 		return 0, errors.New("incorrect version or version not implemented")

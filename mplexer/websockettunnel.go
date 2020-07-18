@@ -2,7 +2,6 @@ package telebit
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
@@ -75,11 +74,7 @@ func (wsw *WebsocketTunnel) Read(b []byte) (int, error) {
 
 	n, err := wsw.tmpr.Read(b)
 	if dbg.Debug {
-		logmsg := hex.EncodeToString(b[:n])
-		if len(logmsg) > 80 {
-			logmsg = logmsg[:39] + "..." + logmsg[n-38:]
-		}
-		fmt.Println("[debug] [wstun] Read", n, logmsg)
+		fmt.Println("[debug] [wstun] Read", n, dbg.Trunc(b, n))
 	}
 	if nil != err {
 		if dbg.Debug {

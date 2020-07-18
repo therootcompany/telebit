@@ -3,16 +3,52 @@
 set -e
 set -u
 
-go generate -mod=vendor ./...
-go build -mod=vendor -o telebit cmd/telebit/*.go
-
 source .env
 
-ACME_RELAY_URL=${ACME_RELAY_URL:-"https://devices.examples.com"}
-AUTH_URL=${AUTH_URL:-"https://devices.examples.com"}
-CLIENT_SECRET=${CLIENT_SECRET:-"yyyyyyyyyyyyyyyy"}
+#go generate -mod=vendor ./...
+CLIENT_ID="${CLIENT_ID:-"${APP_ID:-"test-id"}"}"
+CLIENT_SECRET="${CLIENT_SECRET:-}"
+go build -mod=vendor -o ./telebit \
+    -ldflags="-X 'main.ClientID=$CLIENT_ID' -X 'main.ClientSecret=$CLIENT_SECRET'" \
+    cmd/telebit/*.go
+#go build -mod=vendor -o telebit \
+#    cmd/telebit/*.go
 
-./telebit --acme-agree=true \
-    --acme-relay-url $ACME_RELAY_URL/api \
-    --auth-url $AUTH_URL/api \
-    --app-id test-id --secret "$CLIENT_SECRET"
+# For Device Authorization across services
+AUTH_URL=${AUTH_URL:-"https://devices.examples.com/api"}
+APP_ID="$CLIENT_ID"
+SECRET="${CLIENT_SECRET:-"xxxxxxxxxxxxxxxx"}"
+#CLIENT_SECRET=${CLIENT_SECRET:-"yyyyyyyyyyyyyyyy"}
+LOCALS="${LOCALS:-"https:newbie.devices.examples.com:3000,http:newbie.devices.examples.com:3000"}"
+
+# For the Remote Server (Tunnel Client)
+TUNNEL_RELAY_URL=${TUNNEL_RELAY_URL:-"wss://devices.example.com"}
+LISTEN=":3080"
+
+# For Let's Encrypt / ACME registration
+ACME_AGREE=${ACME_AGREE:-}
+ACME_EMAIL=${ACME_EMAIL:-"me@example.com"}
+
+# For Let's Encrypt / ACME challenges
+ACME_RELAY_URL=${ACME_RELAY_URL:-"https://devices.examples.com/api/dns"}
+
+VERBOSE=${VERBOSE:-}
+VERBOSE_BYTES=${VERBOSE_BYTES:-}
+VERBOSE_RAW=${VERBOSE_RAW:-}
+
+
+./telebit \
+    --auth-url $AUTH_URL \
+    --app-id "$APP_ID" \
+    --secret "$CLIENT_SECRET" \
+    --relay-url $TUNNEL_RELAY_URL \
+    --listen "$LISTEN" \
+    --locals "$LOCALS" \
+    --acme-agree=${ACME_AGREE} \
+    --acme-email "$ACME_EMAIL" \
+    --acme-relay-url $ACME_RELAY_URL \
+    --verbose=$VERBOSE
+
+#    --subject "$CLIENT_SUBJECT" \
+
+#PORT_FORWARDS=3443:3001,8443:3002

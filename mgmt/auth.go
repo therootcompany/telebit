@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
 	"git.coolaj86.com/coolaj86/go-telebitd/mgmt/authstore"
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
 )
@@ -35,10 +36,13 @@ func Ping(authURL, token string) error {
 
 func Register(authURL, secret, ppid string) (kid string, err error) {
 	pub := authstore.ToPublicKeyString(ppid)
-	jsonb := bytes.NewBuffer([]byte(
-		fmt.Sprintf(`{ "machine_ppid": "%s", "public_key": "%s" }`, ppid, pub),
-	))
-	msg, err := telebit.Request("POST", authURL+"/register-device/"+secret, "", jsonb)
+	jsons := fmt.Sprintf(`{ "machine_ppid": "%s", "public_key": "%s" }`, ppid, pub)
+	jsonb := bytes.NewBuffer([]byte(jsons))
+	fullURL := authURL + "/register-device/" + secret
+	if dbg.Debug {
+		fmt.Println("[debug] authURL, secret, ppid", fullURL, secret, jsons)
+	}
+	msg, err := telebit.Request("POST", fullURL, "", jsonb)
 	if nil != err {
 		return "", err
 	}

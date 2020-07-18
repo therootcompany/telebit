@@ -2,11 +2,13 @@ package telebit
 
 import (
 	"context"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
+
+	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
 )
 
 // TODO: try to be more like encoding/csv, or more like encoding/pem and encoding/json?
@@ -73,7 +75,9 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			b := make([]byte, enc.bufferSize)
 			//fmt.Println("loopers gonna loop")
 			n, err := rin.Read(b)
-			fmt.Println("[debug] [encoder] [srv] Browser read", n, hex.EncodeToString(b[:n]))
+			if dbg.Debug {
+				fmt.Println("[debug] [encoder] [srv] Browser read", n, dbg.Trunc(b, n))
+			}
 			if n > 0 {
 				rx <- b[:n]
 			}
@@ -94,7 +98,9 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 		case <-enc.ctx.Done():
 			// TODO: verify that closing the reader will cause the goroutine to be released
 			//rin.Close()
-			fmt.Println("[debug] [encoder] [srv] Browser ctx.Done()")
+			if dbg.Debug {
+				fmt.Println("[debug] [encoder] [srv] Browser ctx.Done()")
+			}
 			return errors.New("cancelled by encoder read or parent context")
 		/*
 			case <-enc.subctx.Done():
@@ -113,8 +119,10 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			//fmt.Println("[debug] encode payload:", string(b))
 
 			_, err = enc.write(header, b)
-			fmt.Println("[debug] [encoder] [srv] Browser-to-tun write", len(header), string(header))
-			fmt.Println("[debug] [encoder] [srv]", len(b), hex.EncodeToString(b))
+			if dbg.Debug {
+				fmt.Println("[debug] [encoder] [srv] Browser-to-tun write", len(header), strings.TrimSpace(string(header)))
+				fmt.Println("[debug] [encoder] [srv]", len(b), dbg.Trunc(b, len(b)))
+			}
 			if nil != err {
 				fmt.Println("[debug] [encoder] [srv] Browser-to-tun write err", err)
 				//rin.Close()

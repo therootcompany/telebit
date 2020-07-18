@@ -87,9 +87,8 @@ func main() {
 	verbose := flag.Bool("verbose", false, "log excessively")
 	flag.Parse()
 
-	dbg.Debug = *verbose
 	if !dbg.Debug {
-		dbg.Debug = ("true" == os.Getenv("VERBOSE"))
+		dbg.Debug = *verbose
 	}
 
 	if len(os.Args) >= 2 {
@@ -217,7 +216,7 @@ func main() {
 		}
 	}
 	if 0 == len(*relay) {
-		*relay = os.Getenv("RELAY_URL") // "wss://example.com:443"
+		*relay = os.Getenv("TUNNEL_RELAY_URL") // "wss://example.com:443"
 	}
 	if 0 == len(*relay) {
 		if len(bindAddrs) > 0 {

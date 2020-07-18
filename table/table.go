@@ -1,7 +1,6 @@
 package table
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net"
 	"sync"
@@ -10,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
 	"github.com/gorilla/websocket"
 )
@@ -114,7 +114,9 @@ type SubscriberConn struct {
 
 func (s *SubscriberConn) RouteBytes(src, dst telebit.Addr, payload []byte) {
 	id := fmt.Sprintf("%s:%d", src.Hostname(), src.Port())
-	fmt.Println("[debug] Routing some more bytes:", len(payload))
+	if dbg.Debug {
+		fmt.Println("[debug] Routing some more bytes:", dbg.Trunc(payload, len(payload)))
+	}
 	fmt.Printf("id %s\nsrc %+v\n", id, src)
 	fmt.Printf("dst %s %+v\n", dst.Scheme(), dst)
 	clientX, ok := s.Clients.Load(id)
@@ -133,7 +135,9 @@ func (s *SubscriberConn) RouteBytes(src, dst telebit.Addr, payload []byte) {
 
 	for {
 		n, err := client.Write(payload)
-		fmt.Println("[debug] table Write", len(payload), hex.EncodeToString(payload))
+		if dbg.Debug {
+			fmt.Println("[debug] table Write", dbg.Trunc(payload, len(payload)))
+		}
 		if nil == err || io.EOF == err {
 			break
 		}

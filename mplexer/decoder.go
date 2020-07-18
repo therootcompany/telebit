@@ -1,10 +1,11 @@
 package telebit
 
 import (
-	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
+
+	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
 )
 
 // Decoder handles a Reader stream containing mplexy-encoded clients
@@ -33,7 +34,9 @@ func (d *Decoder) Decode(out Router) error {
 		for {
 			b := make([]byte, d.bufferSize)
 			n, err := d.in.Read(b)
-			log.Println("[debug] [decoder] [srv] Tunnel read", n, string(b[:n]))
+			if dbg.Debug {
+				log.Println("[debug] [decoder] [srv] Tunnel read", n, dbg.Trunc(b, n))
+			}
 			if n > 0 {
 				rx <- b[:n]
 			}
@@ -49,7 +52,9 @@ func (d *Decoder) Decode(out Router) error {
 		select {
 		case b := <-rx:
 			n, err := p.Write(b)
-			fmt.Println("[debug] [decoder] [srv] Tunnel write", n, len(b), hex.EncodeToString(b))
+			if dbg.Debug {
+				fmt.Println("[debug] [decoder] [srv] Tunnel write", n, len(b), dbg.Trunc(b, len(b)))
+			}
 			// TODO BUG: handle when 'n' bytes written is less than len(b)
 			if nil != err {
 				fmt.Println("[debug] [decoder] [srv] Tunnel write error")

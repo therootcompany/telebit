@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
 )
 
 const (
@@ -182,7 +184,9 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 		}
 	*/
 	p.parseState++
-	fmt.Printf("[debug] unpackV1 parse state: %v\n", p.parseState)
+	if dbg.Debug {
+		fmt.Printf("[debug] unpackV1 parse state: %v\n", p.parseState)
+	}
 
 	if "end" == service {
 		fmt.Println("[debug] unpackV1 end")
@@ -192,7 +196,9 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 }
 
 func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
-	fmt.Printf("[debug] unpackV1 payload state: %+v\n", p.state)
+	if dbg.Debug {
+		fmt.Printf("[debug] unpackV1 payload state: %+v\n", p.state)
+	}
 	// Handle "connect" and "end"
 	if 0 == p.state.payloadLen {
 		/*
@@ -241,6 +247,9 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 	if p.state.payloadWritten == p.state.payloadLen {
 		p.state = ParserState{}
 		p.parseState = 0
+		if dbg.Debug {
+			fmt.Println("[debug] MPLEXY completed packet and reset state")
+		}
 	}
 	return b, nil
 }

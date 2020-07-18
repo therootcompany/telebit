@@ -58,7 +58,7 @@ func main() {
 		}
 	}
 	if 0 == len(*relay) {
-		*relay = os.Getenv("RELAY") // "wss://example.com:443"
+		*relay = os.Getenv("TUNNEL_RELAY_URL") // "wss://example.com:443"
 	}
 	if 0 == len(*relay) {
 		fmt.Fprintf(os.Stderr, "Missing relay url\n")

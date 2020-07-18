@@ -5,8 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"time"
 
+	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
 	jwt "github.com/dgrijalva/jwt-go"
 )
 
@@ -50,6 +52,9 @@ func ToPublicKeyString(secret string) string {
 
 func HMACToken(secret string) (token string, err error) {
 	keyID := ToPublicKeyString(secret)
+	if dbg.Debug {
+		fmt.Printf("[debug] keyID=%s\n", keyID)
+	}
 
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
