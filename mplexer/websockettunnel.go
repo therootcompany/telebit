@@ -2,6 +2,7 @@ package telebit
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
@@ -9,6 +10,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
 
 	"github.com/gorilla/websocket"
 )
@@ -71,9 +74,17 @@ func (wsw *WebsocketTunnel) Read(b []byte) (int, error) {
 	}
 
 	n, err := wsw.tmpr.Read(b)
-	fmt.Println("[debug] [wstun] Read", n)
+	if dbg.Debug {
+		logmsg := hex.EncodeToString(b[:n])
+		if len(logmsg) > 80 {
+			logmsg = logmsg[:39] + "..." + logmsg[n-38:]
+		}
+		fmt.Println("[debug] [wstun] Read", n, logmsg)
+	}
 	if nil != err {
-		fmt.Println("[debug] [wstun] Read err:", err)
+		if dbg.Debug {
+			fmt.Println("[debug] [wstun] Read (EOF=WS packet complete) err:", err)
+		}
 		if io.EOF == err {
 			wsw.tmpr = nil
 			// ignore the message EOF because it's not the websocket EOF
@@ -98,6 +109,7 @@ func (wsw *WebsocketTunnel) Write(b []byte) (int, error) {
 		fmt.Println("[debug] [wstun] Write err:", err)
 		return n, err
 	}
+	fmt.Println("[debug] [wstun] Write n", n, "=", len(b))
 
 	// if the message error fails, we can assume the websocket is damaged
 	return n, msgw.Close()

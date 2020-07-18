@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
 	"git.coolaj86.com/coolaj86/go-telebitd/mgmt"
 	"git.coolaj86.com/coolaj86/go-telebitd/mgmt/authstore"
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
@@ -54,8 +55,10 @@ var authorizer telebit.Authorizer
 
 var isHostname = regexp.MustCompile(`^[A-Za-z0-9_\.\-]+$`).MatchString
 
-// ClientID may be baked in, or may be supplied via command line
+// ClientID may be baked in, or supplied via ENVs or --args
 var ClientID string
+
+// ClientSecret may be baked in, or supplied via ENVs or --args
 var ClientSecret string
 
 func main() {
@@ -64,7 +67,7 @@ func main() {
 	var portForwards []Forward
 
 	// TODO replace the websocket connection with a mock server
-	appID := flag.String("app-id", "telebit.io", "a unique identifier for a deploy target environment")
+	appID := flag.String("app-id", "", "a unique identifier for a deploy target environment")
 	email := flag.String("acme-email", "", "email to use for Let's Encrypt / ACME registration")
 	certpath := flag.String("acme-storage", "./acme.d/", "path to ACME storage directory")
 	acmeAgree := flag.Bool("acme-agree", false, "agree to the terms of the ACME service provider (required)")
@@ -74,14 +77,20 @@ func main() {
 	enableTLSALPN01 := flag.Bool("acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
 	acmeRelay := flag.String("acme-relay-url", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
 	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
-	relay := flag.String("relay", "", "the domain (or ip address) at which the relay server is running")
+	relay := flag.String("relay-url", "", "the websocket url at which to connect to the tunnel relay")
 	apiHostname := flag.String("api-hostname", "", "the hostname used to manage clients")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 	bindAddrsStr := flag.String("listen", "", "list of bind addresses on which to listen, such as localhost:80, or :443")
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
 	portToPorts := flag.String("port-forward", "", "a list of <from-port>:<to-port> for raw port-forwarding")
+	verbose := flag.Bool("verbose", false, "log excessively")
 	flag.Parse()
+
+	dbg.Debug = *verbose
+	if !dbg.Debug {
+		dbg.Debug = ("true" == os.Getenv("VERBOSE"))
+	}
 
 	if len(os.Args) >= 2 {
 		if "version" == os.Args[1] {
@@ -208,7 +217,7 @@ func main() {
 		}
 	}
 	if 0 == len(*relay) {
-		*relay = os.Getenv("RELAY") // "wss://example.com:443"
+		*relay = os.Getenv("RELAY_URL") // "wss://example.com:443"
 	}
 	if 0 == len(*relay) {
 		if len(bindAddrs) > 0 {
@@ -284,12 +293,13 @@ func main() {
 
 	// Port forward without TerminatingTLS
 	for _, fwd := range portForwards {
-		fmt.Println("Fwd:", fwd.pattern, fwd.port)
-		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second)
+		msg := fmt.Sprintf("Fwd: %s %s", fwd.pattern, fwd.port)
+		fmt.Println(msg)
+		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, msg, "[Port Forward]")
 	}
 	// TODO close connection on invalid hostname
-	mux.HandleTCP("*", telebit.HandlerFunc(routeSubscribersAndClients))
-	mux.HandleTLS("*", acme, mux)
+	mux.HandleTCP("*", telebit.HandlerFunc(routeSubscribersAndClients), "[Tun => Remote Servers]")
+	mux.HandleTLS("*", acme, mux, "[Terminate TLS & Recurse]")
 
 	if 0 == len(*apiHostname) {
 		*apiHostname = os.Getenv("API_HOSTNAME")
@@ -301,20 +311,27 @@ func main() {
 		}()
 		fmt.Printf("Will respond to Websocket and API requests to %q\n", *apiHostname)
 		mux.HandleTCP(*apiHostname, telebit.HandlerFunc(func(client net.Conn) error {
-			fmt.Printf("[debug] Accepting API or WebSocket client %q\n", *apiHostname)
+			if dbg.Debug {
+				fmt.Printf("[debug] Accepting API or WebSocket client %q\n", *apiHostname)
+			}
 			listener.Feed(client)
-			fmt.Printf("[debug] done with %q client\n", *apiHostname)
+			if dbg.Debug {
+				fmt.Printf("[debug] done with %q client\n", *apiHostname)
+			}
 			// nil now means handler in-progress (go routine)
 			// EOF now means handler finished
 			return nil
-		}))
+		}), "[Admin API & Server Relays]")
 	}
 	for _, fwd := range forwards {
 		//mux.ForwardTCP("*", "localhost:"+fwd.port, 120*time.Second)
-		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second)
+		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, "[Servername Forward]")
 	}
 
 	done := make(chan error)
+	if dbg.Debug {
+		fmt.Println("[debug] bindAddrs", bindAddrs, *bindAddrsStr)
+	}
 	for _, addr := range bindAddrs {
 		go func(addr string) {
 			fmt.Printf("Listening on %s\n", addr)
@@ -394,8 +411,10 @@ func routeSubscribersAndClients(client net.Conn) error {
 	//dstAddr := dstParts[0]
 	dstPort, _ := strconv.Atoi(dstParts[1])
 
-	fmt.Printf("[debug] wconn.LocalAddr() %+v\n", wconn.LocalAddr())
-	fmt.Printf("[debug] wconn.RemoteAddr() %+v\n", wconn.RemoteAddr())
+	if dbg.Debug {
+		fmt.Printf("[debug] wconn.LocalAddr() %+v\n", wconn.LocalAddr())
+		fmt.Printf("[debug] wconn.RemoteAddr() %+v\n", wconn.RemoteAddr())
+	}
 
 	if 80 != dstPort && 443 != dstPort {
 		// TODO handle by port without peeking at Servername / Hostname
@@ -408,11 +427,16 @@ func routeSubscribersAndClients(client net.Conn) error {
 	servername := strings.ToLower(wconn.Servername())
 	if "" != servername && !isHostname(servername) {
 		_ = client.Close()
-		fmt.Println("[debug] invalid servername")
+
+		if dbg.Debug {
+			fmt.Println("[debug] invalid servername")
+		}
 		return fmt.Errorf("invalid servername")
 	}
 
-	fmt.Printf("[debug] wconn.Servername() %+v\n", servername)
+	if dbg.Debug {
+		fmt.Printf("[debug] wconn.Servername() %+v\n", servername)
+	}
 	// Match full servername "sub.domain.example.com"
 	if tryToServeName(servername, wconn) {
 		// TODO better non-error
@@ -430,7 +454,7 @@ func routeSubscribersAndClients(client net.Conn) error {
 		return telebit.ErrNotHandled
 	}
 	for i := 1; i < n-1; i++ {
-		wildname := "*." + strings.Join(labels[1:], ".")
+		wildname := "*." + strings.Join(labels[i:], ".")
 		if tryToServeName(wildname, wconn) {
 			return io.EOF
 		}
@@ -448,16 +472,22 @@ func tryToServeName(servername string, wconn *telebit.ConnWrap) bool {
 			// TODO BUG: Sometimes srv=nil & ok=true, which should not be possible
 			fmt.Println("[bug] found 'srv=nil'", servername, srv)
 		}
-		fmt.Println("[debug] no server to server", servername)
+		if dbg.Debug {
+			fmt.Println("[debug] no server to server", servername)
+		}
 		return false
 	}
 
 	// async so that the call stack can complete and be released
 	//srv.clients.Store(wconn.LocalAddr().String(), wconn)
 	go func() {
-		fmt.Printf("[debug] found server to handle client:\n%#v\n", srv)
+		if dbg.Debug {
+			fmt.Printf("[debug] found server to handle client:\n%#v\n", srv)
+		}
 		err := srv.Serve(wconn)
-		fmt.Printf("[debug] a browser client stream is done: %v\n", err)
+		if dbg.Debug {
+			fmt.Printf("[debug] a browser client stream is done: %v\n", err)
+		}
 	}()
 
 	return true
