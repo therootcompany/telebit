@@ -41,7 +41,7 @@ VERBOSE_RAW=${VERBOSE_RAW:-}
     --auth-url $AUTH_URL \
     --app-id "$APP_ID" \
     --secret "$CLIENT_SECRET" \
-    --relay-url $TUNNEL_RELAY_URL \
+    --tunnel-relay-url $TUNNEL_RELAY_URL \
     --listen "$LISTEN" \
     --locals "$LOCALS" \
     --acme-agree=${ACME_AGREE} \

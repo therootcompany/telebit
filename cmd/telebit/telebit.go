@@ -77,7 +77,7 @@ func main() {
 	enableTLSALPN01 := flag.Bool("acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
 	acmeRelay := flag.String("acme-relay-url", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
 	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
-	relay := flag.String("relay-url", "", "the websocket url at which to connect to the tunnel relay")
+	relay := flag.String("tunnel-relay-url", "", "the websocket url at which to connect to the tunnel relay")
 	apiHostname := flag.String("api-hostname", "", "the hostname used to manage clients")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
