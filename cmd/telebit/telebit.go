@@ -23,8 +23,8 @@ import (
 	"git.coolaj86.com/coolaj86/go-telebitd/mgmt/authstore"
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
 	tbDns01 "git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
-	httpshim "git.coolaj86.com/coolaj86/go-telebitd/relay/tunnel"
 	"git.coolaj86.com/coolaj86/go-telebitd/table"
+	httpshim "git.coolaj86.com/coolaj86/go-telebitd/tunnel"
 	legoDns01 "github.com/go-acme/lego/v3/challenge/dns01"
 
 	"github.com/caddyserver/certmagic"
