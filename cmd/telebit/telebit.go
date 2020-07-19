@@ -237,6 +237,7 @@ func main() {
 	if 0 == len(*authURL) {
 		*authURL = os.Getenv("AUTH_URL")
 	}
+	var grants *telebit.Grants
 	if len(*relay) > 0 /* || len(*acmeRelay) > 0 */ {
 		if "" == *authURL {
 			*authURL = strings.Replace(*relay, "ws", "http", 1) + "/api" // "https://example.com:443"
@@ -244,7 +245,7 @@ func main() {
 		// TODO look at relay rather than authURL?
 		fmt.Println("Auth URL", *authURL)
 		authorizer = NewAuthorizer(*authURL)
-		grants, err := telebit.Inspect(*authURL, *token)
+		grants, err = telebit.Inspect(*authURL, *token)
 		if nil != err {
 			_, err := mgmt.Register(*authURL, ClientSecret, ppid)
 			if nil != err {
@@ -287,7 +288,7 @@ func main() {
 		EnableTLSALPNChallenge: *enableTLSALPN01,
 	}
 
-	mux := muxAll(portForwards, forwards, acme, apiHostname)
+	mux := muxAll(portForwards, forwards, acme, apiHostname, grants)
 
 	done := make(chan error)
 	if dbg.Debug {
@@ -358,7 +359,12 @@ func main() {
 	}
 }
 
-func muxAll(portForwards, forwards []Forward, acme *telebit.ACME, apiHostname *string) *telebit.RouteMux {
+func muxAll(
+	portForwards, forwards []Forward,
+	acme *telebit.ACME,
+	apiHostname *string,
+	grants *telebit.Grants,
+) *telebit.RouteMux {
 	//mux := telebit.NewRouteMux(acme)
 	mux := telebit.NewRouteMux()
 
@@ -370,11 +376,6 @@ func muxAll(portForwards, forwards []Forward, acme *telebit.ACME, apiHostname *s
 	}
 	// TODO close connection on invalid hostname
 	mux.HandleTCP("*", telebit.HandlerFunc(routeSubscribersAndClients), "[Tun => Remote Servers]")
-	mux.HandleTLS("*", acme, mux, "[Terminate TLS & Recurse]")
-	//mux.HandleTLSFunc(func (sni) bool {
-	//	// do whatever
-	//	return false
-	//}, acme, mux, "[Terminate TLS & Recurse]")
 
 	if 0 == len(*apiHostname) {
 		*apiHostname = os.Getenv("API_HOSTNAME")
@@ -385,6 +386,7 @@ func muxAll(portForwards, forwards []Forward, acme *telebit.ACME, apiHostname *s
 			httpsrv.Serve(listener)
 		}()
 		fmt.Printf("Will respond to Websocket and API requests to %q\n", *apiHostname)
+		mux.HandleTLS(*apiHostname, acme, mux, "[Terminate TLS & Recurse] for "+*apiHostname)
 		mux.HandleTCP(*apiHostname, telebit.HandlerFunc(func(client net.Conn) error {
 			if dbg.Debug {
 				fmt.Printf("[debug] Accepting API or WebSocket client %q\n", *apiHostname)
@@ -398,6 +400,23 @@ func muxAll(portForwards, forwards []Forward, acme *telebit.ACME, apiHostname *s
 			return nil
 		}), "[Admin API & Server Relays]")
 	}
+
+	if nil != grants {
+		for _, domainname := range grants.Domains {
+			fmt.Printf("Will respond to remote requests to %q\n", domainname)
+			mux.HandleTLS(domainname, acme, mux, "[Terminate TLS & Recurse] for (tunnel) "+domainname)
+		}
+	}
+
+	for _, fwd := range forwards {
+		fmt.Printf("Will respond to local requests to %q\n", fwd.pattern)
+		mux.HandleTLS(fwd.pattern, acme, mux, "[Terminate TLS & Recurse] for (local) "+fwd.pattern)
+	}
+
+	//mux.HandleTLSFunc(func (sni) bool {
+	//	// do whatever
+	//	return false
+	//}, acme, mux, "[Terminate TLS & Recurse]")
 	for _, fwd := range forwards {
 		//mux.ForwardTCP("*", "localhost:"+fwd.port, 120*time.Second)
 		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, "[Servername Forward]")
