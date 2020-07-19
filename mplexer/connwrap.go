@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
 	"git.coolaj86.com/coolaj86/go-telebitd/sni"
 )
 
@@ -137,7 +138,9 @@ func (c *ConnWrap) isEncrypted() bool {
 	c.SetDeadline(time.Now().Add(5 * time.Second))
 	n := 6
 	b, err := c.Peek(n)
-	fmt.Printf("[debug] [wrap] Peek(%d): %s %s %s\n", n, b, string(b), err)
+	if dbg.Debug {
+		fmt.Printf("[debug] [wrap] Peek(%d): %s %v\n", n, string(b), err)
+	}
 	if nil != err {
 		// TODO return error on error?
 		return encrypted
