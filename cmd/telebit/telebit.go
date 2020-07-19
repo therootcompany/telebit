@@ -209,6 +209,13 @@ func main() {
 	}
 	if 0 == len(*token) {
 		*token, err = authstore.HMACToken(ppid)
+		if dbg.Debug {
+			fmt.Printf("[debug] app_id: %q\n", ClientID)
+			//fmt.Printf("[debug] client_secret: %q\n", ClientSecret)
+			//fmt.Printf("[debug] ppid: %q\n", ppid)
+			//fmt.Printf("[debug] ppid: [redacted]\n")
+			fmt.Printf("[debug] token: %q\n", *token)
+		}
 		if nil != err {
 			fmt.Fprintf(os.Stderr, "neither secret nor token provided\n")
 			os.Exit(1)
@@ -402,14 +409,14 @@ func muxAll(
 	}
 
 	if nil != grants {
-		for _, domainname := range grants.Domains {
-			fmt.Printf("Will respond to remote requests to %q\n", domainname)
+		for i, domainname := range grants.Domains {
+			fmt.Printf("[%d] Will decrypt remote requests to %q\n", i, domainname)
 			mux.HandleTLS(domainname, acme, mux, "[Terminate TLS & Recurse] for (tunnel) "+domainname)
 		}
 	}
 
-	for _, fwd := range forwards {
-		fmt.Printf("Will respond to local requests to %q\n", fwd.pattern)
+	for i, fwd := range forwards {
+		fmt.Printf("[%d] Will decrypt local requests to %q\n", i, fwd.pattern)
 		mux.HandleTLS(fwd.pattern, acme, mux, "[Terminate TLS & Recurse] for (local) "+fwd.pattern)
 	}
 

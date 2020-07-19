@@ -15,76 +15,82 @@ import (
 )
 
 func main() {
+	var secret, clientSecret, relaySecret string
+
 	appID := flag.String("app-id", "", "a unique identifier for a deploy target environment")
 	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
-	clientSecret := flag.String("client-secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	machinePPID := flag.Bool("machine-ppid", false, "just print the machine ppid, not the token")
-	relaySecret := flag.String("relay-secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
+	flag.StringVar(&secret, "secret", "", "either the remote server or the tunnel relay secret (used for JWT authentication)")
 	flag.Parse()
-
-	if 0 == len(*appID) {
-		*appID = os.Getenv("APP_ID")
-	}
-	if 0 == len(*appID) {
-		*appID = "telebit.io"
-	}
-	if 0 == len(*clientSecret) {
-		*clientSecret = os.Getenv("CLIENT_SECRET")
-	}
-	if 0 == len(*relaySecret) {
-		*relaySecret = os.Getenv("RELAY_SECRET")
-		if 0 == len(*relaySecret) {
-			*relaySecret = os.Getenv("SECRET")
-		}
-	}
 
 	if 0 == len(*authURL) {
 		*authURL = os.Getenv("AUTH_URL")
 	}
 
-	if len(flag.Args()) >= 2 {
-		*relaySecret = flag.Args()[1]
+	if 0 == len(*appID) {
+		*appID = os.Getenv("APP_ID")
 	}
-	if "" == *relaySecret && "" == *clientSecret {
-		fmt.Fprintf(os.Stderr, "Usage: signjwt <secret>\n")
+	if 0 == len(*appID) {
+		*appID = os.Getenv("CLIENT_ID")
+	}
+	if 0 == len(*appID) {
+		*appID = "telebit.io"
+	}
+
+	if 0 == len(secret) {
+		clientSecret = os.Getenv("CLIENT_SECRET")
+		relaySecret = os.Getenv("RELAY_SECRET")
+		if 0 == len(relaySecret) {
+			relaySecret = os.Getenv("SECRET")
+		}
+	}
+	if 0 == len(secret) {
+		secret = clientSecret
+	}
+	if 0 == len(secret) {
+		secret = relaySecret
+	}
+
+	if 0 == len(secret) && 0 == len(clientSecret) && 0 == len(relaySecret) {
+		fmt.Fprintf(os.Stderr, "See usage: signjwt --help\n")
+		os.Exit(1)
+		return
+	} else if 0 != len(clientSecret) && 0 != len(relaySecret) {
+		fmt.Fprintf(os.Stderr, "Use only one of $SECRET or --relay-secret or --client-secret\n")
 		os.Exit(1)
 		return
 	}
 
-	secret := *clientSecret
-	if 0 == len(secret) {
-		secret = *relaySecret
+	var ppid string
+	muid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", *appID, secret))
+	//muid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", ClientID, ClientSecret))
+	if nil != err {
+		fmt.Fprintf(os.Stderr, "unauthorized device: %s\n", err)
+		os.Exit(1)
+		return
 	}
-	if len(flag.Args()) >= 2 {
-		secret = flag.Args()[1]
+	muidBytes, _ := hex.DecodeString(muid)
+	ppid = base64.RawURLEncoding.EncodeToString(muidBytes)
+
+	fmt.Fprintf(os.Stderr, "[debug] appID = %s\n", *appID)
+	fmt.Fprintf(os.Stderr, "[debug] secret = %s\n", secret)
+	pub := authstore.ToPublicKeyString(ppid)
+
+	if *machinePPID {
+		fmt.Fprintf(os.Stderr, "[debug]: <ppid> <pub>\n")
+		fmt.Fprintf(
+			os.Stdout,
+			"%s %s\n",
+			ppid,
+			pub,
+		)
+		return
 	}
 
-	if len(flag.Args()) >= 3 || *machinePPID || "" != *clientSecret {
-		muid, err := machineid.ProtectedID(*appID + "|" + secret)
-		if nil != err {
-			panic(err)
-		}
-		muidBytes, _ := hex.DecodeString(muid)
-		ppid := base64.RawURLEncoding.EncodeToString(muidBytes)
-		fmt.Fprintf(os.Stderr, "[debug] appID = %s\n", *appID)
-		fmt.Fprintf(os.Stderr, "[debug] secret = %s\n", secret)
-		pub := authstore.ToPublicKeyString(ppid)
-		if len(flag.Args()) >= 3 || *machinePPID {
-			fmt.Fprintf(os.Stderr, "[debug]: <ppid> <pub>\n")
-			fmt.Fprintf(
-				os.Stdout,
-				"%s %s\n",
-				ppid,
-				pub,
-			)
-			return
-		}
-		fmt.Fprintf(os.Stderr, "[debug] ppid = %s\n", ppid)
-		fmt.Fprintf(os.Stderr, "[debug] pub = %s\n", pub)
-		secret = ppid
-	}
+	fmt.Fprintf(os.Stderr, "[debug] ppid = %s\n", ppid)
+	fmt.Fprintf(os.Stderr, "[debug] pub = %s\n", pub)
 
-	tok, err := authstore.HMACToken(secret)
+	tok, err := authstore.HMACToken(ppid)
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "signing error: %s\n", err)
 		os.Exit(1)
@@ -92,11 +98,15 @@ func main() {
 	}
 
 	fmt.Fprintf(os.Stderr, "[debug] <token>\n")
-	fmt.Fprintf(os.Stdout, tok)
+	fmt.Fprintf(os.Stdout, "%s\n", tok)
 
-	_, err = telebit.Inspect(*authURL, tok)
-	if nil != err {
-		fmt.Fprintf(os.Stderr, "inpsect relay token failed:\n%s\n", err)
-		os.Exit(1)
+	if "" != *authURL {
+		grants, err := telebit.Inspect(*authURL, tok)
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "inspect relay token failed:\n%s\n", err)
+			os.Exit(1)
+		}
+		fmt.Fprintf(os.Stderr, "[debug] <grants>\n")
+		fmt.Fprintf(os.Stderr, "%+v\n", grants)
 	}
 }
