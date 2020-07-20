@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
 
 	telebit "git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/admin"
+	"git.rootprojects.org/root/telebit/dbg"
 	"git.rootprojects.org/root/telebit/table"
 
 	"github.com/go-chi/chi"
@@ -23,7 +25,6 @@ func init() {
 
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Println("[debug] should be handled by API or websocket upgrade")
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -31,7 +32,9 @@ func init() {
 	r.Mount("/ws", http.HandlerFunc(upgradeWebsocket))
 
 	r.HandleFunc("/api/ping", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Printf("[debug] hit /api/ping and replying\n")
+		if dbg.Debug {
+			fmt.Fprintf(os.Stderr, "[debug] hit /api/ping and replying\n")
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(apiPingContent)
 	}))
@@ -157,25 +160,23 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		w.Write(apiNotAuthorizedContent)
 		return
 	}
+
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 	}
-	fmt.Println("[debug] grants", grants)
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println("WebSocket upgrade failed", err)
 		return
 	}
 
-	//fmt.Printf("LocalAddr: %#v\n", r.LocalAddr)
-
 	wsTun := telebit.NewWebsocketTunnel(conn)
-	fmt.Printf("[debug] http.req.RemoteAddr: %+v\n", r.RemoteAddr)
-	fmt.Printf("[debug] conn.RemoteAddr(): %+v\n", conn.RemoteAddr())
-	fmt.Printf("[debug] conn.LocalAddr(): %+v\n", conn.LocalAddr())
-	//fmt.Printf("wsTun.RemoteAddr(): %+v\n", wsTun.RemoteAddr())
-	//fmt.Printf("wsTun.LocalAddr(): %#v\n", wsTun.LocalAddr())
+	fmt.Printf("New Authenticated WebSocket Remote Server\n")
+	fmt.Printf("\thttp.req.RemoteAddr: %+v\n", r.RemoteAddr)
+	fmt.Printf("\tconn.RemoteAddr(): %+v\n", conn.RemoteAddr())
+	fmt.Printf("\tconn.LocalAddr(): %+v\n", conn.LocalAddr())
+	fmt.Printf("\tgrants: %v\n", grants)
 
 	// The remote address of the server is useful for identification.
 	// The local address of the server (port to which it connected) is not very meaningful.
