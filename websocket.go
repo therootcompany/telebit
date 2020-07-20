@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
+	"git.rootprojects.org/root/telebit/dbg"
 
 	"github.com/gorilla/websocket"
 )

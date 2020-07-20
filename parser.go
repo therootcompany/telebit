@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
+	"git.rootprojects.org/root/telebit/dbg"
 )
 
 type Parser struct {

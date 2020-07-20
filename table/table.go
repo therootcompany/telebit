@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
-	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
+	"git.rootprojects.org/root/telebit/dbg"
+	telebit "git.rootprojects.org/root/telebit"
 	"github.com/gorilla/websocket"
 )
 

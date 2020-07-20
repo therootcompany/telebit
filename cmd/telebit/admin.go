@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"sync"
 
-	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
-	"git.coolaj86.com/coolaj86/go-telebitd/mplexer/admin"
-	"git.coolaj86.com/coolaj86/go-telebitd/table"
+	telebit "git.rootprojects.org/root/telebit"
+	"git.rootprojects.org/root/telebit/admin"
+	"git.rootprojects.org/root/telebit/table"
 
 	"github.com/go-chi/chi"
 	"github.com/gorilla/websocket"

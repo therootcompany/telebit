@@ -1,4 +1,4 @@
-module git.coolaj86.com/coolaj86/go-telebitd
+module git.rootprojects.org/root/telebit
 
 go 1.14
 

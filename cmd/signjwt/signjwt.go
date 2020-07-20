@@ -10,8 +10,8 @@ import (
 	"os"
 	"strconv"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/mgmt/authstore"
-	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
+	"git.rootprojects.org/root/telebit/mgmt/authstore"
+	telebit "git.rootprojects.org/root/telebit"
 
 	"github.com/denisbrodbeck/machineid"
 	_ "github.com/joho/godotenv/autoload"

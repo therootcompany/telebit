@@ -6,8 +6,8 @@ import (
 	"net"
 	"time"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
-	"git.coolaj86.com/coolaj86/go-telebitd/sni"
+	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/sni"
 )
 
 // ConnWrap is just a cheap way to DRY up some switch conn.(type) statements to handle special features of Conn

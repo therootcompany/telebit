@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
+	telebit "git.rootprojects.org/root/telebit"
 )
 
 func NewAuthorizer(authURL string) telebit.Authorizer {

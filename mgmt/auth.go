@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
-	"git.coolaj86.com/coolaj86/go-telebitd/mgmt/authstore"
-	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
+	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/mgmt/authstore"
+	telebit "git.rootprojects.org/root/telebit"
 )
 
 type SuccessResponse struct {

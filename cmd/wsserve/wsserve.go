@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
-	tbDns01 "git.coolaj86.com/coolaj86/go-telebitd/mplexer/dns01"
-	"git.coolaj86.com/coolaj86/go-telebitd/table"
+	telebit "git.rootprojects.org/root/telebit"
+	tbDns01 "git.rootprojects.org/root/telebit/dns01"
+	"git.rootprojects.org/root/telebit/table"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/dgrijalva/jwt-go"

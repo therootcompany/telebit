@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"git.coolaj86.com/coolaj86/go-telebitd/mgmt/authstore"
+	"git.rootprojects.org/root/telebit/mgmt/authstore"
 
 	"github.com/denisbrodbeck/machineid"
 	_ "github.com/joho/godotenv/autoload"
