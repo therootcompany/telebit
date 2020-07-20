@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/mgmt/authstore"
 	telebit "git.coolaj86.com/coolaj86/go-telebitd/mplexer"
@@ -16,6 +17,15 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+var durAbbrs = map[byte]bool{
+	's': true, // second
+	'm': true, // minute
+	'h': true, // hour
+	'd': true, // day
+	'w': true, // week
+	// month and year cannot be measured
+}
+
 func main() {
 	var secret, clientSecret, relaySecret string
 
@@ -23,12 +33,41 @@ func main() {
 	machineID := flag.String("machine-id", "", "spoof the raw machine id")
 	vendorID := flag.String("vendor-id", "", "a unique identifier for a deploy target environment")
 	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
+	humanExp := flag.String("expires-in", "15m", "set the token to expire <x> units after `iat` (issued at)")
 	getMachinePPID := flag.Bool("machine-ppid-only", false, "just print the machine ppid, not the token")
 	flag.StringVar(&secret, "secret", "", "either the remote server or the tunnel relay secret (used for JWT authentication)")
 	flag.Parse()
 
 	if 0 == len(*authURL) {
 		*authURL = os.Getenv("AUTH_URL")
+	}
+
+	humanExpLen := len(*humanExp)
+	if 0 == humanExpLen {
+		fmt.Fprintf(os.Stderr, "Invalid --expires-in: %q (minimum: 5s)", *humanExp)
+	}
+	expNum, _ := strconv.Atoi((*humanExp)[:humanExpLen-1])
+	expSuffix := (*humanExp)[humanExpLen-1:]
+	switch expSuffix {
+	case "w":
+		expNum *= 7
+		fallthrough
+	case "d":
+		expNum *= 24
+		fallthrough
+	case "h":
+		expNum *= 60
+		fallthrough
+	case "m":
+		expNum *= 60
+		fallthrough
+	case "s":
+		// do nothing
+	default:
+		fmt.Fprintf(os.Stderr, "Invalid --expires-in: %q (minimum: 5s)", *humanExp)
+	}
+	if expNum < 5 {
+		fmt.Fprintf(os.Stderr, "Invalid --expires-in: %q (minimum: 5s)", *humanExp)
 	}
 
 	if 0 == len(*vendorID) {
@@ -99,7 +138,7 @@ func main() {
 	fmt.Fprintf(os.Stderr, "[debug] ppid = %s\n", ppid)
 	fmt.Fprintf(os.Stderr, "[debug] pub = %s\n", pub)
 
-	tok, err := authstore.HMACToken(ppid)
+	tok, err := authstore.HMACToken(ppid, expNum)
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "signing error: %s\n", err)
 		os.Exit(1)

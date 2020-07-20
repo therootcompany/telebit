@@ -104,13 +104,22 @@ Copy `examples/mgmt.env` as `.env` in the working directory.
 Create a token with the same `SECRET` used with the `mgmt` server,
 and add a device by its `subdomain`.
 
+To build `signjwt`:
+
+```bash
+go build -mod=vendor -ldflags "-s -w" -o signjwt cmd/signjwt/*.go
+```
+
+To generate an `admin` token:
+
 ```bash
 VERDOR_ID="test-id"
 SECRET="xxxxxxxxxxx"
-TOKEN=$(go run -mod=vendor cmd/signjwt/*.go \
+TOKEN=$(./signjwt \
+    --expires-in 15m \
     --vendor-id $VENDOR_ID \
     --secret $SECRET \
-    --machine-id $SECRET
+    --machine-ppid $SECRET
 )
 ```
 
@@ -239,4 +248,22 @@ Hello, World!
 EOF
 
 python3 -m http.server 3000
+```
+
+## Glossary
+
+```
+--vendor-id         $VENDOR_ID          an arbitrary id used as part of authentication
+--secret            $SECRET             the secret for creating JWTs
+--auth-url          $AUTH_URL           the full url prefix of the server that will validate tokens
+--tunnel-relay-url  $TUNNEL_RELAY_URL   the full url of the websocket tunnel server
+--locals            $LOCALS             a list of `scheme:domainname:port`
+                                        for forwarding incoming `domainname` to local `port`
+--port-forwards     $PORT_FORWARDS      a list of `remote:local` tcp port-forwarding
+--verbose           $VERBOSE            logs everything, including abbreviated data (as hex)
+                    $VERBOSE_BYTES      logs full data (as hex)
+                    $VERBOSE_RAW        logs full data (as string)
+--acme-agree        $ACME_AGREE         agree to the ACME service agreement
+--acme-email        $ACME_EMAIL         the webmaster email for ACME notices
+--acme-relay-url    $ACME_RELAY_URL     the server that will relay ACME DNS-01 requests
 ```

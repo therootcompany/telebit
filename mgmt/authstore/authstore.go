@@ -51,10 +51,17 @@ func ToPublicKeyString(secret string) string {
 	return pub
 }
 
-func HMACToken(secret string) (token string, err error) {
+func HMACToken(secret string, maybeExp ...int) (token string, err error) {
 	keyID := ToPublicKeyString(secret)
 	if dbg.Debug {
 		fmt.Fprintf(os.Stderr, "[debug] keyID=%s\n", keyID)
+	}
+
+	var exp int64
+	if 0 == len(maybeExp) || 0 == maybeExp[0] {
+		exp = time.Now().Add(5 * time.Minute).Unix()
+	} else {
+		exp = time.Now().Add(time.Duration(maybeExp[0]) * time.Second).Unix()
 	}
 
 	b := make([]byte, 16)
@@ -64,7 +71,7 @@ func HMACToken(secret string) (token string, err error) {
 		Subject:   "", // TODO
 		Issuer:    "", // TODO
 		IssuedAt:  time.Now().Unix(),
-		ExpiresAt: time.Now().Add(5 * time.Minute).Unix(),
+		ExpiresAt: exp,
 	}
 
 	jwtToken := &jwt.Token{

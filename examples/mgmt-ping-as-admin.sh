@@ -14,6 +14,7 @@ AUTH_URL="${AUTH_URL:-"http://localhost:3000/api"}"
 
 echo "RELAY_SECRET: $RELAY_SECRET"
 TOKEN=$(go run cmd/signjwt/*.go \
+    --expires-in 1m \
     --vendor-id "$VENDOR_ID" \
     --secret "$RELAY_SECRET" \
     --machine-ppid "$RELAY_SECRET"
