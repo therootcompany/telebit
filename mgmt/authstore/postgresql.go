@@ -2,9 +2,7 @@ package authstore
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"time"
@@ -55,9 +53,7 @@ func (s *PGStore) SetMaster(secret string) error {
 	ctx, done := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 	defer done()
 
-	pubBytes := sha256.Sum256([]byte(secret))
-	pub := base64.RawURLEncoding.EncodeToString(pubBytes[:])
-	pub = pub[:24]
+	pub := ToPublicKeyString(secret)
 	auth := &Authorization{
 		Slug:        "*",
 		SharedKey:   secret,

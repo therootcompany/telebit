@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"git.coolaj86.com/coolaj86/go-telebitd/dbg"
@@ -53,7 +54,7 @@ func ToPublicKeyString(secret string) string {
 func HMACToken(secret string) (token string, err error) {
 	keyID := ToPublicKeyString(secret)
 	if dbg.Debug {
-		fmt.Printf("[debug] keyID=%s\n", keyID)
+		fmt.Fprintf(os.Stderr, "[debug] keyID=%s\n", keyID)
 	}
 
 	b := make([]byte, 16)

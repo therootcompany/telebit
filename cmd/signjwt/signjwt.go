@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"flag"
@@ -17,9 +19,11 @@ import (
 func main() {
 	var secret, clientSecret, relaySecret string
 
-	appID := flag.String("app-id", "", "a unique identifier for a deploy target environment")
+	machinePPID := flag.String("machine-ppid", "", "spoof the machine ppid")
+	machineID := flag.String("machine-id", "", "spoof the raw machine id")
+	vendorID := flag.String("vendor-id", "", "a unique identifier for a deploy target environment")
 	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
-	machinePPID := flag.Bool("machine-ppid", false, "just print the machine ppid, not the token")
+	getMachinePPID := flag.Bool("machine-ppid-only", false, "just print the machine ppid, not the token")
 	flag.StringVar(&secret, "secret", "", "either the remote server or the tunnel relay secret (used for JWT authentication)")
 	flag.Parse()
 
@@ -27,14 +31,11 @@ func main() {
 		*authURL = os.Getenv("AUTH_URL")
 	}
 
-	if 0 == len(*appID) {
-		*appID = os.Getenv("APP_ID")
+	if 0 == len(*vendorID) {
+		*vendorID = os.Getenv("VENDOR_ID")
 	}
-	if 0 == len(*appID) {
-		*appID = os.Getenv("CLIENT_ID")
-	}
-	if 0 == len(*appID) {
-		*appID = "telebit.io"
+	if 0 == len(*vendorID) {
+		*vendorID = "telebit.io"
 	}
 
 	if 0 == len(secret) {
@@ -61,22 +62,30 @@ func main() {
 		return
 	}
 
-	var ppid string
-	muid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", *appID, secret))
-	//muid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", ClientID, ClientSecret))
-	if nil != err {
-		fmt.Fprintf(os.Stderr, "unauthorized device: %s\n", err)
-		os.Exit(1)
-		return
+	ppid := *machinePPID
+	if 0 == len(ppid) {
+		appID := fmt.Sprintf("%s|%s", *vendorID, secret)
+		var muid string
+		var err error
+		if 0 == len(*machineID) {
+			muid, err = machineid.ProtectedID(appID)
+			if nil != err {
+				fmt.Fprintf(os.Stderr, "unauthorized device: %s\n", err)
+				os.Exit(1)
+				return
+			}
+		} else {
+			muid = ProtectMachineID(appID, *machineID)
+		}
+		muidBytes, _ := hex.DecodeString(muid)
+		ppid = base64.RawURLEncoding.EncodeToString(muidBytes)
 	}
-	muidBytes, _ := hex.DecodeString(muid)
-	ppid = base64.RawURLEncoding.EncodeToString(muidBytes)
 
-	fmt.Fprintf(os.Stderr, "[debug] appID = %s\n", *appID)
+	fmt.Fprintf(os.Stderr, "[debug] vendorID = %s\n", *vendorID)
 	fmt.Fprintf(os.Stderr, "[debug] secret = %s\n", secret)
 	pub := authstore.ToPublicKeyString(ppid)
 
-	if *machinePPID {
+	if *getMachinePPID {
 		fmt.Fprintf(os.Stderr, "[debug]: <ppid> <pub>\n")
 		fmt.Fprintf(
 			os.Stdout,
@@ -109,4 +118,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "[debug] <grants>\n")
 		fmt.Fprintf(os.Stderr, "%+v\n", grants)
 	}
+}
+
+func ProtectMachineID(appID, machineID string) string {
+	mac := hmac.New(sha256.New, []byte(machineID))
+	mac.Write([]byte(appID))
+	return hex.EncodeToString(mac.Sum(nil))
 }

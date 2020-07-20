@@ -13,13 +13,16 @@ AUTH_URL="${AUTH_URL:-"http://localhost:3000/api"}"
 # 5. (dev) ping occasionally
 
 echo "CLIENT_SECRET: $CLIENT_SECRET"
-TOKEN=$(go run cmd/signjwt/*.go --app-id "$APP_ID" --secret "$CLIENT_SECRET")
-echo "TOKEN 1: $TOKEN"
+TOKEN=$(go run cmd/signjwt/*.go --vendor-id "$VENDOR_ID" --secret "$CLIENT_SECRET")
+echo "TOKEN 1: '$TOKEN'"
 
-my_parts=$(go run cmd/signjwt/*.go --secret $CLIENT_SECRET --machine-ppid)
+my_parts=$(go run cmd/signjwt/*.go --vendor-id "$VENDOR_ID" --secret $CLIENT_SECRET --machine-ppid-only)
 my_ppid=$(echo $my_parts | cut -d' ' -f1)
 my_keyid=$(echo $my_parts | cut -d' ' -f2)
 echo "PPID: $my_ppid KeyID: $my_keyid"
 
-curl -X POST "$AUTH_URL/ping"  -H "Authorization: Bearer ${TOKEN}"
+echo "$AUTH_URL"
+curl -X POST "$AUTH_URL/ping" -H "Authorization: Bearer ${TOKEN}"
+echo ""
 curl "$AUTH_URL/inspect" -H "Authorization: Bearer ${TOKEN}"
+echo ""

@@ -6,17 +6,17 @@ set -u
 source .env
 
 #go generate -mod=vendor ./...
-CLIENT_ID="${CLIENT_ID:-"${APP_ID:-"test-id"}"}"
+VENDOR_ID="${VENDOR_ID:-"${VENDOR_ID:-"test-id"}"}"
 CLIENT_SECRET="${CLIENT_SECRET:-}"
 go build -mod=vendor -o ./telebit \
-    -ldflags="-X 'main.ClientID=$CLIENT_ID' -X 'main.ClientSecret=$CLIENT_SECRET'" \
+    -ldflags="-X 'main.VendorID=$VENDOR_ID' -X 'main.ClientSecret=$CLIENT_SECRET'" \
     cmd/telebit/*.go
 #go build -mod=vendor -o telebit \
 #    cmd/telebit/*.go
 
 # For Device Authorization across services
 AUTH_URL=${AUTH_URL:-"https://devices.examples.com/api"}
-APP_ID="$CLIENT_ID"
+VENDOR_ID="$VENDOR_ID"
 SECRET="${CLIENT_SECRET:-"xxxxxxxxxxxxxxxx"}"
 #CLIENT_SECRET=${CLIENT_SECRET:-"yyyyyyyyyyyyyyyy"}
 LOCALS="${LOCALS:-"https:newbie.devices.examples.com:3000,http:newbie.devices.examples.com:3000"}"
@@ -39,7 +39,7 @@ VERBOSE_RAW=${VERBOSE_RAW:-}
 
 ./telebit \
     --auth-url $AUTH_URL \
-    --app-id "$APP_ID" \
+    --vendor-id "$VENDOR_ID" \
     --secret "$CLIENT_SECRET" \
     --tunnel-relay-url $TUNNEL_RELAY_URL \
     --listen "$LISTEN" \

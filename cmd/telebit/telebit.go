@@ -55,8 +55,8 @@ var authorizer telebit.Authorizer
 
 var isHostname = regexp.MustCompile(`^[A-Za-z0-9_\.\-]+$`).MatchString
 
-// ClientID may be baked in, or supplied via ENVs or --args
-var ClientID string
+// VendorID may be baked in, or supplied via ENVs or --args
+var VendorID string
 
 // ClientSecret may be baked in, or supplied via ENVs or --args
 var ClientSecret string
@@ -67,7 +67,7 @@ func main() {
 	var portForwards []Forward
 
 	// TODO replace the websocket connection with a mock server
-	appID := flag.String("app-id", "", "a unique identifier for a deploy target environment")
+	vendorID := flag.String("vendor-id", "", "a unique identifier for a deploy target environment")
 	email := flag.String("acme-email", "", "email to use for Let's Encrypt / ACME registration")
 	certpath := flag.String("acme-storage", "./acme.d/", "path to ACME storage directory")
 	acmeAgree := flag.Bool("acme-agree", false, "agree to the terms of the ACME service provider (required)")
@@ -163,19 +163,19 @@ func main() {
 	}
 
 	// Baked-in takes precedence
-	if 0 == len(ClientID) {
-		ClientID = *appID
-	} else if 0 != len(*appID) {
-		if ClientID != *appID {
-			fmt.Fprintf(os.Stderr, "invalid --app-id\n")
+	if 0 == len(VendorID) {
+		VendorID = *vendorID
+	} else if 0 != len(*vendorID) {
+		if VendorID != *vendorID {
+			fmt.Fprintf(os.Stderr, "invalid --vendor-id\n")
 			os.Exit(1)
 		}
 	}
-	if 0 == len(ClientID) {
-		ClientID = os.Getenv("APP_ID")
-	} else if 0 != len(os.Getenv("APP_ID")) {
-		if ClientID != os.Getenv("APP_ID") {
-			fmt.Fprintf(os.Stderr, "invalid APP_ID\n")
+	if 0 == len(VendorID) {
+		VendorID = os.Getenv("VENDOR_ID")
+	} else if 0 != len(os.Getenv("VENDOR_ID")) {
+		if VendorID != os.Getenv("VENDOR_ID") {
+			fmt.Fprintf(os.Stderr, "invalid VENDOR_ID\n")
 			os.Exit(1)
 		}
 	}
@@ -195,7 +195,7 @@ func main() {
 			os.Exit(1)
 		}
 	}
-	ppid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", ClientID, ClientSecret))
+	ppid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", VendorID, ClientSecret))
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "unauthorized device\n")
 		os.Exit(1)
@@ -210,7 +210,7 @@ func main() {
 	if 0 == len(*token) {
 		*token, err = authstore.HMACToken(ppid)
 		if dbg.Debug {
-			fmt.Printf("[debug] app_id: %q\n", ClientID)
+			fmt.Printf("[debug] app_id: %q\n", VendorID)
 			//fmt.Printf("[debug] client_secret: %q\n", ClientSecret)
 			//fmt.Printf("[debug] ppid: %q\n", ppid)
 			//fmt.Printf("[debug] ppid: [redacted]\n")

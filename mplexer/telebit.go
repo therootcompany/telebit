@@ -343,7 +343,7 @@ func Inspect(authURL, token string) (*Grants, error) {
 		return nil, err
 	}
 	if "" == grants.Subject {
-		fmt.Println("TODO update mgmt server to show Subject:", msg)
+		fmt.Fprintf(os.Stderr, "TODO update mgmt server to show Subject: %q", msg)
 		grants.Subject = strings.Split(grants.Domains[0], ".")[0]
 	}
 	return grants, nil

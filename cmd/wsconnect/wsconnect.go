@@ -24,23 +24,23 @@ var authorizer telebit.Authorizer
 
 func main() {
 	// TODO replace the websocket connection with a mock server
-	appID := flag.String("app-id", "", "a unique identifier for a deploy target environment")
+	vendorID := flag.String("vendor-id", "", "a unique identifier for a deploy target environment")
 	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
 	relay := flag.String("relay", "", "the domain (or ip address) at which the relay server is running")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 	flag.Parse()
 
-	if 0 == len(*appID) {
-		*appID = os.Getenv("APP_ID")
+	if 0 == len(*vendorID) {
+		*vendorID = os.Getenv("VENDOR_ID")
 	}
-	if 0 == len(*appID) {
-		*appID = "telebit.io"
+	if 0 == len(*vendorID) {
+		*vendorID = "telebit.io"
 	}
 	if 0 == len(*secret) {
 		*secret = os.Getenv("CLIENT_SECRET")
 	}
-	ppid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", *appID, *secret))
+	ppid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", *vendorID, *secret))
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "unauthorized device\n")
 		os.Exit(1)
@@ -48,7 +48,7 @@ func main() {
 	}
 	ppidBytes, err := hex.DecodeString(ppid)
 	ppid = base64.RawURLEncoding.EncodeToString(ppidBytes)
-	fmt.Println("[debug] app-id, secret, ppid", *appID, *secret, ppid)
+	fmt.Println("[debug] vendor-id, secret, ppid", *vendorID, *secret, ppid)
 	if 0 == len(*token) {
 		*token, err = authstore.HMACToken(ppid)
 		if nil != err {

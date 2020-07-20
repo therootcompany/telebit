@@ -9,10 +9,14 @@ Because friends don't let friends localhost.
 Installs Go to `~/.local/opt/go` for MacOS and Linux:
 
 ```bash
-curl https://webinstall.dev/golang | bash
+curl -fsS https://webinstall.dev/golang | bash
 ```
 
-For Windows, see https://golang.org/dl
+Windows 10:
+
+```bash
+curl.exe -fsSA "MS" https://webinstall.dev/golang | powershell
+```
 
 **Note**: The _minimum required go version_ is shown in `go.mod`. DO NOT use with `GOPATH`!
 
@@ -23,11 +27,14 @@ All dependencies are included, at the correct version in the `./vendor` director
 ```bash
 go generate ./...
 
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-relay-linux ./cmd/telebit-relay/*.go
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-relay-macos ./cmd/telebit-relay/*.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-relay-windows-debug.exe ./cmd/telebit-relay/*.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H windowsgui" -o telebit-relay-windows.exe ./cmd/telebit-relay/*.go
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-relay-linux ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-relay-macos ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-relay-windows-debug.exe ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H windowsgui" -o telebit-relay-windows.exe ./cmd/telebit/*.go
 ```
+
+The binary can be built with `VENDOR_ID` and `CLIENT_SECRET` built into the binary.
+See `examples/run-as-client.sh`.
 
 ### Configure
 
@@ -37,17 +44,45 @@ See `./telebit-relay --help` for all options, and `examples/relay.env` for their
 
 ### Example
 
+Copy `examples/relay.env` as `.env` in the working directory.
+
 ```bash
-./telebit-relay --acme-agree=true --auth-url=http://localhost:3010/api
+# For Tunnel Relay Server
+API_HOSTNAME=devices.example.com
+LISTEN=:80,:443
+LOCALS=https:mgmt.devices.example.com:3010
+VERBOSE=true
+
+# For Device Management & Authentication
+AUTH_URL=http://localhost:3010/api
+
+# For Let's Encrypt / ACME registration
+ACME_AGREE=true
+ACME_EMAIL=letsencrypt@example.com
+
+# For Let's Encrypt / ACME challenges
+ACME_RELAY_URL=http://localhost:3010/api/dns
+SECRET=xxxxxxxxxxxxxxxx
+GODADDY_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+GODADDY_API_SECRET=xxxxxxxxxxxxxxxxxxxxxx
 ```
 
-Copy `examples/relay.env` as `.env` in the working directory.
+Note: It is not necessary to specify the `--flags` when using the ENVs.
+
+```bash
+./telebit-relay \
+    --api-hostname $API_HOSTNAME \
+    --auth-url "$AUTH_URL" \
+    --acme-agree "$ACME_AGREE" \
+    --acme-email "$ACME_EMAIL" \
+    --acme-relay-url "$ACME_RELAY_URL" \
+    --secret "$SECRET" \
+    --listen "$LISTEN"
+```
 
 ## Management Server
 
 ```bash
-pushd mplexy/
-
 go generate ./...
 
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o mgmt-server-linux ./cmd/mgmt/*.go
@@ -70,8 +105,13 @@ Create a token with the same `SECRET` used with the `mgmt` server,
 and add a device by its `subdomain`.
 
 ```bash
+VERDOR_ID="test-id"
 SECRET="xxxxxxxxxxx"
-TOKEN=$(go run -mod=vendor cmd/signjwt/*.go $SECRET)
+TOKEN=$(go run -mod=vendor cmd/signjwt/*.go \
+    --vendor-id $VENDOR_ID \
+    --secret $SECRET \
+    --machine-id $SECRET
+)
 ```
 
 Authorize a device:
@@ -128,8 +168,6 @@ curl -L -X DELETE http://mgmt.example.com:3010/api/devices/${my_subdomain} -H "A
 All dependencies are included, at the correct version in the `./vendor` directory.
 
 ```bash
-pushd mplexy/
-
 go generate ./...
 
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-client-linux ./cmd/telebit/*.go
@@ -146,13 +184,43 @@ See `./telebit-client --help` for all options, and `examples/client.env` for the
 
 ### Example
 
+Copy `examples/client.env` as `.env` in the working directory.
+
 ```bash
-./telebit-client --acme-agree=true \
-    --relay wss://devices.example.com \
-    --app-id test-id --secret ZR2rxYmcKJcmtKgmH9D5Qw \
-    --acme-relay http://mgmt.example.com:3010/api/dns \
-    --auth-url http://mgmt.example.com:3010/api \
-    --locals http://xxx.devices.example.com:8080,https://xxx.devices.example.com:8080
+# For Client
+VENDOR_ID=test-id
+CLIENT_SUBJECT=newieb
+CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxx
+AUTH_URL="https://mgmt.devices.example.com/api"
+TUNNEL_RELAY_URL=wss://devices.example.com/ws
+LOCALS=https:newbie.devices.example.com:3000,http:newbie.devices.example.com:3000
+#PORT_FORWARDS=3443:3001,8443:3002
+
+# For Debugging
+VERBOSE=true
+#VERBOSE_BYTES=true
+#VERBOSE_RAW=true
+
+# For Let's Encrypt / ACME registration
+ACME_AGREE=true
+ACME_EMAIL=letsencrypt@example.com
+
+# For Let's Encrypt / ACME challenges
+ACME_RELAY_URL="https://mgmt.devices.example.com/api/dns"
+```
+
+```bash
+./telebit-client \
+    --auth-url $AUTH_URL \
+    --vendor-id "$VENDOR_ID" \
+    --secret "$CLIENT_SECRET" \
+    --tunnel-relay-url $TUNNEL_RELAY_URL \
+    --listen "$LISTEN" \
+    --locals "$LOCALS" \
+    --acme-agree="$ACME_AGREE" \
+    --acme-email "$ACME_EMAIL" \
+    --acme-relay-url $ACME_RELAY_URL \
+    --verbose=$VERBOSE
 ```
 
 ## Local Web Application
