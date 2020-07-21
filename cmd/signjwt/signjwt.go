@@ -10,8 +10,8 @@ import (
 	"os"
 	"strconv"
 
-	"git.rootprojects.org/root/telebit/mgmt/authstore"
 	telebit "git.rootprojects.org/root/telebit"
+	"git.rootprojects.org/root/telebit/mgmt/authstore"
 
 	"github.com/denisbrodbeck/machineid"
 	_ "github.com/joho/godotenv/autoload"
