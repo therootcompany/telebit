@@ -196,7 +196,7 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 	}
 
 	if "end" == service {
-		fmt.Println("[debug] unpackV1 end")
+		fmt.Printf("[codec] [v1] unpack control message: 'end'\n")
 		p.handler.RouteBytes(p.state.srcAddr, p.state.dstAddr, []byte{})
 	}
 	return b, nil

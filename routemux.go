@@ -67,7 +67,13 @@ func (m *RouteMux) Serve(client net.Conn) error {
 			if "" == connServername {
 				wconn.SetServername(servername)
 			} else {
-				fmt.Printf("Has servername: current=%s new=%s\n", connServername, servername)
+				if connServername != servername {
+					fmt.Fprintf(
+						os.Stderr,
+						"[mux] Mismatch Servername: (current) %s != (new) %s\n",
+						connServername, servername,
+					)
+				}
 				wconn.SetServername(servername)
 				//panic(errors.New("Can't SetServername() over existing servername"))
 			}
@@ -152,6 +158,16 @@ func (m *RouteMux) ForwardTCP(servername string, target string, timeout time.Dur
 	return nil
 }
 
+func (m *RouteMux) ReverseProxyHTTP(servername string, target string, timeout time.Duration, comment ...string) error {
+	m.routes = append(m.routes, meta{
+		addr:      servername,
+		terminate: false,
+		handler:   NewReverseProxier(target, timeout),
+		comment:   append(comment, "")[0],
+	})
+	return nil
+}
+
 // HandleTCP creates and returns a connection to a local handler target.
 func (m *RouteMux) HandleTCP(servername string, handler Handler, comment ...string) error {
 	// TODO check servername
@@ -193,7 +209,14 @@ func (m *RouteMux) HandleTLS(servername string, acme *ACME, next Handler, commen
 
 			//NewTerminator(acme, handler)(client)
 			//return handler.Serve(client)
-			return next.Serve(TerminateTLS(wconn, acme))
+			go func() {
+				if err := next.Serve(TerminateTLS(wconn, acme)); nil != err {
+					fmt.Fprintf(os.Stderr, "error Terminating TLS: %s\n", err)
+				}
+			}()
+			// at this point, we've handled it
+			// TODO could we move termination further in?
+			return nil
 		}),
 		comment: append(comment, "")[0],
 	})

@@ -388,9 +388,9 @@ func muxAll(
 		*apiHostname = os.Getenv("API_HOSTNAME")
 	}
 	if "" != *apiHostname {
-		listener := httpshim.NewListener()
+		apiListener := httpshim.NewListener()
 		go func() {
-			httpsrv.Serve(listener)
+			httpsrv.Serve(apiListener)
 		}()
 		fmt.Printf("Will respond to Websocket and API requests to %q\n", *apiHostname)
 		mux.HandleTLS(*apiHostname, acme, mux, "[Terminate TLS & Recurse] for "+*apiHostname)
@@ -398,7 +398,7 @@ func muxAll(
 			if dbg.Debug {
 				fmt.Printf("[debug] Accepting API or WebSocket client %q\n", *apiHostname)
 			}
-			listener.Feed(client)
+			apiListener.Feed(client)
 			if dbg.Debug {
 				fmt.Printf("[debug] done with %q client\n", *apiHostname)
 			}
@@ -426,6 +426,9 @@ func muxAll(
 	//}, acme, mux, "[Terminate TLS & Recurse]")
 	for _, fwd := range forwards {
 		//mux.ForwardTCP("*", "localhost:"+fwd.port, 120*time.Second)
+		if "https" == fwd.scheme {
+			mux.ReverseProxyHTTP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, "[Servername Reverse Proxy]")
+		}
 		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, "[Servername Forward]")
 	}
 

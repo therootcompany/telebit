@@ -10,9 +10,13 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"strings"
 	"time"
+
+	httpshim "git.rootprojects.org/root/telebit/tunnel"
 
 	"github.com/caddyserver/certmagic"
 	"github.com/go-acme/lego/v3/challenge"
@@ -60,6 +64,29 @@ func NewForwarder(target string, timeout time.Duration) HandlerFunc {
 			return err
 		}
 		go Forward(client, tconn, timeout)
+		return nil
+	}
+}
+
+func NewReverseProxier(target string, timeout time.Duration) HandlerFunc {
+	// TODO accept listener?
+	proxyListener := httpshim.NewListener()
+	myURL, err := url.Parse("http://" + target)
+	if nil != err {
+		panic(err)
+	}
+	// TODO headers
+	proxyHandler := httputil.NewSingleHostReverseProxy(myURL)
+	proxyServer := &http.Server{
+		Handler: proxyHandler,
+	}
+	go func() {
+		proxyServer.Serve(proxyListener)
+	}()
+
+	return func(client net.Conn) error {
+		// TODO Peek to see if this is HTTP
+		proxyListener.Feed(client)
 		return nil
 	}
 }
@@ -234,6 +261,7 @@ func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
 		acmecert = magic
 	}
 
+	// TODO NextProtos: []string{ "h2", "http/1.1" }
 	tlsConfig := &tls.Config{
 		GetCertificate: func(hello *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			return acmecert.GetCertificate(hello)
