@@ -167,8 +167,8 @@ func (l *Listener) getPipe(src, dst *Addr, count int) net.Conn {
 	rawPipe, pipe := net.Pipe()
 	newconn := &Conn{
 		//updated:         time.Now(),
-		relaySourceAddr: *dst,
-		relayTargetAddr: *src,
+		relaySourceAddr: *src,
+		relayTargetAddr: *dst,
 		relay:           rawPipe,
 	}
 	l.conns[connID] = pipe
@@ -184,9 +184,11 @@ func (l *Listener) getPipe(src, dst *Addr, count int) net.Conn {
 		newconn.Close()
 		pipe.Close()
 		if nil != err {
-			fmt.Fprintf(os.Stderr, "[debug] [ln-pipe] encode stream ended:\n%+v\n%+v\n%q\n", *src, *dst, err)
+			fmt.Fprintf(os.Stderr, "[ln-pipe] encode stream ended:\n%+v\n%+v\n%q\n", *src, *dst, err)
 		} else {
-			fmt.Fprintf(os.Stderr, "[debug] [ln-pipe] encode stream ended gracefully:\n%+v\n%+v\n", *src, *dst)
+			if dbg.Debug {
+				fmt.Fprintf(os.Stderr, "[debug] [ln-pipe] encode stream ended gracefully:\n%+v\n%+v\n", *src, *dst)
+			}
 		}
 	}()
 

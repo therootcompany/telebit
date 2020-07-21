@@ -2,7 +2,6 @@ package telebit
 
 import (
 	"bufio"
-	"fmt"
 	"net"
 	"time"
 )
@@ -84,14 +83,14 @@ func (c *Conn) LocalAddr() net.Addr {
 
 // LocalAddr returns the local network address.
 func (c *Conn) LocalAddr() net.Addr {
-	fmt.Println("[warn] LocalAddr() address source/target switch?")
-	return &c.relaySourceAddr
+	//fmt.Println("[warn] LocalAddr() address source/target switch?")
+	return &c.relayTargetAddr
 }
 
 // RemoteAddr returns the remote network address.
 func (c *Conn) RemoteAddr() net.Addr {
-	fmt.Println("[warn] RemoteAddr() address source/target switch?")
-	return &c.relayTargetAddr
+	//fmt.Println("[warn] RemoteAddr() address source/target switch?")
+	return &c.relaySourceAddr
 }
 
 // SetDeadline sets the read and write deadlines associated
