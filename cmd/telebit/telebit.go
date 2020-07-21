@@ -18,11 +18,11 @@ import (
 	"strings"
 	"time"
 
+	telebit "git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/dbg"
+	tbDns01 "git.rootprojects.org/root/telebit/dns01"
 	"git.rootprojects.org/root/telebit/mgmt"
 	"git.rootprojects.org/root/telebit/mgmt/authstore"
-	telebit "git.rootprojects.org/root/telebit"
-	tbDns01 "git.rootprojects.org/root/telebit/dns01"
 	"git.rootprojects.org/root/telebit/table"
 	httpshim "git.rootprojects.org/root/telebit/tunnel"
 	legoDns01 "github.com/go-acme/lego/v3/challenge/dns01"

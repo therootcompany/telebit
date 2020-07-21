@@ -25,6 +25,7 @@ import (
 // but even 1024b could work well.
 var defaultBufferSize = 8192
 var defaultPeekerSize = 1024
+var defaultWriteTimeout = 10 * time.Second
 
 // ErrBadGateway means that the target did not accept the connection
 var ErrBadGateway = errors.New("EBADGATEWAY")
@@ -58,7 +59,8 @@ func NewForwarder(target string, timeout time.Duration) HandlerFunc {
 		if nil != err {
 			return err
 		}
-		return Forward(client, tconn, timeout)
+		go Forward(client, tconn, timeout)
+		return nil
 	}
 }
 
@@ -75,6 +77,12 @@ func Forward(client net.Conn, target net.Conn, timeout time.Duration) error {
 	defer client.Close()
 	defer target.Close()
 
+	noDeadline := time.Time{}
+	writeTimeout := defaultWriteTimeout
+	if timeout < defaultWriteTimeout {
+		writeTimeout = timeout
+	}
+
 	srcCh := make(chan []byte)
 	dstCh := make(chan []byte)
 	srcErrCh := make(chan error)
@@ -84,6 +92,8 @@ func Forward(client net.Conn, target net.Conn, timeout time.Duration) error {
 	go func() {
 		for {
 			b := make([]byte, defaultBufferSize)
+			client.SetReadDeadline(time.Now().Add(timeout))
+			target.SetReadDeadline(time.Now().Add(timeout))
 			n, err := client.Read(b)
 			if n > 0 {
 				srcCh <- b[:n]
@@ -101,6 +111,8 @@ func Forward(client net.Conn, target net.Conn, timeout time.Duration) error {
 	go func() {
 		for {
 			b := make([]byte, defaultBufferSize)
+			target.SetReadDeadline(time.Now().Add(timeout))
+			client.SetReadDeadline(time.Now().Add(timeout))
 			n, err := target.Read(b)
 			if n > 0 {
 				dstCh <- b[:n]
@@ -115,10 +127,10 @@ func Forward(client net.Conn, target net.Conn, timeout time.Duration) error {
 		}
 	}()
 
-	fmt.Println(
-		"Forwarding TCP connection",
-		client.LocalAddr(),
+	fmt.Printf(
+		"[mux] Forwarding TCP connection\n\t%s => %s\n\t(%s => %s)\n",
 		client.RemoteAddr(),
+		client.LocalAddr(),
 		target.LocalAddr(),
 		target.RemoteAddr(),
 	)
@@ -131,15 +143,19 @@ ForwardData:
 		//case <-ctx.Done():
 		//		break
 		case b := <-srcCh:
-			client.SetDeadline(time.Now().Add(timeout))
+			//fmt.Println("Read(): ", len(b))
+			target.SetWriteDeadline(time.Now().Add(writeTimeout))
 			_, err = target.Write(b)
+			target.SetWriteDeadline(noDeadline)
 			if nil != err {
 				fmt.Printf("write to target failed: %q\n", err.Error())
 				break ForwardData
 			}
 		case b := <-dstCh:
-			target.SetDeadline(time.Now().Add(timeout))
+			//fmt.Println("Write(): ", len(b))
+			client.SetWriteDeadline(time.Now().Add(writeTimeout))
 			_, err = client.Write(b)
+			client.SetWriteDeadline(noDeadline)
 			if nil != err {
 				fmt.Printf("write to remote failed: %q\n", err.Error())
 				break ForwardData
@@ -168,7 +184,6 @@ ForwardData:
 		}
 	}
 
-	client.Close()
 	return err
 }
 
@@ -306,7 +321,7 @@ func NewCertMagic(acme *ACME) (*certmagic.Config, error) {
 		},
 	})
 	// yes, a circular reference, passing `magic` to its own Issuer
-	fmt.Printf("[debug] ACME Email: %q\n", acme.Email)
+	fmt.Printf("ACME Email: %q\n", acme.Email)
 	magic.Issuer = certmagic.NewACMEManager(magic, certmagic.ACMEManager{
 		DNSProvider:             acme.DNSProvider,
 		DNSChallengeOption:      acme.DNSChallengeOption,

@@ -81,20 +81,36 @@ func (m *RouteMux) Serve(client net.Conn) error {
 		port = ":" + parts[len(parts)-1]
 		servername = strings.Join(parts[:len(parts)-1], ":")
 	}
-	fmt.Println("Addr:", fam, servername, port)
+	fmt.Println("\nAddr:", fam, servername, port)
 
 	for _, meta := range m.routes {
 		// TODO '*.example.com'
 		if meta.terminate {
 			servername = wconn.Servername()
 		}
-		fmt.Println("\nMeta:", meta.comment, "meta.addr="+meta.addr, "servername="+servername)
 		if servername == meta.addr || "*" == meta.addr || port == meta.addr {
 			//fmt.Fprintf(os.Stderr, "[debug] test of route: %v\n", meta)
 			// Only keep trying handlers if ErrNotHandled was returned
 			if err := meta.handler.Serve(wconn); ErrNotHandled != err {
+				fmt.Printf(
+					"[mux] Match: %s\n\tmeta.addr=%s\n\tservername=%s\n",
+					meta.comment, meta.addr, servername,
+				)
 				return err
 			}
+			if dbg.Debug {
+				fmt.Fprintf(
+					os.Stderr,
+					"[debug] [mux] Failed match: %s meta.addr=%s servername=%s\n",
+					meta.comment, meta.addr, servername,
+				)
+			}
+		} else if dbg.Debug {
+			fmt.Fprintf(
+				os.Stderr,
+				"[debug] [mux] Skip (no match): %s meta.addr=%s servername=%s\n",
+				meta.comment, meta.addr, servername,
+			)
 		}
 	}
 
