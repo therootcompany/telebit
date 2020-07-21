@@ -93,7 +93,7 @@ func main() {
 
 	if len(os.Args) >= 2 {
 		if "version" == os.Args[1] {
-			fmt.Printf("telebit %s %s %s", GitVersion, GitRev[:7], GitTimestamp)
+			fmt.Printf("telebit %s %s %s\n", GitVersion, GitRev[:7], GitTimestamp)
 			os.Exit(0)
 		}
 	}
