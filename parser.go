@@ -3,6 +3,7 @@ package telebit
 import (
 	"errors"
 	"fmt"
+	"os"
 
 	"git.rootprojects.org/root/telebit/dbg"
 )
@@ -72,7 +73,7 @@ func (p *Parser) Write(b []byte) (int, error) {
 	switch p.parseState {
 	case VersionState:
 		if dbg.Debug {
-			fmt.Println("[debug] MPLEXY version byte", b[0], string(b))
+			fmt.Fprintf(os.Stderr, "[debug] MPLEXY version byte %v %s", b[0], string(b))
 		}
 		p.state.version = b[0]
 		b = b[1:]
@@ -85,7 +86,7 @@ func (p *Parser) Write(b []byte) (int, error) {
 	switch p.state.version {
 	case V1:
 		if dbg.Debug {
-			fmt.Println("[debug] MPLEXY packet is of type v1")
+			fmt.Fprintf(os.Stderr, "[debug] MPLEXY packet is of type v1\n")
 		}
 		return p.unpackV1(b)
 	default:

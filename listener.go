@@ -6,7 +6,10 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
+
+	"git.rootprojects.org/root/telebit/dbg"
 )
 
 // A Listener transforms a multiplexed websocket connection into individual net.Conn-like connections.
@@ -83,7 +86,7 @@ func Serve(listener net.Listener, mux Handler) error {
 				if io.EOF != err && io.ErrClosedPipe != err && !strings.Contains(err.Error(), errNetClosing) {
 					fmt.Printf("client could not be served: %q\n", err.Error())
 				}
-				fmt.Println("[debug] closing original client", err)
+				fmt.Printf("closing original client: %s\n", err)
 				client.Close()
 			}
 		}()
@@ -142,7 +145,9 @@ func (l *Listener) RouteBytes(srcAddr, dstAddr Addr, b []byte) {
 	}
 	// EOF, if needed
 	if "end" == string(dst.scheme) {
-		fmt.Println("[debug] end")
+		if dbg.Debug {
+			fmt.Fprintf(os.Stderr, "[debug] end\n")
+		}
 		pipe.Close()
 		delete(l.conns, src.String())
 	}
@@ -179,9 +184,9 @@ func (l *Listener) getPipe(src, dst *Addr, count int) net.Conn {
 		newconn.Close()
 		pipe.Close()
 		if nil != err {
-			fmt.Printf("[debug] [ln-pipe] encode stream ended:\n%+v\n%+v\n%q\n", *src, *dst, err)
+			fmt.Fprintf(os.Stderr, "[debug] [ln-pipe] encode stream ended:\n%+v\n%+v\n%q\n", *src, *dst, err)
 		} else {
-			fmt.Printf("[debug] [ln-pipe] encode stream ended gracefully:\n%+v\n%+v\n", *src, *dst)
+			fmt.Fprintf(os.Stderr, "[debug] [ln-pipe] encode stream ended gracefully:\n%+v\n%+v\n", *src, *dst)
 		}
 	}()
 

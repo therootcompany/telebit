@@ -3,6 +3,7 @@ package telebit
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -52,7 +53,9 @@ func (p *Parser) unpackV1(b []byte) (int, error) {
 		z++
 		n := len(b)
 		if n < 1 {
-			fmt.Printf("[debug] v1 message unpacked (%d loops) (%d bytes left)\n", z, n)
+			if dbg.Debug {
+				fmt.Fprintf(os.Stderr, "[debug] v1 message unpacked (%d loops) (%d bytes left)\n", z, n)
+			}
 			break
 		}
 
@@ -90,7 +93,7 @@ func (p *Parser) unpackV1(b []byte) (int, error) {
 				return consumed, err
 			}
 		default:
-			fmt.Println("[debug] v1 unknown state")
+			fmt.Fprintf(os.Stderr, "[debug] v1 unknown state\n")
 			// do nothing
 			consumed := p.consumed
 			p.consumed = 0
@@ -142,9 +145,13 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 	port, _ := strconv.Atoi(parts[PortIndex])
 	service := parts[ServiceIndex]
 
-	fmt.Printf("[debug] parts: %s\n", strings.Join(parts, " | "))
+	if dbg.Debug {
+		fmt.Fprintf(os.Stderr, "[debug] parts: %s\n", strings.Join(parts, " | "))
+	}
 	if "control" == service {
-		fmt.Printf("[debug] control: %s\n", service)
+		if dbg.Debug {
+			fmt.Fprintf(os.Stderr, "[debug] control: %s\n", service)
+		}
 		return nil, errors.New("'control' messages not implemented")
 	}
 
@@ -185,7 +192,7 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 	*/
 	p.parseState++
 	if dbg.Debug {
-		fmt.Printf("[debug] unpackV1 parse state: %v\n", p.parseState)
+		fmt.Fprintf(os.Stderr, "[debug] unpackV1 parse state: %v\n", p.parseState)
 	}
 
 	if "end" == service {
@@ -197,7 +204,7 @@ func (p *Parser) unpackV1Header(b []byte, n int) ([]byte, error) {
 
 func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 	if dbg.Debug {
-		fmt.Printf("[debug] unpackV1 payload state: %+v\n", p.state)
+		fmt.Fprintf(os.Stderr, "[debug] unpackV1 payload state: %+v\n", p.state)
 	}
 	// Handle "connect" and "end"
 	if 0 == p.state.payloadLen {
@@ -216,8 +223,10 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 			return b, nil
 		*/
 
-		//fmt.Printf("[debug] [2] payload written: %d | payload length: %d\n", p.state.payloadWritten, p.state.payloadLen)
-		fmt.Printf("[debug] unpackV1 RouteBytes: %#v %#v %s\n", p.state.srcAddr, p.state.dstAddr, p.state.dstAddr.scheme)
+		if dbg.Debug {
+			//fmt.Fprintf(os.Stderr, "[debug] [2] payload written: %d | payload length: %d\n", p.state.payloadWritten, p.state.payloadLen)
+			fmt.Fprintf(os.Stderr, "[debug] unpackV1 RouteBytes: %#v %#v %s\n", p.state.srcAddr, p.state.dstAddr, p.state.dstAddr.scheme)
+		}
 		p.handler.RouteBytes(p.state.srcAddr, p.state.dstAddr, []byte{})
 		return b, nil
 	}
@@ -242,7 +251,7 @@ func (p *Parser) unpackV1Payload(b []byte, n int) ([]byte, error) {
 	p.consumed += k
 	p.state.payloadWritten += k
 
-	//fmt.Printf("[debug] [1] payload written: %d | payload length: %d\n", p.state.payloadWritten, p.state.payloadLen)
+	//fmt.Fprintf(os.Stderr, "[debug] [1] payload written: %d | payload length: %d\n", p.state.payloadWritten, p.state.payloadLen)
 	// if this payload is complete, reset all state
 	if p.state.payloadWritten == p.state.payloadLen {
 		p.state = ParserState{}

@@ -116,7 +116,7 @@ func Forward(client net.Conn, target net.Conn, timeout time.Duration) error {
 	}()
 
 	fmt.Println(
-		"[debug] forwarding tcp connection",
+		"Forwarding TCP connection",
 		client.LocalAddr(),
 		client.RemoteAddr(),
 		target.LocalAddr(),

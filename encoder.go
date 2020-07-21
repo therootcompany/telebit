@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"sync"
 
@@ -68,7 +69,7 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 	rx := make(chan []byte)
 	rxErr := make(chan error)
 
-	//fmt.Println("[debug] what's the source to encode?", src)
+	//fmt.Fprintf(os.Stderr, "[debug] what's the source to encode? %v\n", src)
 
 	go func() {
 		for {
@@ -76,13 +77,15 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			//fmt.Println("loopers gonna loop")
 			n, err := rin.Read(b)
 			if dbg.Debug {
-				fmt.Println("[debug] [encoder] [srv] Browser read", n, dbg.Trunc(b, n))
+				fmt.Fprintf(os.Stderr, "[debug] [encoder] [srv] Browser read %d %s\n", n, dbg.Trunc(b, n))
 			}
 			if n > 0 {
 				rx <- b[:n]
 			}
 			if nil != err {
-				fmt.Println("[debug] [encoder] [srv] Browser read error", err)
+				if io.EOF != err {
+					fmt.Fprintf(os.Stderr, "[encoder] [srv] Browser read err: %s\n", err)
+				}
 				rxErr <- err
 				return
 			}
@@ -99,32 +102,32 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			// TODO: verify that closing the reader will cause the goroutine to be released
 			//rin.Close()
 			if dbg.Debug {
-				fmt.Println("[debug] [encoder] [srv] Browser ctx.Done()")
+				fmt.Fprintf(os.Stderr, "[debug] [encoder] [srv] Browser ctx.Done()\n")
 			}
 			return errors.New("cancelled by encoder read or parent context")
 		/*
 			case <-enc.subctx.Done():
 				//rin.Close()
-				fmt.Println("[debug] [encoder] [srv] Browser subctx.Done()")
+				fmt.Fprintf(os.Stderr, "[debug] [encoder] [srv] Browser subctx.Done()\n")
 				return errors.New("cancelled by encoder write context")
 		*/
 		case b := <-rx:
 			header, _, err := Encode(b, src, Addr{scheme: src.scheme, addr: dst.Hostname(), port: dst.Port()})
 			if nil != err {
 				//rin.Close()
-				fmt.Println("[debug] [encoder] [srv] Browser Encode err", err)
+				fmt.Fprintf(os.Stderr, "[encoder] [srv] Browser Encode err: %s\n", err)
 				return err
 			}
-			//fmt.Println("[debug] encode header:", string(header))
-			//fmt.Println("[debug] encode payload:", string(b))
+			//fmt.Fprintf(os.Stderr, "[debug] encode header: %s\n", string(header))
+			//fmt.Fprintf(os.Stderr, "[debug] encode payload: %s\n", string(b))
 
 			_, err = enc.write(header, b)
 			if dbg.Debug {
-				fmt.Println("[debug] [encoder] [srv] Browser-to-tun write", len(header), strings.TrimSpace(string(header)))
-				fmt.Println("[debug] [encoder] [srv]", len(b), dbg.Trunc(b, len(b)))
+				fmt.Fprintf(os.Stderr, "[debug] [encoder] [srv] Browser-to-tun write %d %s\n", len(header), strings.TrimSpace(string(header)))
+				fmt.Fprintf(os.Stderr, "[debug] [encoder] [srv] %d %s\n", len(b), dbg.Trunc(b, len(b)))
 			}
 			if nil != err {
-				fmt.Println("[debug] [encoder] [srv] Browser-to-tun write err", err)
+				fmt.Fprintf(os.Stderr, "[encoder] [srv] Browser-to-tun write err: %s\n", err)
 				//rin.Close()
 				return err
 			}
@@ -133,7 +136,7 @@ func (enc *Encoder) Encode(rin io.Reader, src, dst Addr) error {
 			//rin.Close()
 			if io.EOF == err {
 				header, _, _ := Encode(nil, src, Addr{scheme: "end"})
-				//fmt.Println("[debug] encode end: ", string(header))
+				//fmt.Fprintf(os.Stderr, "[debug] encode end: %s\n", string(header))
 				// ignore err, which may have already closed
 				_, _ = enc.write(header, nil)
 				return nil

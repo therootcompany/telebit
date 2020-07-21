@@ -3,14 +3,15 @@ package table
 import (
 	"fmt"
 	"net"
+	"os"
 	"sync"
 
 	"io"
 	"strconv"
 	"strings"
 
-	"git.rootprojects.org/root/telebit/dbg"
 	telebit "git.rootprojects.org/root/telebit"
+	"git.rootprojects.org/root/telebit/dbg"
 	"github.com/gorilla/websocket"
 )
 
@@ -53,13 +54,17 @@ func Add(server *SubscriberConn) {
 func RemoveServer(server *SubscriberConn) bool {
 	// TODO remove by RemoteAddr
 	//return false
-	fmt.Printf("[warn] RemoveServer() still calls Remove(subject) instead of removing by RemoteAddr\n")
+	fmt.Fprintf(
+		os.Stderr,
+		"[warn] RemoveServer() still calls Remove(subject) instead of removing by RemoteAddr\n",
+	)
 	return Remove(server.Grants.Subject)
 }
 
 func Remove(subject string) bool {
 	srvMapX, ok := Servers.Load(subject)
-	fmt.Printf("[debug] has server for %s? %t\n", subject, ok)
+	fmt.Printf("Remove(%s): exists? %t\n", subject, ok)
+
 	if !ok {
 		return false
 	}
@@ -115,20 +120,24 @@ type SubscriberConn struct {
 func (s *SubscriberConn) RouteBytes(src, dst telebit.Addr, payload []byte) {
 	id := fmt.Sprintf("%s:%d", src.Hostname(), src.Port())
 	if dbg.Debug {
-		fmt.Println("[debug] Routing some more bytes:", dbg.Trunc(payload, len(payload)))
+		fmt.Fprintf(
+			os.Stderr,
+			"[debug] Routing some more bytes: %s\n",
+			dbg.Trunc(payload, len(payload)),
+		)
+		fmt.Printf("\tid %s\nsrc %+v\n", id, src)
+		fmt.Printf("\tdst %s %+v\n", dst.Scheme(), dst)
 	}
-	fmt.Printf("id %s\nsrc %+v\n", id, src)
-	fmt.Printf("dst %s %+v\n", dst.Scheme(), dst)
 	clientX, ok := s.Clients.Load(id)
 	if !ok {
 		// TODO send back closed client error
-		fmt.Println("[debug] no client found for", id)
+		fmt.Printf("RouteBytes({ %s }, %v, ...) [debug] no client found for %s\n", id, dst)
 		return
 	}
 
 	client, _ := clientX.(net.Conn)
 	if "end" == dst.Scheme() {
-		fmt.Println("[debug] closing client", id)
+		fmt.Printf("RouteBytes: { %s }.Close(): %v\n", id, dst)
 		_ = client.Close()
 		return
 	}
@@ -136,7 +145,7 @@ func (s *SubscriberConn) RouteBytes(src, dst telebit.Addr, payload []byte) {
 	for {
 		n, err := client.Write(payload)
 		if dbg.Debug {
-			fmt.Println("[debug] table Write", dbg.Trunc(payload, len(payload)))
+			fmt.Fprintf(os.Stderr, "[debug] table Write %s\n", dbg.Trunc(payload, len(payload)))
 		}
 		if nil == err || io.EOF == err {
 			break
@@ -162,10 +171,12 @@ func (s *SubscriberConn) Serve(client net.Conn) error {
 	}
 
 	id := client.RemoteAddr().String()
-	fmt.Printf("[DEBUG] NEW ID (ip:port) %s\n", id)
+	if dbg.Debug {
+		fmt.Fprintf(os.Stderr, "[debug] NEW ID (ip:port) %s\n", id)
+	}
 	s.Clients.Store(id, client)
 
-	//fmt.Println("[debug] immediately cancel client to simplify testing / debugging")
+	//fmt.Fprintf(os.Stderr, "[debug] immediately cancel client to simplify testing / debugging\n")
 	//_ = client.Close()
 
 	// TODO
@@ -176,12 +187,16 @@ func (s *SubscriberConn) Serve(client net.Conn) error {
 	srcParts := strings.Split(client.RemoteAddr().String(), ":")
 	srcAddr := srcParts[0]
 	srcPort, _ := strconv.Atoi(srcParts[1])
-	fmt.Println("[debug] srcParts", srcParts)
 
 	dstParts := strings.Split(client.LocalAddr().String(), ":")
 	dstAddr := dstParts[0]
 	dstPort, _ := strconv.Atoi(dstParts[1])
-	fmt.Println("[debug] dstParts", dstParts)
+
+	if dbg.Debug {
+		fmt.Fprintf(os.Stderr, "[debug] srcParts %v\n", srcParts)
+		fmt.Fprintf(os.Stderr, "[debug] dstParts %v\n", dstParts)
+	}
+
 	servername := wconn.Servername()
 
 	termination := telebit.Unknown
@@ -210,12 +225,18 @@ func (s *SubscriberConn) Serve(client net.Conn) error {
 		dstAddr,
 		dstPort,
 	)
-	fmt.Printf("[debug] NewAddr src %+v\n", src)
-	fmt.Printf("[debug] NewAddr dst %+v\n", dst)
+
+	if dbg.Debug {
+		fmt.Fprintf(os.Stderr, "[debug] NewAddr src %+v\n", src)
+		fmt.Fprintf(os.Stderr, "[debug] NewAddr dst %+v\n", dst)
+	}
 
 	err := s.MultiEncoder.Encode(wconn, *src, *dst)
 	_ = wconn.Close()
-	fmt.Printf("[debug] Encoder Complete %+v %+v\n", id, err)
+
+	if dbg.Debug {
+		fmt.Fprintf(os.Stderr, "[debug] Encoder Complete %+v %+v\n", id, err)
+	}
 	s.Clients.Delete(id)
 	return err
 }

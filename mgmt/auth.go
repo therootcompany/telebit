@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 
+	telebit "git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/dbg"
 	"git.rootprojects.org/root/telebit/mgmt/authstore"
-	telebit "git.rootprojects.org/root/telebit"
 )
 
 type SuccessResponse struct {
@@ -40,7 +41,7 @@ func Register(authURL, secret, ppid string) (kid string, err error) {
 	jsonb := bytes.NewBuffer([]byte(jsons))
 	fullURL := authURL + "/register-device/" + secret
 	if dbg.Debug {
-		fmt.Println("[debug] authURL, secret, ppid", fullURL, secret, jsons)
+		fmt.Fprintf(os.Stderr, "[debug] authURL=%s, secret=%s, ppid=%s\n", fullURL, secret, jsons)
 	}
 	msg, err := telebit.Request("POST", fullURL, "", jsonb)
 	if nil != err {

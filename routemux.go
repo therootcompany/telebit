@@ -4,9 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"git.rootprojects.org/root/telebit/dbg"
 )
 
 // A RouteMux is a net.Conn multiplexer.
@@ -38,7 +41,9 @@ func NewRouteMux() *RouteMux {
 
 // Serve dispatches the connection to the handler whose selectors matches the attributes.
 func (m *RouteMux) Serve(client net.Conn) error {
-	fmt.Println("\n\n[debug] mux.Serve(client)")
+	if dbg.Debug {
+		fmt.Fprintf(os.Stderr, "\n\n[debug] mux.Serve(client)\n")
+	}
 
 	var wconn *ConnWrap
 	switch conn := client.(type) {
@@ -85,7 +90,7 @@ func (m *RouteMux) Serve(client net.Conn) error {
 		}
 		fmt.Println("\nMeta:", meta.comment, "meta.addr="+meta.addr, "servername="+servername)
 		if servername == meta.addr || "*" == meta.addr || port == meta.addr {
-			//fmt.Println("[debug] test of route:", meta)
+			//fmt.Fprintf(os.Stderr, "[debug] test of route: %v\n", meta)
 			// Only keep trying handlers if ErrNotHandled was returned
 			if err := meta.handler.Serve(wconn); ErrNotHandled != err {
 				return err
@@ -159,12 +164,16 @@ func (m *RouteMux) HandleTLS(servername string, acme *ACME, next Handler, commen
 			}
 
 			if !wconn.isEncrypted() {
-				fmt.Println("[debug] HandleTLS: conn is not encrypted")
+				if dbg.Debug {
+					fmt.Fprintf(os.Stderr, "[debug] HandleTLS: conn is not encrypted\n")
+				}
 				// TODO handle underlying Peek() timeout error
 				return ErrNotHandled
 			}
 
-			fmt.Println("[debug] HandleTLS: decrypted connection, recursing")
+			if dbg.Debug {
+				fmt.Fprintf(os.Stderr, "[debug] HandleTLS: decrypted connection, recursing\n")
+			}
 
 			//NewTerminator(acme, handler)(client)
 			//return handler.Serve(client)

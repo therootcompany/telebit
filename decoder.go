@@ -3,7 +3,7 @@ package telebit
 import (
 	"fmt"
 	"io"
-	"log"
+	"os"
 
 	"git.rootprojects.org/root/telebit/dbg"
 )
@@ -35,13 +35,13 @@ func (d *Decoder) Decode(out Router) error {
 			b := make([]byte, d.bufferSize)
 			n, err := d.in.Read(b)
 			if dbg.Debug {
-				log.Println("[debug] [decoder] [srv] Tunnel read", n, dbg.Trunc(b, n))
+				fmt.Fprintf(os.Stderr, "[debug] [decoder] [srv] Tunnel read %d %s\n", n, dbg.Trunc(b, n))
 			}
 			if n > 0 {
 				rx <- b[:n]
 			}
 			if nil != err {
-				fmt.Println("[debug] [decoder] [srv] Tunnel read err", err)
+				fmt.Fprintf(os.Stderr, "[decoder] [srv] Tunnel read err: %s\n", err)
 				rxErr <- err
 				return
 			}
@@ -53,11 +53,11 @@ func (d *Decoder) Decode(out Router) error {
 		case b := <-rx:
 			n, err := p.Write(b)
 			if dbg.Debug {
-				fmt.Println("[debug] [decoder] [srv] Tunnel write", n, len(b), dbg.Trunc(b, len(b)))
+				fmt.Fprintf(os.Stderr, "[debug] [decoder] [srv] Tunnel write %d %d %s\n", n, len(b), dbg.Trunc(b, len(b)))
 			}
 			// TODO BUG: handle when 'n' bytes written is less than len(b)
 			if nil != err {
-				fmt.Println("[debug] [decoder] [srv] Tunnel write error")
+				fmt.Fprintf(os.Stderr, "[decoder] [srv] Tunnel write err: %s\n", err)
 				// an error to write represents an unrecoverable error,
 				// not just a downstream client error
 				//d.in.Close()

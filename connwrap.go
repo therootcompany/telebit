@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"git.rootprojects.org/root/telebit/dbg"
@@ -139,7 +140,7 @@ func (c *ConnWrap) isEncrypted() bool {
 	n := 6
 	b, err := c.Peek(n)
 	if dbg.Debug {
-		fmt.Printf("[debug] [wrap] Peek(%d): %s %v\n", n, string(b), err)
+		fmt.Fprintf(os.Stderr, "[debug] [wrap] Peek(%d): %s %v\n", n, string(b), err)
 	}
 	if nil != err {
 		// TODO return error on error?
