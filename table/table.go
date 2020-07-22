@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 
 	"io"
 	"strconv"
@@ -104,6 +105,7 @@ func Remove(subject string) bool {
 
 // SubscriberConn represents a tunneled server, its grants, and its clients
 type SubscriberConn struct {
+	Since      *time.Time
 	RemoteAddr string
 	WSConn     *websocket.Conn
 	WSTun      net.Conn // *telebit.WebsocketTunnel

@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	telebit "git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/admin"
@@ -107,10 +108,10 @@ func apiNotFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type SubscriberStatus struct {
-	Subject    string `json:"sub"`
-	RemoteAddr string `json:"socket"`
-	Tunnels    int    `json:"tunnels"`
-	Clients    int    `json:"clients"`
+	Since   *time.Time `json:"since,omitempty"`
+	Subject string     `json:"sub"`
+	Sockets []string   `json:"sockets"`
+	Clients int        `json:"clients"`
 	// TODO bytes read
 }
 
@@ -118,16 +119,20 @@ func getSubscribers(w http.ResponseWriter, r *http.Request) {
 	statuses := []*SubscriberStatus{}
 	table.Servers.Range(func(key, value interface{}) bool {
 		status := &SubscriberStatus{
+			Since:   nil,
 			Subject: "",
-			//RemoteAddr: k.(string),
-			Tunnels: 0,
+			Sockets: []string{},
 			Clients: 0,
 		}
 		//subject := key.(string)
 		srvMap := value.(*sync.Map)
 		srvMap.Range(func(k, v interface{}) bool {
-			status.Tunnels++
+			status.Sockets = append(status.Sockets, k.(string))
 			srv := v.(*table.SubscriberConn)
+			if nil == status.Since || srv.Since.Sub(*status.Since) < 0 {
+				copied := srv.Since.Truncate(time.Second)
+				status.Since = &copied
+			}
 			status.Subject = srv.Grants.Subject
 			srv.Clients.Range(func(k, v interface{}) bool {
 				status.Clients++
@@ -206,7 +211,9 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 	// The local address of the server (port to which it connected) is not very meaningful.
 	// Rather the client's local address (the specific relay server) would be more useful.
 	ctxEncoder, cancelEncoder := context.WithCancel(context.Background())
+	now := time.Now()
 	server := &table.SubscriberConn{
+		Since:        &now,
 		RemoteAddr:   r.RemoteAddr,
 		WSConn:       conn,
 		WSTun:        wsTun,
