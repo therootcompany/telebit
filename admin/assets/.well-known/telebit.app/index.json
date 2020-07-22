@@ -3,7 +3,10 @@
     "api_host": ":hostname/api",
     "authn": {
         "method": "GET",
-        "pathname": "inspect"
+        "pathname": ""
+    },
+    "acme_dns_01_proxy": {
+        "pathname": "dns"
     },
     "pair_request": {
         "method": "POST",

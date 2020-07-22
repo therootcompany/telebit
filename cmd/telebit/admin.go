@@ -53,8 +53,14 @@ func InitAdmin(authURL string) {
 		r.URL.Path = strings.TrimPrefix(r.URL.Path, "/api")
 		proxyHandler.ServeHTTP(w, r)
 	}
+
+	// Proxy mgmt server Registration & Authentication
 	r.Get("/api/inspect", proxyHandleFunc)
+	r.Post("/api/register-device", proxyHandleFunc)
 	r.Post("/api/register-device/*", proxyHandleFunc)
+
+	// Proxy mgmt server ACME DNS 01 Challenges
+	r.Get("/api/dns/*", proxyHandleFunc)
 
 	r.Route("/api", func(r chi.Router) {
 		// TODO token needs a globally unique subject
