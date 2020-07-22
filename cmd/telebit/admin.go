@@ -19,6 +19,7 @@ import (
 	"git.rootprojects.org/root/telebit/table"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 	"github.com/gorilla/websocket"
 )
 
@@ -26,6 +27,10 @@ var httpsrv *http.Server
 
 func InitAdmin(authURL string) {
 	r := chi.NewRouter()
+
+	r.Use(middleware.Logger)
+	//r.Use(middleware.Timeout(120 * time.Second))
+	r.Use(middleware.Recoverer)
 
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
