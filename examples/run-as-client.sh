@@ -8,14 +8,14 @@ source .env
 #go generate -mod=vendor ./...
 VENDOR_ID="${VENDOR_ID:-"${VENDOR_ID:-"test-id"}"}"
 CLIENT_SECRET="${CLIENT_SECRET:-}"
-go build -mod=vendor -o ./telebit \
-    -ldflags="-X 'main.VendorID=$VENDOR_ID' -X 'main.ClientSecret=$CLIENT_SECRET'" \
-    cmd/telebit/*.go
-#go build -mod=vendor -o telebit \
+#go build -mod=vendor -o ./telebit \
+#    -ldflags="-X 'main.VendorID=$VENDOR_ID' -X 'main.ClientSecret=$CLIENT_SECRET'" \
 #    cmd/telebit/*.go
+go build -mod=vendor -o telebit \
+    cmd/telebit/*.go
 
 # For Device Authorization across services
-AUTH_URL=${AUTH_URL:-"https://devices.examples.com/api"}
+#AUTH_URL=${AUTH_URL:-"https://devices.examples.com/api"}
 VENDOR_ID="$VENDOR_ID"
 SECRET="${CLIENT_SECRET:-"xxxxxxxxxxxxxxxx"}"
 #CLIENT_SECRET=${CLIENT_SECRET:-"yyyyyyyyyyyyyyyy"}
@@ -38,7 +38,6 @@ VERBOSE_RAW=${VERBOSE_RAW:-}
 
 
 ./telebit \
-    --auth-url $AUTH_URL \
     --vendor-id "$VENDOR_ID" \
     --secret "$CLIENT_SECRET" \
     --tunnel-relay-url $TUNNEL_RELAY_URL \
@@ -46,9 +45,10 @@ VERBOSE_RAW=${VERBOSE_RAW:-}
     --locals "$LOCALS" \
     --acme-agree=${ACME_AGREE} \
     --acme-email "$ACME_EMAIL" \
-    --acme-relay-url $ACME_RELAY_URL \
     --verbose=$VERBOSE
 
+#    --auth-url $AUTH_URL \
+#    --acme-relay-url $ACME_RELAY_URL \
 #    --subject "$CLIENT_SUBJECT" \
 
 #PORT_FORWARDS=3443:3001,8443:3002
