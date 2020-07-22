@@ -311,7 +311,7 @@ func main() {
 		EnableTLSALPNChallenge: *enableTLSALPN01,
 	}
 
-	mux := muxAll(portForwards, forwards, acme, apiHostname, grants)
+	mux := muxAll(portForwards, forwards, acme, apiHostname, authURL, grants)
 
 	done := make(chan error)
 	if dbg.Debug {
@@ -385,7 +385,7 @@ func main() {
 func muxAll(
 	portForwards, forwards []Forward,
 	acme *telebit.ACME,
-	apiHostname *string,
+	apiHostname, authURL *string,
 	grants *telebit.Grants,
 ) *telebit.RouteMux {
 	//mux := telebit.NewRouteMux(acme)
@@ -405,6 +405,7 @@ func muxAll(
 	}
 	if "" != *apiHostname {
 		// this is a generic net listener
+		InitAdmin(*authURL)
 		apiListener := tunnel.NewListener()
 		go func() {
 			httpsrv.Serve(apiListener)

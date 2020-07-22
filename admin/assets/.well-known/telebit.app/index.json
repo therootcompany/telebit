@@ -1,0 +1,12 @@
+{
+    "terms_of_service": ":hostname/tos/",
+    "api_host": ":hostname/api",
+    "authn": {
+        "method": "GET",
+        "pathname": "inspect"
+    },
+    "pair_request": {
+        "method": "POST",
+        "pathname": "telebit.app/pair_request"
+    }
+}

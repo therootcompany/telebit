@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
+	"strings"
 	"sync"
 
 	telebit "git.rootprojects.org/root/telebit"
@@ -20,7 +23,7 @@ import (
 
 var httpsrv *http.Server
 
-func init() {
+func InitAdmin(authURL string) {
 	r := chi.NewRouter()
 
 	r.Use(func(next http.Handler) http.Handler {
@@ -38,6 +41,19 @@ func init() {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(apiPingContent)
 	}))
+
+	parsedAuthURL, err := url.Parse(authURL)
+	if nil != err {
+		panic(err)
+	}
+
+	proxyHandler := httputil.NewSingleHostReverseProxy(parsedAuthURL)
+	proxyHandleFunc := func(w http.ResponseWriter, r *http.Request) {
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, "/api")
+		proxyHandler.ServeHTTP(w, r)
+	}
+	r.Get("/api/inspect", proxyHandleFunc)
+	r.Post("/api/register-device/*", proxyHandleFunc)
 
 	r.Route("/api", func(r chi.Router) {
 		// TODO token needs a globally unique subject
@@ -69,7 +85,13 @@ func init() {
 	})
 
 	adminUI := http.FileServer(admin.AdminFS)
-	r.Get("/", adminUI.ServeHTTP)
+	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+		//rctx := chi.RouteContext(r.Context())
+		//pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
+		//fs := http.StripPrefix(pathPrefix, http.FileServer(root))
+		fmt.Println("Request Path:", r.URL.Path)
+		adminUI.ServeHTTP(w, r)
+	})
 
 	httpsrv = &http.Server{
 		Handler: r,
