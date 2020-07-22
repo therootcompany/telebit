@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"git.rootprojects.org/root/telebit/dbg"
 	httpshim "git.rootprojects.org/root/telebit/tunnel"
 
 	"github.com/caddyserver/certmagic"
@@ -372,7 +373,9 @@ type Grants struct {
 
 func Inspect(authURL, token string) (*Grants, error) {
 	inspectURL := strings.TrimSuffix(authURL, "/inspect") + "/inspect"
-	//fmt.Fprintf(os.Stderr, "[debug] telebit.Inspect(\n\tinspectURL = %s,\n\ttoken = %s,\n)", inspectURL, token)
+	if dbg.Debug {
+		fmt.Fprintf(os.Stderr, "[debug] telebit.Inspect(\n\tinspectURL = %s,\n\ttoken = %s,\n)\n", inspectURL, token)
+	}
 	msg, err := Request("GET", inspectURL, token, nil)
 	if nil != err {
 		return nil, err

@@ -19,6 +19,7 @@ type Endpoints struct {
 	APIHost      string   `json:"api_host"`
 	Tunnel       Endpoint `json:"tunnel"`
 	Authenticate Endpoint `json:"authn"`
+	DNS01Proxy   Endpoint `json:"acme_dns_01_proxy"`
 	/*
 		{
 			"terms_of_service": ":hostname/tos/",
@@ -33,10 +34,10 @@ type Endpoints struct {
 
 // Endpoint represents a URL Request
 type Endpoint struct {
-	URL      string `json:"-"`
-	Method   string `json:"method"`
-	Scheme   string `json:"scheme"`
-	Host     string `json:"host"`
+	URL      string `json:"url,omitempty"`
+	Method   string `json:"method,omitempty"`
+	Scheme   string `json:"scheme,omitempty"`
+	Host     string `json:"host,omitempty"`
 	Pathname string `json:"pathname"`
 }
 
@@ -79,15 +80,18 @@ func Discover(relay string) (*Endpoints, error) {
 	}
 
 	directives.Authenticate.URL = endpointToURLString(directives.APIHost, directives.Authenticate)
+	directives.DNS01Proxy.URL = endpointToURLString(directives.APIHost, directives.DNS01Proxy)
 
 	return directives, nil
 }
 
 func endpointToURLString(apiHost string, endpoint Endpoint) string {
 	pathname := endpoint.Pathname
-	if "" == pathname {
-		return ""
-	}
+	/*
+		if "" == pathname {
+			return ""
+		}
+	*/
 
 	host := endpoint.Host
 	if "" == host {
@@ -99,5 +103,8 @@ func endpointToURLString(apiHost string, endpoint Endpoint) string {
 		scheme = "https:"
 	}
 
+	if "" == pathname {
+		return fmt.Sprintf("%s//%s", scheme, host)
+	}
 	return fmt.Sprintf("%s//%s/%s", scheme, host, pathname)
 }

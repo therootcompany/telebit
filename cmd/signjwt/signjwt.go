@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	telebit "git.rootprojects.org/root/telebit"
+	"git.rootprojects.org/root/telebit/dbg"
 	"git.rootprojects.org/root/telebit/mgmt/authstore"
 
 	"github.com/denisbrodbeck/machineid"
@@ -120,12 +121,16 @@ func main() {
 		ppid = base64.RawURLEncoding.EncodeToString(muidBytes)
 	}
 
-	fmt.Fprintf(os.Stderr, "[debug] vendorID = %s\n", *vendorID)
-	fmt.Fprintf(os.Stderr, "[debug] secret = %s\n", secret)
+	if dbg.Debug {
+		fmt.Fprintf(os.Stderr, "[debug] vendorID = %s\n", *vendorID)
+		fmt.Fprintf(os.Stderr, "[debug] secret = %s\n", secret)
+	}
 	pub := authstore.ToPublicKeyString(ppid)
 
 	if *getMachinePPID {
-		fmt.Fprintf(os.Stderr, "[debug]: <ppid> <pub>\n")
+		if dbg.Debug {
+			fmt.Fprintf(os.Stderr, "[debug]: <ppid> <pub>\n")
+		}
 		fmt.Fprintf(
 			os.Stdout,
 			"%s %s\n",
@@ -135,8 +140,10 @@ func main() {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "[debug] ppid = %s\n", ppid)
-	fmt.Fprintf(os.Stderr, "[debug] pub = %s\n", pub)
+	if dbg.Debug {
+		fmt.Fprintf(os.Stderr, "[debug] ppid = %s\n", ppid)
+		fmt.Fprintf(os.Stderr, "[debug] pub = %s\n", pub)
+	}
 
 	tok, err := authstore.HMACToken(ppid, expNum)
 	if nil != err {
@@ -145,8 +152,10 @@ func main() {
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "[debug] <token>\n")
-	fmt.Fprintf(os.Stdout, "%s\n", tok)
+	if dbg.Debug {
+		fmt.Fprintf(os.Stderr, "[debug] <token>\n")
+	}
+	fmt.Printf("%s\n", tok)
 
 	if "" != *authURL {
 		grants, err := telebit.Inspect(*authURL, tok)
@@ -154,8 +163,10 @@ func main() {
 			fmt.Fprintf(os.Stderr, "inspect relay token failed:\n%s\n", err)
 			os.Exit(1)
 		}
-		fmt.Fprintf(os.Stderr, "[debug] <grants>\n")
-		fmt.Fprintf(os.Stderr, "%+v\n", grants)
+		if dbg.Debug {
+			fmt.Fprintf(os.Stderr, "[debug] <grants>\n")
+			fmt.Fprintf(os.Stderr, "%+v\n", grants)
+		}
 	}
 }
 

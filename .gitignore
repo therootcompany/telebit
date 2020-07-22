@@ -34,6 +34,7 @@ telebit-client-windows.exe
 /cmd/telebit-relay/telebit-relay-linux
 /cmd/telebit-relay/telebit-relay-macos
 
+*.zip
 .*.sw*
 log.txt
 *.log

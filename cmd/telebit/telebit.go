@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -249,7 +250,9 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Error: invalid Tunnel Relay URL %q: %s\n", *relay, err)
 			os.Exit(1)
 		}
-		fmt.Printf("[Directory] %s\n\t%#v\n", *relay, directory)
+		fmt.Printf("[Directory] %s\n", *relay)
+		jsonb, _ := json.Marshal(directory)
+		fmt.Printf("\t%s\n", string(jsonb))
 
 		authBase := strings.TrimSuffix(directory.Authenticate.URL, "/inspect")
 		if "" == *authURL {
@@ -260,14 +263,28 @@ func main() {
 		}
 		if "" == *authURL {
 			fmt.Fprintf(os.Stderr, "Discovered Directory Endpoints: %+v\n", directory)
-			fmt.Fprintf(os.Stderr, "No Auth URL detected, no supplied\n")
+			fmt.Fprintf(os.Stderr, "No Auth URL detected, nor supplied\n")
 			os.Exit(1)
 			return
 		}
-
-		// TODO look at relay rather than authURL?
 		fmt.Println("Auth URL", *authURL)
 		authorizer = NewAuthorizer(*authURL)
+
+		dns01Base := directory.DNS01Proxy.URL
+		if "" == *acmeRelay {
+			*acmeRelay = dns01Base
+		} else {
+			fmt.Println("Suggested ACME DNS 01 Proxy URL:", dns01Base)
+			fmt.Println("--acme-relay-url ACME DNS 01 Proxy URL:", *acmeRelay)
+		}
+		if "" == *authURL {
+			fmt.Fprintf(os.Stderr, "Discovered Directory Endpoints: %+v\n", directory)
+			fmt.Fprintf(os.Stderr, "No ACME DNS 01 Proxy URL detected, nor supplied\n")
+			os.Exit(1)
+			return
+		}
+		fmt.Println("DNS 01 URL", *acmeRelay)
+
 		grants, err = telebit.Inspect(*authURL, *token)
 		if nil != err {
 			_, err := mgmt.Register(*authURL, ClientSecret, ppid)
