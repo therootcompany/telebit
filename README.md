@@ -20,17 +20,17 @@ curl.exe -fsSA "MS" https://webinstall.dev/golang | powershell
 
 **Note**: The _minimum required go version_ is shown in `go.mod`. DO NOT use with `GOPATH`!
 
-## Relay Server
+## Building Telebit
 
 All dependencies are included, at the correct version in the `./vendor` directory.
 
 ```bash
 go generate ./...
 
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-relay-linux ./cmd/telebit/*.go
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-relay-macos ./cmd/telebit/*.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-relay-windows-debug.exe ./cmd/telebit/*.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H windowsgui" -o telebit-relay-windows.exe ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-linux ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-macos ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-windows-debug.exe ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H windowsgui" -o telebit-windows.exe ./cmd/telebit/*.go
 ```
 
 The binary can be built with `VENDOR_ID` and `CLIENT_SECRET` built into the binary.
@@ -40,7 +40,7 @@ See `examples/run-as-client.sh`.
 
 Command-line flags or `.env` may be used.
 
-See `./telebit-relay --help` for all options, and `examples/relay.env` for their corresponding ENVs.
+See `./telebit --help` for all options, and `examples/relay.env` for their corresponding ENVs.
 
 ### Example
 
@@ -49,9 +49,9 @@ Copy `examples/relay.env` as `.env` in the working directory.
 ```bash
 # For Tunnel Relay Server
 API_HOSTNAME=devices.example.com
-LISTEN=:80,:443
+LISTEN=:443
 LOCALS=https:mgmt.devices.example.com:3010
-VERBOSE=true
+VERBOSE=false
 
 # For Device Management & Authentication
 AUTH_URL=http://localhost:3010/api
@@ -70,14 +70,60 @@ GODADDY_API_SECRET=xxxxxxxxxxxxxxxxxxxxxx
 Note: It is not necessary to specify the `--flags` when using the ENVs.
 
 ```bash
-./telebit-relay \
+./telebit \
     --api-hostname $API_HOSTNAME \
     --auth-url "$AUTH_URL" \
     --acme-agree "$ACME_AGREE" \
     --acme-email "$ACME_EMAIL" \
-    --acme-relay-url "$ACME_RELAY_URL" \
     --secret "$SECRET" \
     --listen "$LISTEN"
+```
+
+### API
+
+List all connected devices
+
+```bash
+bash examples/admin-list-devices.sh
+```
+
+```bash
+curl -L https://devices.example.com/api/subscribers -H "Authorization: Bearer ${TOKEN}"
+```
+
+```json
+{
+    "success": true,
+    "subscribers": [{ "since": "2020-07-22T08:20:40Z", "sub": "ruby", "sockets": ["73.228.72.97:50737"], "clients": 0 }]
+}
+```
+
+Show connectivity, of a single device, if any
+
+```bash
+curl -L https://devices.example.com/api/subscribers -H "Authorization: Bearer ${TOKEN}"
+```
+
+```json
+{
+    "success": true,
+    "subscribers": [{ "since": "2020-07-22T08:20:40Z", "sub": "ruby", "sockets": ["73.228.72.97:50737"], "clients": 0 }]
+}
+```
+
+Force a device to disconnect:
+
+```bash
+bash examples/admin-disconnect-device.sh
+```
+
+```bash
+my_subdomain="ruby"
+curl -X DELETE http://mgmt.example.com:3010/api/subscribers/ruby" -H "Authorization: Bearer ${TOKEN}"
+```
+
+```json
+{ "success": true }
 ```
 
 ## Management Server
@@ -172,24 +218,17 @@ my_subdomain="xxxx"
 curl -L -X DELETE http://mgmt.example.com:3010/api/devices/${my_subdomain} -H "Authorization: Bearer ${TOKEN}"
 ```
 
-## Relay Client
+## Tunnel Client
 
-All dependencies are included, at the correct version in the `./vendor` directory.
+The tunnel relay binary is also the client binary.
 
-```bash
-go generate ./...
-
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-client-linux ./cmd/telebit/*.go
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-client-macos ./cmd/telebit/*.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-client-windows-debug.exe ./cmd/telebit/*.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H windowsgui" -o telebit-client-windows.exe ./cmd/telebit/*.go
-```
+You do not need to build a separate client binary.
 
 ### Configure
 
 Command-line flags or `.env` may be used.
 
-See `./telebit-client --help` for all options, and `examples/client.env` for their corresponding ENVs.
+See `./telebit --help` for all options, and `examples/client.env` for their corresponding ENVs.
 
 ### Example
 
@@ -201,7 +240,7 @@ VENDOR_ID=test-id
 CLIENT_SUBJECT=newieb
 CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxx
 AUTH_URL="https://mgmt.devices.example.com/api"
-TUNNEL_RELAY_URL=wss://devices.example.com/ws
+TUNNEL_RELAY_URL=https://devices.example.com/
 LOCALS=https:newbie.devices.example.com:3000,http:newbie.devices.example.com:3000
 #PORT_FORWARDS=3443:3001,8443:3002
 
@@ -219,16 +258,13 @@ ACME_RELAY_URL="https://mgmt.devices.example.com/api/dns"
 ```
 
 ```bash
-./telebit-client \
-    --auth-url $AUTH_URL \
+./telebit \
     --vendor-id "$VENDOR_ID" \
     --secret "$CLIENT_SECRET" \
     --tunnel-relay-url $TUNNEL_RELAY_URL \
-    --listen "$LISTEN" \
     --locals "$LOCALS" \
     --acme-agree="$ACME_AGREE" \
     --acme-email "$ACME_EMAIL" \
-    --acme-relay-url $ACME_RELAY_URL \
     --verbose=$VERBOSE
 ```
 
@@ -255,8 +291,9 @@ python3 -m http.server 3000
 ```
 --vendor-id         $VENDOR_ID          an arbitrary id used as part of authentication
 --secret            $SECRET             the secret for creating JWTs
---auth-url          $AUTH_URL           the full url prefix of the server that will validate tokens
---tunnel-relay-url  $TUNNEL_RELAY_URL   the full url of the websocket tunnel server
+--tunnel-relay-url  $TUNNEL_RELAY_URL   the url of the tunnel server
+--auth-url          $AUTH_URL           use to override the server-provided auth url
+--acme-relay-url    $ACME_RELAY_URL     use to override the server-provided acme dns 01 proxy
 --locals            $LOCALS             a list of `scheme:domainname:port`
                                         for forwarding incoming `domainname` to local `port`
 --port-forwards     $PORT_FORWARDS      a list of `remote:local` tcp port-forwarding
@@ -265,5 +302,4 @@ python3 -m http.server 3000
                     $VERBOSE_RAW        logs full data (as string)
 --acme-agree        $ACME_AGREE         agree to the ACME service agreement
 --acme-email        $ACME_EMAIL         the webmaster email for ACME notices
---acme-relay-url    $ACME_RELAY_URL     the server that will relay ACME DNS-01 requests
 ```
