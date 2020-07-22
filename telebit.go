@@ -364,13 +364,14 @@ func NewCertMagic(acme *ACME) (*certmagic.Config, error) {
 }
 
 type Grants struct {
-	Subject string   `json:"sub"`
-	Domains []string `json:"domains"`
-	Ports   []int    `json:"ports"`
+	Subject  string   `json:"sub"`
+	Audience string   `json:"aud"`
+	Domains  []string `json:"domains"`
+	Ports    []int    `json:"ports"`
 }
 
 func Inspect(authURL, token string) (*Grants, error) {
-	inspectURL := authURL + "/inspect"
+	inspectURL := strings.TrimSuffix(authURL, "/inspect") + "/inspect"
 	//fmt.Fprintf(os.Stderr, "[debug] telebit.Inspect(\n\tinspectURL = %s,\n\ttoken = %s,\n)", inspectURL, token)
 	msg, err := Request("GET", inspectURL, token, nil)
 	if nil != err {

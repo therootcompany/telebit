@@ -100,6 +100,7 @@ func DialWebsocketTunnel(ctx context.Context, relay, authz string) (net.Conn, er
 		if dbg.Debug {
 			fmt.Fprintf(os.Stderr, "[debug] [wstun] simple dial failed %q %v %v\n", err, wsconn, ctx)
 		}
+		return nil, err
 	}
 	return NewWebsocketTunnel(wsconn), err
 }

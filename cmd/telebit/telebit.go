@@ -24,7 +24,7 @@ import (
 	"git.rootprojects.org/root/telebit/mgmt"
 	"git.rootprojects.org/root/telebit/mgmt/authstore"
 	"git.rootprojects.org/root/telebit/table"
-	httpshim "git.rootprojects.org/root/telebit/tunnel"
+	"git.rootprojects.org/root/telebit/tunnel"
 	legoDns01 "github.com/go-acme/lego/v3/challenge/dns01"
 
 	"github.com/caddyserver/certmagic"
@@ -113,6 +113,10 @@ func main() {
 			*acmeAgree = true
 		}
 	}
+	if 0 == len(*acmeRelay) {
+		*acmeRelay = os.Getenv("ACME_RELAY_URL")
+	}
+
 	if 0 == len(*email) {
 		*email = os.Getenv("ACME_EMAIL")
 	}
@@ -234,21 +238,32 @@ func main() {
 			return
 		}
 	}
-	if 0 == len(*acmeRelay) {
-		*acmeRelay = os.Getenv("ACME_RELAY_URL")
-	}
-	if 0 == len(*acmeRelay) {
-		*acmeRelay = strings.Replace(*relay, "ws", "http", 1) + "/dns" // "https://example.com:443"
-	}
 
 	if 0 == len(*authURL) {
 		*authURL = os.Getenv("AUTH_URL")
 	}
 	var grants *telebit.Grants
 	if len(*relay) > 0 /* || len(*acmeRelay) > 0 */ {
-		if "" == *authURL {
-			*authURL = strings.Replace(*relay, "ws", "http", 1) + "/api" // "https://example.com:443"
+		directory, err := tunnel.Discover(*relay)
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "Error: invalid Tunnel Relay URL %q: %s\n", *relay, err)
+			os.Exit(1)
 		}
+		fmt.Printf("[Directory] %s\n\t%#v\n", *relay, directory)
+
+		if "" == *authURL {
+			*authURL = directory.Authenticate.URL
+		} else {
+			fmt.Println("Suggested Auth URL:", directory.Authenticate.URL)
+			fmt.Println("--auth-url Auth URL:", *authURL)
+		}
+		if "" == *authURL {
+			fmt.Fprintf(os.Stderr, "Discovered Directory Endpoints: %+v\n", directory)
+			fmt.Fprintf(os.Stderr, "No Auth URL detected, no supplied\n")
+			os.Exit(1)
+			return
+		}
+
 		// TODO look at relay rather than authURL?
 		fmt.Println("Auth URL", *authURL)
 		authorizer = NewAuthorizer(*authURL)
@@ -265,7 +280,8 @@ func main() {
 				os.Exit(1)
 			}
 		}
-		fmt.Println("grants", grants)
+		fmt.Printf("[Grants]\n\t%#v\n", grants)
+		*relay = grants.Audience
 	}
 	authorizer = NewAuthorizer(*authURL)
 
@@ -388,7 +404,8 @@ func muxAll(
 		*apiHostname = os.Getenv("API_HOSTNAME")
 	}
 	if "" != *apiHostname {
-		apiListener := httpshim.NewListener()
+		// this is a generic net listener
+		apiListener := tunnel.NewListener()
 		go func() {
 			httpsrv.Serve(apiListener)
 		}()
@@ -416,7 +433,7 @@ func muxAll(
 	}
 
 	for i, fwd := range forwards {
-		fmt.Printf("[%d] Will decrypt local requests to %q\n", i, fwd.pattern)
+		fmt.Printf("[%d] Will decrypt local requests to \"%s://%s\"\n", i, fwd.scheme, fwd.pattern)
 		mux.HandleTLS(fwd.pattern, acme, mux, "[Terminate TLS & Recurse] for (local) "+fwd.pattern)
 	}
 
