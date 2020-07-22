@@ -251,10 +251,11 @@ func main() {
 		}
 		fmt.Printf("[Directory] %s\n\t%#v\n", *relay, directory)
 
+		authBase := strings.TrimSuffix(directory.Authenticate.URL, "/inspect")
 		if "" == *authURL {
-			*authURL = directory.Authenticate.URL
+			*authURL = authBase
 		} else {
-			fmt.Println("Suggested Auth URL:", directory.Authenticate.URL)
+			fmt.Println("Suggested Auth URL:", authBase)
 			fmt.Println("--auth-url Auth URL:", *authURL)
 		}
 		if "" == *authURL {
@@ -362,6 +363,10 @@ func main() {
 		go func() {
 			for {
 				time.Sleep(10 * time.Minute)
+				if "" != ClientSecret {
+					// re-create token unless no secret was supplied
+					*token, err = authstore.HMACToken(ppid)
+				}
 				err = mgmt.Ping(*authURL, *token)
 				if nil != err {
 					fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s\n", err)

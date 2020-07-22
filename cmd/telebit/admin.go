@@ -107,34 +107,36 @@ func apiNotFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 type SubscriberStatus struct {
-	Subject string
-	Tunnels int
-	Clients int
+	Subject    string `json:"sub"`
+	RemoteAddr string `json:"socket"`
+	Tunnels    int    `json:"tunnels"`
+	Clients    int    `json:"clients"`
 	// TODO bytes read
 }
 
 func getSubscribers(w http.ResponseWriter, r *http.Request) {
 	statuses := []*SubscriberStatus{}
 	table.Servers.Range(func(key, value interface{}) bool {
-		tunnels := 0
-		clients := 0
+		status := &SubscriberStatus{
+			Subject: "",
+			//RemoteAddr: k.(string),
+			Tunnels: 0,
+			Clients: 0,
+		}
 		//subject := key.(string)
 		srvMap := value.(*sync.Map)
 		srvMap.Range(func(k, v interface{}) bool {
-			tunnels += 1
+			status.Tunnels++
 			srv := v.(*table.SubscriberConn)
+			status.Subject = srv.Grants.Subject
 			srv.Clients.Range(func(k, v interface{}) bool {
-				clients += 1
+				status.Clients++
 				return true
 			})
 
-			statuses = append(statuses, &SubscriberStatus{
-				Subject: k.(string),
-				Tunnels: tunnels,
-				Clients: clients,
-			})
 			return true
 		})
+		statuses = append(statuses, status)
 		return true
 	})
 	_ = json.NewEncoder(w).Encode(&struct {

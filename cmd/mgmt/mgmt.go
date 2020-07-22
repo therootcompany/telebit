@@ -36,7 +36,7 @@ var primaryDomain string
 var relayDomain string
 
 func help() {
-	fmt.Fprintf(os.Stderr, "Usage: mgmt --domain <mgmt.example.com> --tunnel-domain <devices.example.com> --secret <128-bit secret>\n")
+	fmt.Fprintf(os.Stderr, "Usage: mgmt --domain <devices.example.com> --secret <128-bit secret>\n")
 }
 
 func main() {
@@ -51,12 +51,15 @@ func main() {
 	)
 	flag.StringVar(&secret, "secret", "", "a >= 16-character random string for JWT key signing")
 	flag.StringVar(&primaryDomain, "domain", "", "the base domain to use for all clients")
-	flag.StringVar(&relayDomain, "tunnel-domain", "", "the domain name of the tunnel relay service")
+	flag.StringVar(&relayDomain, "tunnel-domain", "", "the domain name of the tunnel relay service, if different from base domain")
 	flag.Parse()
 
-	if "" == primaryDomain || "" == relayDomain {
+	if "" == primaryDomain {
 		help()
 		os.Exit(1)
+	}
+	if "" == relayDomain {
+		relayDomain = primaryDomain
 	}
 
 	if "" != os.Getenv("GODADDY_API_KEY") {

@@ -52,11 +52,13 @@ func Register(authURL, secret, ppid string) (kid string, err error) {
 	}
 
 	auth := &authstore.Authorization{}
-	err = json.NewDecoder(msg).Decode(auth)
+	msgBytes, _ := ioutil.ReadAll(msg)
+	//err = json.NewDecoder(msg).Decode(auth)
+	err = json.Unmarshal(msgBytes, auth)
 	if err != nil {
 		return "", err
 	}
-	msgBytes, _ := ioutil.ReadAll(msg)
+	//msgBytes, _ := ioutil.ReadAll(msg)
 	if "" == auth.PublicKey {
 		return "", fmt.Errorf("unexpected server response: no public key: %s", string(msgBytes))
 	}
