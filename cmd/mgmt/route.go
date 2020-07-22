@@ -96,7 +96,9 @@ func routeAll() chi.Router {
 						if "" != claims.Subject && auth.Slug != claims.Subject {
 							return nil, fmt.Errorf("invalid jwt payload 'sub' (mismatch)")
 						}
+						claims.Subject = claims.Slug
 						claims.Issuer = primaryDomain
+						claims.Audience = fmt.Sprintf("wss://%s/ws", relayDomain)
 
 						/*
 							// a little misdirection there
@@ -146,8 +148,9 @@ func routeAll() chi.Router {
 			}
 
 			w.Write([]byte(fmt.Sprintf(
-				`{ "sub": "%s", "domains": [ "%s.%s" ], "ports": [] }`+"\n",
+				`{ "sub": "%s", "aud": "%s", "domains": [ "%s.%s" ], "ports": [] }`+"\n",
 				claims.Subject,
+				claims.Audience,
 				claims.Slug,
 				primaryDomain,
 			)))

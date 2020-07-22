@@ -31,11 +31,12 @@ type MWKey string
 
 var store authstore.Store
 var provider challenge.Provider = nil // TODO is this concurrency-safe?
-var secret *string
+var secret string
 var primaryDomain string
+var relayDomain string
 
 func help() {
-	fmt.Fprintf(os.Stderr, "Usage: mgmt --domain <example.com> --secret <128-bit secret>\n")
+	fmt.Fprintf(os.Stderr, "Usage: mgmt --domain <mgmt.example.com> --tunnel-domain <devices.example.com> --secret <128-bit secret>\n")
 }
 
 func main() {
@@ -48,12 +49,12 @@ func main() {
 		"postgres://postgres:postgres@localhost/postgres",
 		"database (postgres) connection url",
 	)
-	secret = flag.String("secret", "", "a >= 16-character random string for JWT key signing")
-	domain := flag.String("domain", "", "the base domain to use for all clients")
+	flag.StringVar(&secret, "secret", "", "a >= 16-character random string for JWT key signing")
+	flag.StringVar(&primaryDomain, "domain", "", "the base domain to use for all clients")
+	flag.StringVar(&relayDomain, "tunnel-domain", "", "the domain name of the tunnel relay service")
 	flag.Parse()
 
-	primaryDomain = *domain
-	if "" == primaryDomain {
+	if "" == primaryDomain || "" == relayDomain {
 		help()
 		os.Exit(1)
 	}
@@ -72,10 +73,10 @@ func main() {
 		panic("Must provide either DUCKDNS or GODADDY credentials")
 	}
 
-	if "" == *secret {
-		*secret = os.Getenv("SECRET")
+	if "" == secret {
+		secret = os.Getenv("SECRET")
 	}
-	if "" == *secret {
+	if "" == secret {
 		help()
 		os.Exit(1)
 		return
@@ -95,7 +96,7 @@ func main() {
 		log.Fatal("connection error", err)
 		return
 	}
-	_ = store.SetMaster(*secret)
+	_ = store.SetMaster(secret)
 	defer store.Close()
 
 	bind := *addr + ":" + *port
