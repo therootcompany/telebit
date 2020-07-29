@@ -5,6 +5,7 @@ set -u
 
 source .env
 TUNNEL_RELAY_API="${TUNNEL_RELAY_API:-"https://devices.example.com/api"}"
+CLIENT_SUBJECT="${CLIENT_SUBJECT:-"newbie"}"
 
 echo "RELAY_SECRET: $RELAY_SECRET"
 TOKEN=$(go run cmd/signjwt/*.go \
@@ -15,5 +16,5 @@ TOKEN=$(go run cmd/signjwt/*.go \
 echo "ADMIN TOKEN: '$TOKEN'"
 
 echo "Auth URL: $TUNNEL_RELAY_API"
-curl -X DELETE "$TUNNEL_RELAY_API/subscribers/ruby" -H "Authorization: Bearer ${TOKEN}"
+curl -X DELETE "$TUNNEL_RELAY_API/subscribers/${CLIENT_SUBJECT}" -H "Authorization: Bearer ${TOKEN}"
 echo ""
