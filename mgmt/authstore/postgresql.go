@@ -203,9 +203,15 @@ func (s *PGStore) Get(id string) (*Authorization, error) {
 	query := `
 		SELECT * FROM authorizations
 		WHERE deleted_at = '1970-01-01 00:00:00'
-		  AND (slug = $1 OR public_key = $1 OR shared_key = $1)
+		  AND (slug = $1 OR public_key = $1 OR public_key = $2)
 	`
-	row := s.dbx.QueryRowxContext(ctx, query, id)
+	// if the id is actually the secret, we want the public form
+	// (we do this to protect against a timing attack)
+	pubby := ToPublicKeyString(id)
+	if len(id) > 24 {
+		id = id[:24]
+	}
+	row := s.dbx.QueryRowxContext(ctx, query, id, pubby)
 	if nil != row {
 		auth := &Authorization{}
 		if err := row.StructScan(auth); nil != err {

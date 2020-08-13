@@ -27,10 +27,11 @@ func TestStore(t *testing.T) {
 
 	num := "8"
 	slug := num + "-xxx-client"
-	pubkey := num + "-somehash"
+	secret := "3-xxxx-zzzz-yyyy"
+	pubkey := ToPublicKeyString(secret)
 	auth1 := &Authorization{
 		Slug:      slug,
-		SharedKey: "3-xxxx-zzzz-yyyy",
+		SharedKey: secret,
 		PublicKey: pubkey,
 	}
 	err = store.Add(auth1)
@@ -64,7 +65,7 @@ func TestStore(t *testing.T) {
 		return
 	}
 
-	auth, err := store.Get(slug)
+	auth, err = store.Get(slug)
 	if nil == err {
 		t.Fatal("should get nothing back")
 		return

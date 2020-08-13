@@ -162,6 +162,12 @@ func routeAll() chi.Router {
 			r.Post("/{otp}", func(w http.ResponseWriter, r *http.Request) {
 				sharedKey := chi.URLParam(r, "otp")
 				original, err := store.Get(sharedKey)
+				if nil != err {
+					msg := `{"error":"not found"}`
+					log.Printf("/api/register-device/\n")
+					log.Println(err)
+					http.Error(w, msg, http.StatusNotFound)
+				}
 				if "" != original.MachinePPID {
 					msg := `{"error":"the presented key has already been used"}`
 					log.Printf("/api/register-device/\n")
