@@ -42,6 +42,7 @@ VERBOSE_RAW=${VERBOSE_RAW:-}
     --secret "$CLIENT_SECRET" \
     --tunnel-relay-url $TUNNEL_RELAY_URL \
     --listen "$LISTEN" \
+    --tls-locals "$TLS_LOCALS" \
     --locals "$LOCALS" \
     --acme-agree=${ACME_AGREE} \
     --acme-email "$ACME_EMAIL" \

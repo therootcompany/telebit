@@ -158,6 +158,16 @@ func (m *RouteMux) ForwardTCP(servername string, target string, timeout time.Dur
 	return nil
 }
 
+func (m *RouteMux) ReverseProxyHTTPS(servername string, target string, timeout time.Duration, comment ...string) error {
+	m.routes = append(m.routes, meta{
+		addr:      servername,
+		terminate: false,
+		handler:   NewTheatricalProxier(target, timeout),
+		comment:   append(comment, "")[0],
+	})
+	return nil
+}
+
 func (m *RouteMux) ReverseProxyHTTP(servername string, target string, timeout time.Duration, comment ...string) error {
 	m.routes = append(m.routes, meta{
 		addr:      servername,

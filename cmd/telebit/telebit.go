@@ -47,9 +47,10 @@ var (
 )
 
 type Forward struct {
-	scheme  string
-	pattern string
-	port    string
+	scheme   string
+	pattern  string
+	port     string
+	localTLS bool
 }
 
 var authorizer telebit.Authorizer
@@ -83,6 +84,7 @@ func main() {
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
 	bindAddrsStr := flag.String("listen", "", "list of bind addresses on which to listen, such as localhost:80, or :443")
+	tlsLocals := flag.String("tls-locals", "", "like --locals, but TLS will be used to connect to the local port")
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
 	portToPorts := flag.String("port-forward", "", "a list of <from-port>:<to-port> for raw port-forwarding")
 	verbose := flag.Bool("verbose", false, "log excessively")
@@ -138,6 +140,32 @@ func main() {
 			scheme:  scheme,
 			pattern: domain,
 			port:    port,
+		})
+
+		// don't load wildcard into jwt domains
+		if "*" == domain {
+			continue
+		}
+		domains = append(domains, domain)
+	}
+
+	if 0 == len(*tlsLocals) {
+		*tlsLocals = os.Getenv("TLS_LOCALS")
+	}
+	for _, cfg := range strings.Fields(strings.ReplaceAll(*tlsLocals, ",", " ")) {
+		parts := strings.Split(cfg, ":")
+		last := len(parts) - 1
+		port := parts[last]
+		domain := parts[last-1]
+		scheme := ""
+		if len(parts) > 2 {
+			scheme = parts[0]
+		}
+		forwards = append(forwards, Forward{
+			scheme:   scheme,
+			pattern:  domain,
+			port:     port,
+			localTLS: true,
 		})
 
 		// don't load wildcard into jwt domains
@@ -467,7 +495,12 @@ func muxAll(
 	for _, fwd := range forwards {
 		//mux.ForwardTCP("*", "localhost:"+fwd.port, 120*time.Second)
 		if "https" == fwd.scheme {
-			mux.ReverseProxyHTTP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, "[Servername Reverse Proxy]")
+			if fwd.localTLS {
+				// this doesn't make much sense, but... security theatre
+				mux.ReverseProxyHTTPS(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, "[Servername Reverse Proxy TLS]")
+			} else {
+				mux.ReverseProxyHTTP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, "[Servername Reverse Proxy]")
+			}
 		}
 		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, "[Servername Forward]")
 	}
