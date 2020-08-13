@@ -52,6 +52,12 @@ func TestStore(t *testing.T) {
 		return
 	}
 
+	auth, err = store.Get(secret)
+	if nil != err {
+		t.Fatal("get by key error", err)
+		return
+	}
+
 	auth1.MachinePPID = "a-secretish-id"
 	err = store.Set(auth1)
 	if nil != err {
