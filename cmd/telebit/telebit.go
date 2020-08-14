@@ -315,10 +315,19 @@ func main() {
 
 		grants, err = telebit.Inspect(*authURL, *token)
 		if nil != err {
+			if dbg.Debug {
+				fmt.Fprintf(os.Stderr, "failed to inspect token: %s\n", err)
+			}
 			_, err := mgmt.Register(*authURL, ClientSecret, ppid)
 			if nil != err {
-				fmt.Fprintf(os.Stderr, "failed to register client: %s\n", err)
-				os.Exit(1)
+				if !strings.Contains(err.Error(), `"E_NOT_FOUND"`) {
+					fmt.Fprintf(os.Stderr, "invalid client credentials: %s\n", err)
+					os.Exit(2)
+				} else {
+					fmt.Fprintf(os.Stderr, "failed to register client: %s\n", err)
+					os.Exit(1)
+				}
+				return
 			}
 			grants, err = telebit.Inspect(*authURL, *token)
 			if nil != err {
