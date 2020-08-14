@@ -153,9 +153,9 @@ func (s *PGStore) Touch(pub string) error {
 	if nil != err {
 		return err
 	}
-	// PostgreSQL does support RowsAffected()
+	// PostgreSQL is one of the databases for which RowsAffected() IS supported
 	if count, _ := row.RowsAffected(); count != 1 {
-		return fmt.Errorf("record was not updated")
+		return ErrNotFound
 	}
 	return nil
 }

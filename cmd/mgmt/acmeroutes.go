@@ -39,7 +39,7 @@ func handleDNSRoutes(r chi.Router) {
 			ctx := r.Context()
 			claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
 			if !ok || !strings.HasPrefix(domain+".", claims.Slug) {
-				msg := `{ "error": "invalid domain" }`
+				msg := `{ "error": "invalid domain", "code":"E_BAD_REQUEST"}`
 				http.Error(w, msg+"\n", http.StatusUnprocessableEntity)
 				return
 			}
@@ -50,7 +50,7 @@ func handleDNSRoutes(r chi.Router) {
 			decoder := json.NewDecoder(r.Body)
 			err := decoder.Decode(&ch)
 			if nil != err || "" == ch.Token || "" == ch.KeyAuth {
-				msg := `{"error":"expected json in the format {\"token\":\"xxx\",\"key_authorization\":\"yyy\"}"}`
+				msg := `{"error":"expected json in the format {\"token\":\"xxx\",\"key_authorization\":\"yyy\"}", "code":"E_BAD_REQUEST"}`
 				http.Error(w, msg, http.StatusUnprocessableEntity)
 				return
 			}
@@ -65,7 +65,7 @@ func handleDNSRoutes(r chi.Router) {
 			err = <-ch.error
 			if nil != err || "" == ch.Token || "" == ch.KeyAuth {
 				fmt.Println("presenter err", err, ch.Token, ch.KeyAuth)
-				msg := `{"error":"ACME dns-01 error"}`
+				msg := `{"error":"ACME dns-01 error", "code":"E_SERVER"}`
 				http.Error(w, msg, http.StatusUnprocessableEntity)
 				return
 			}
@@ -88,7 +88,7 @@ func handleDNSRoutes(r chi.Router) {
 			cleanups <- &ch
 			err := <-ch.error
 			if nil != err || "" == ch.Token || "" == ch.KeyAuth {
-				msg := `{"error":"expected json in the format {\"token\":\"xxx\",\"key_authorization\":\"yyy\"}"}`
+				msg := `{"error":"expected json in the format {\"token\":\"xxx\",\"key_authorization\":\"yyy\"}", "code":"E_BAD_REQUEST"}`
 				http.Error(w, msg, http.StatusUnprocessableEntity)
 				return
 			}

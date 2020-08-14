@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
+	"git.rootprojects.org/root/telebit/dbg"
 	"git.rootprojects.org/root/telebit/mgmt/authstore"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
@@ -65,7 +67,9 @@ func routeAll() chi.Router {
 					tokenString,
 					&MgmtClaims{},
 					func(token *jwt.Token) (interface{}, error) {
-						fmt.Println("parsed jwt", token)
+						if dbg.Debug {
+							fmt.Println("parsed jwt", token)
+						}
 						kid, ok := token.Header["kid"].(string)
 						if !ok {
 							return nil, fmt.Errorf("missing jwt header 'kid' (key id)")
@@ -115,20 +119,21 @@ func routeAll() chi.Router {
 				)
 
 				ctx := r.Context()
-				if nil != err {
-					fmt.Println("auth err", err)
-					ctx = context.WithValue(ctx, MWKey("error"), err)
-				}
 				if nil != tok {
-					fmt.Println("any auth?", tok)
 					if tok.Valid {
 						ctx = context.WithValue(ctx, MWKey("token"), tok)
 						ctx = context.WithValue(ctx, MWKey("claims"), tok.Claims)
 						ctx = context.WithValue(ctx, MWKey("valid"), true)
+						fmt.Println("[auth] Token is fully valid:")
+						fmt.Println(ctx.Value(MWKey("claims")))
+					} else {
+						fmt.Println("[auth] Token was parsed, but NOT valid:", tok)
 					}
 				}
-				fmt.Println("Good Auth?")
-				fmt.Println(ctx.Value(MWKey("claims")))
+				if nil != err {
+					fmt.Println("[auth] Token is NOT valid due to error:", err)
+					ctx = context.WithValue(ctx, MWKey("error"), err)
+				}
 
 				next.ServeHTTP(w, r.WithContext(ctx))
 			})
@@ -141,7 +146,7 @@ func routeAll() chi.Router {
 			ctx := r.Context()
 			claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
 			if !ok {
-				msg := `{"error":"failure to ping: 3"}`
+				msg := `{"error":"failure to ping: 3", "code":"E_TOKEN"}`
 				fmt.Println("touch no claims", claims)
 				http.Error(w, msg+"\n", http.StatusBadRequest)
 				return
@@ -163,17 +168,17 @@ func routeAll() chi.Router {
 				sharedKey := chi.URLParam(r, "otp")
 				original, err := store.Get(sharedKey)
 				if nil != err {
-					msg := `{"error":"not found"}`
+					msg := `{"error":"not found", "code":"E_NOT_FOUND"}`
 					log.Printf("/api/register-device/\n")
 					log.Println(err)
 					http.Error(w, msg, http.StatusNotFound)
 					return
 				}
 				if "" != original.MachinePPID {
-					msg := `{"error":"the presented key has already been used"}`
+					msg := `{"error":"the presented key has already been used", "code":"E_EXIST"}`
 					log.Printf("/api/register-device/\n")
 					log.Println(err)
-					http.Error(w, msg, http.StatusInternalServerError)
+					http.Error(w, msg, http.StatusUnprocessableEntity)
 					return
 				}
 
@@ -210,7 +215,7 @@ func routeAll() chi.Router {
 				original.MachinePPID = auth.MachinePPID
 				err = store.Set(original)
 				if nil != err {
-					msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)"}`
+					msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)", "code":"E_SERVER"}`
 					log.Printf("/api/register-device/\n")
 					log.Println(err)
 					http.Error(w, msg, http.StatusInternalServerError)
@@ -226,8 +231,7 @@ func routeAll() chi.Router {
 			ctx := r.Context()
 			claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
 			if !ok {
-				msg := `{"error":"failure to ping: 1"}`
-				fmt.Println("touch no claims", claims)
+				msg := `{"error":"failure to ping: 1", "code":"E_TOKEN"}`
 				http.Error(w, msg+"\n", http.StatusBadRequest)
 				return
 			}
@@ -235,8 +239,14 @@ func routeAll() chi.Router {
 			fmt.Println("ping pong??", claims)
 			err := store.Touch(claims.Slug)
 			if nil != err {
-				msg := `{"error":"failure to ping: 2"}`
-				fmt.Println("touch err", err)
+				fmt.Fprintf(os.Stderr, "touch err %s\n", err)
+				var msg string
+				if err == authstore.ErrNotFound {
+					// if the token is valid, touch should ALWAYS work
+					msg = `{"error":"failure to ping: inconsistent database data", "code":"E_SERVER"}`
+				} else {
+					msg = `{"error":"failure to ping: 2", "code":"E_SERVER"}`
+				}
 				http.Error(w, msg+"\n", http.StatusBadRequest)
 				return
 			}

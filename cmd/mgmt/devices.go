@@ -22,7 +22,7 @@ func handleDeviceRoutes(r chi.Router) {
 				ctx := r.Context()
 				claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
 				if !ok || "*" != claims.Slug {
-					msg := `{"error":"missing or invalid authorization token"}`
+					msg := `{"error":"missing or invalid authorization token", "code":"E_TOKEN"}`
 					http.Error(w, msg+"\n", http.StatusUnprocessableEntity)
 					return
 				}
@@ -58,7 +58,7 @@ func handleDeviceRoutes(r chi.Router) {
 				auth.SharedKey = base64.RawURLEncoding.EncodeToString(rnd)
 			}
 			if len(auth.SharedKey) < 20 {
-				msg := `{"error":"shared_key must be >= 16 bytes"}`
+				msg := `{"error":"shared_key must be >= 16 bytes", "code":"E_BAD_REQUEST"}`
 				http.Error(w, string(msg), http.StatusUnprocessableEntity)
 				return
 			}
@@ -71,16 +71,16 @@ func handleDeviceRoutes(r chi.Router) {
 				auth.PublicKey = auth.PublicKey[:24]
 			}
 			if pub != auth.PublicKey {
-				msg := `{"error":"public_key must be the first 24 bytes of the base64-encoded hash of the shared_key"}`
+				msg := `{"error":"public_key must be the first 24 bytes of the base64-encoded hash of the shared_key", "code":"E_BAD_REQUEST"}`
 				http.Error(w, msg+"\n", http.StatusUnprocessableEntity)
 				return
 			}
 
 			err = store.Add(auth)
 			if nil != err {
-				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)"}`
+				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)", "code":"E_BAD_SERVER"}`
 				if authstore.ErrExists == err {
-					msg = fmt.Sprintf(`{ "error": "%s" }`, err.Error())
+					msg = fmt.Sprintf(`{ "error": "%s", "code":"E_EXIST"}`, err.Error())
 				}
 				log.Printf("/api/devices/\n")
 				log.Println(err)
@@ -101,7 +101,7 @@ func handleDeviceRoutes(r chi.Router) {
 				things, err = store.Active()
 			}
 			if nil != err {
-				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)"}`
+				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)", "code":"E_SERVER"}`
 				log.Printf("/api/devices/\n")
 				log.Println(err)
 				http.Error(w, msg, http.StatusInternalServerError)
@@ -130,7 +130,12 @@ func handleDeviceRoutes(r chi.Router) {
 			// TODO store should be concurrency-safe
 			auth, err := store.Get(slug)
 			if nil != err {
-				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)"}`
+				var msg string
+				if err == authstore.ErrNotFound {
+					msg = `{"error":"not really sure what happened, but it didn't go well (check the logs)", "code":"E_NOT_FOUND"}`
+				} else {
+					msg = `{"error":"not really sure what happened, but it didn't go well (check the logs)", "code":"E_SERVER"}`
+				}
 				log.Printf("/api/devices/%s\n", slug)
 				log.Println(err)
 				http.Error(w, msg, http.StatusInternalServerError)
@@ -152,14 +157,19 @@ func handleDeviceRoutes(r chi.Router) {
 			slug := chi.URLParam(r, "slug")
 			auth, err := store.Get(slug)
 			if nil == auth {
-				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)"}`
+				var msg string
+				if err == authstore.ErrNotFound {
+					msg = `{"error":"not really sure what happened, but it didn't go well (check the logs)", "code":"E_NOT_FOUND"}`
+				} else {
+					msg = `{"error":"not really sure what happened, but it didn't go well (check the logs)", "code":"E_SERVER"}`
+				}
 				log.Printf("/api/devices/%s\n", slug)
 				log.Println(err)
 				http.Error(w, msg, http.StatusInternalServerError)
 				return
 			}
 			if err := store.Delete(auth); nil != err {
-				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)"}`
+				msg := `{"error":"not really sure what happened, but it didn't go well (check the logs)", "code":"E_SERVER"}`
 				log.Printf("/api/devices/%s\n", slug)
 				log.Println(err)
 				http.Error(w, msg, http.StatusInternalServerError)

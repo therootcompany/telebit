@@ -14,6 +14,7 @@ import (
 )
 
 var ErrExists = errors.New("token already exists")
+var ErrNotFound = errors.New("record not found")
 
 type Authorization struct {
 	ID string `db:"id,omitempty" json:"-"`
