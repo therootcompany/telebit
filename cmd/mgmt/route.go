@@ -167,6 +167,7 @@ func routeAll() chi.Router {
 					log.Printf("/api/register-device/\n")
 					log.Println(err)
 					http.Error(w, msg, http.StatusNotFound)
+					return
 				}
 				if "" != original.MachinePPID {
 					msg := `{"error":"the presented key has already been used"}`
