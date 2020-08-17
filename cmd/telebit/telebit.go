@@ -335,7 +335,7 @@ func main() {
 			}
 			_, err := mgmt.Register(*authURL, ClientSecret, ppid)
 			if nil != err {
-				if !strings.Contains(err.Error(), `"E_NOT_FOUND"`) {
+				if strings.Contains(err.Error(), `"E_NOT_FOUND"`) {
 					fmt.Fprintf(os.Stderr, "invalid client credentials: %s\n", err)
 					// the server confirmed that the client is bad
 					os.Exit(exitBadConfig)
