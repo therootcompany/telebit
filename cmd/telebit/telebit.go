@@ -10,7 +10,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/url"
 	"os"
@@ -453,7 +452,8 @@ func main() {
 		//tun := <-connected
 		fmt.Printf("Listening through %s\n", *relay)
 		err = telebit.ListenAndServe(tun, mux)
-		log.Fatal("Closed server: ", err)
+		fmt.Fprintf(os.Stderr, "Closed server: %s\n", err)
+		os.Exit(exitRetry)
 		done <- err
 	}()
 
