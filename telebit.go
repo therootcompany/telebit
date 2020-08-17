@@ -343,6 +343,7 @@ func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
 		var err error
 		magic, err = NewCertMagic(acme)
 		if nil != err {
+			// TODO find a way to channel this to an initialization error
 			fmt.Fprintf(
 				os.Stderr,
 				"failed to initialize certificate management (discovery url? local folder perms?): %s\n",

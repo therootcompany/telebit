@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 )
 
@@ -46,8 +45,7 @@ func Discover(relay string) (*Endpoints, error) {
 	directives := &Endpoints{}
 	relayURL, err := url.Parse(relay)
 	if nil != err {
-		fmt.Fprintf(os.Stderr, "Error: invalid Tunnel Relay URL %q: %s\n", relay, err)
-		os.Exit(1)
+		return nil, err
 	}
 	if "ws" != relayURL.Scheme[:2] {
 
@@ -56,8 +54,7 @@ func Discover(relay string) (*Endpoints, error) {
 		}
 		resp, err := http.Get(relayURL.String() + ".well-known/telebit.app/index.json")
 		if nil != err {
-			fmt.Fprintf(os.Stderr, "Error: invalid Tunnel Relay URL %q: %s\n", relay, err)
-			os.Exit(1)
+			return nil, err
 		}
 		b, err := ioutil.ReadAll(resp.Body)
 		resp.Body.Close()

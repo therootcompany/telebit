@@ -37,6 +37,20 @@ import (
 	_ "github.com/joho/godotenv/autoload"
 )
 
+const (
+	// exitOk is for normal exits, such as a graceful disconnect or shutdown
+	exitOk = 0
+
+	// exitBadArguments is for positive failures as a result of arguments
+	exitBadArguments = 1
+
+	// exitBadConfig is for positive failures from an external service
+	exitBadConfig = 2
+
+	// exitRetry is for potentially false negative failures from temporary conditions such as a DNS resolution or network failure for which it would be reasonable to wait 10 seconds and try again
+	exitRetry = 29
+)
+
 var (
 	// GitRev refers to the abbreviated commit hash
 	GitRev = "0000000"
@@ -97,14 +111,14 @@ func main() {
 	if len(os.Args) >= 2 {
 		if "version" == os.Args[1] {
 			fmt.Printf("telebit %s %s %s\n", GitVersion, GitRev[:7], GitTimestamp)
-			os.Exit(0)
+			os.Exit(exitOk)
 		}
 	}
 
 	if len(*acmeDirectory) > 0 {
 		if *acmeStaging {
 			fmt.Fprintf(os.Stderr, "pick either acme-directory or acme-staging\n")
-			os.Exit(1)
+			os.Exit(exitBadArguments)
 			return
 		}
 	}
@@ -181,7 +195,7 @@ func main() {
 	portForwards, err := parsePortForwards(portToPorts)
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "%s", err)
-		os.Exit(1)
+		os.Exit(exitBadArguments)
 		return
 	}
 
@@ -191,7 +205,7 @@ func main() {
 	bindAddrs, err := parseBindAddrs(*bindAddrsStr)
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "invalid bind address(es) given to --listen\n")
-		os.Exit(1)
+		os.Exit(exitBadArguments)
 		return
 	}
 
@@ -201,7 +215,7 @@ func main() {
 	} else if 0 != len(*vendorID) {
 		if VendorID != *vendorID {
 			fmt.Fprintf(os.Stderr, "invalid --vendor-id\n")
-			os.Exit(1)
+			os.Exit(exitBadArguments)
 		}
 	}
 	if 0 == len(VendorID) {
@@ -209,7 +223,7 @@ func main() {
 	} else if 0 != len(os.Getenv("VENDOR_ID")) {
 		if VendorID != os.Getenv("VENDOR_ID") {
 			fmt.Fprintf(os.Stderr, "invalid VENDOR_ID\n")
-			os.Exit(1)
+			os.Exit(exitBadArguments)
 		}
 	}
 	if 0 == len(ClientSecret) {
@@ -217,7 +231,7 @@ func main() {
 	} else if 0 != len(*secret) {
 		if ClientSecret != *secret {
 			fmt.Fprintf(os.Stderr, "invalid --secret\n")
-			os.Exit(1)
+			os.Exit(exitBadArguments)
 		}
 	}
 	if 0 == len(ClientSecret) {
@@ -225,13 +239,13 @@ func main() {
 	} else if 0 != len(os.Getenv("SECRET")) {
 		if ClientSecret != os.Getenv("SECRET") {
 			fmt.Fprintf(os.Stderr, "invalid SECRET\n")
-			os.Exit(1)
+			os.Exit(exitBadArguments)
 		}
 	}
 	ppid, err := machineid.ProtectedID(fmt.Sprintf("%s|%s", VendorID, ClientSecret))
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "unauthorized device\n")
-		os.Exit(1)
+		os.Exit(exitBadConfig)
 		return
 	}
 	ppidBytes, err := hex.DecodeString(ppid)
@@ -251,7 +265,7 @@ func main() {
 		}
 		if nil != err {
 			fmt.Fprintf(os.Stderr, "neither secret nor token provided\n")
-			os.Exit(1)
+			os.Exit(exitBadArguments)
 			return
 		}
 	}
@@ -263,7 +277,7 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Acting as Relay\n")
 		} else {
 			fmt.Fprintf(os.Stderr, "error: must provide Relay, or act as Relay\n")
-			os.Exit(1)
+			os.Exit(exitBadArguments)
 			return
 		}
 	}
@@ -276,12 +290,13 @@ func main() {
 		directory, err := tunnel.Discover(*relay)
 		if nil != err {
 			fmt.Fprintf(os.Stderr, "Error: invalid Tunnel Relay URL %q: %s\n", *relay, err)
-			os.Exit(1)
+			os.Exit(exitRetry)
 		}
 		fmt.Printf("[Directory] %s\n", *relay)
 		jsonb, _ := json.Marshal(directory)
 		fmt.Printf("\t%s\n", string(jsonb))
 
+		// TODO trimming this should no longer be necessary, but I need to double check
 		authBase := strings.TrimSuffix(directory.Authenticate.URL, "/inspect")
 		if "" == *authURL {
 			*authURL = authBase
@@ -292,7 +307,7 @@ func main() {
 		if "" == *authURL {
 			fmt.Fprintf(os.Stderr, "Discovered Directory Endpoints: %+v\n", directory)
 			fmt.Fprintf(os.Stderr, "No Auth URL detected, nor supplied\n")
-			os.Exit(1)
+			os.Exit(exitBadConfig)
 			return
 		}
 		fmt.Println("Auth URL", *authURL)
@@ -305,10 +320,10 @@ func main() {
 			fmt.Println("Suggested ACME DNS 01 Proxy URL:", dns01Base)
 			fmt.Println("--acme-relay-url ACME DNS 01 Proxy URL:", *acmeRelay)
 		}
-		if "" == *authURL {
+		if "" == *acmeRelay {
 			fmt.Fprintf(os.Stderr, "Discovered Directory Endpoints: %+v\n", directory)
 			fmt.Fprintf(os.Stderr, "No ACME DNS 01 Proxy URL detected, nor supplied\n")
-			os.Exit(1)
+			os.Exit(exitBadConfig)
 			return
 		}
 		fmt.Println("DNS 01 URL", *acmeRelay)
@@ -322,17 +337,21 @@ func main() {
 			if nil != err {
 				if !strings.Contains(err.Error(), `"E_NOT_FOUND"`) {
 					fmt.Fprintf(os.Stderr, "invalid client credentials: %s\n", err)
-					os.Exit(2)
+					// the server confirmed that the client is bad
+					os.Exit(exitBadConfig)
 				} else {
+					// there may have been a network error
 					fmt.Fprintf(os.Stderr, "failed to register client: %s\n", err)
-					os.Exit(1)
+					os.Exit(exitRetry)
 				}
 				return
 			}
 			grants, err = telebit.Inspect(*authURL, *token)
 			if nil != err {
 				fmt.Fprintf(os.Stderr, "failed to authenticate after registering client: %s\n", err)
-				os.Exit(1)
+				// there was no error registering the client, yet there was one authenticating
+				// therefore this may be an error that will  be resolved
+				os.Exit(exitRetry)
 			}
 		}
 		fmt.Printf("[Grants]\n\t%#v\n", grants)
@@ -343,7 +362,9 @@ func main() {
 	provider, err := getACMEProvider(acmeRelay, token)
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
+		// it's possible for some providers this could be a failed network request,
+		// but I think in the case of what we specifically support it's bad arguments
+		os.Exit(exitBadArguments)
 		return
 	}
 	fmt.Printf("Email: %q\n", *email)
@@ -404,14 +425,14 @@ func main() {
 				msg = " (may be auth related)"
 			}
 			fmt.Fprintf(os.Stderr, "Error connecting to %s: %s%s\n", *relay, err, msg)
-			os.Exit(1)
+			os.Exit(exitRetry)
 			return
 		}
 
 		err = mgmt.Ping(*authURL, *token)
 		if nil != err {
 			fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s\n", err)
-			//os.Exit(1)
+			//os.Exit(exitRetry)
 		}
 
 		go func() {
@@ -424,7 +445,7 @@ func main() {
 				err = mgmt.Ping(*authURL, *token)
 				if nil != err {
 					fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s\n", err)
-					//os.Exit(1)
+					//os.Exit(exitRetry)
 				}
 			}
 		}()
@@ -437,7 +458,7 @@ func main() {
 	}()
 
 	if err := <-done; nil != err {
-		os.Exit(1)
+		os.Exit(exitRetry)
 	}
 }
 
