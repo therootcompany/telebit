@@ -13,6 +13,9 @@ fi
 
 source .env
 
+SPF_HOSTNAME="${SPF_HOSTNAME:-""}"
+#SPF_HOSTNAME="_allowed.example.com"
+
 # For Tunnel Relay Server
 API_HOSTNAME=${API_HOSTNAME:-"devices.example.com"}
 LISTEN="${LISTEN:-":80 :443"}"
@@ -29,6 +32,7 @@ ACME_AGREE=${ACME_AGREE:-}
 ACME_EMAIL="${ACME_EMAIL:-}"
 
 ./telebit \
+    --spf-domain $SPF_HOSTNAME \
     --api-hostname $API_HOSTNAME \
     --auth-url $AUTH_URL \
     --acme-agree "$ACME_AGREE" \

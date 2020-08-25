@@ -73,9 +73,10 @@ func updateTxt(txtDomain string) error {
 		if nil != err {
 			continue
 		}
-		if len(fields) > 0 {
+		if len(newFields) > 0 {
 			break
 		}
+		return fmt.Errorf("no spf records found")
 	}
 
 	// TODO put a lock here?

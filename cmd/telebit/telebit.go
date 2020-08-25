@@ -639,11 +639,23 @@ func tryToServeName(servername string, wconn *telebit.ConnWrap) bool {
 			return true
 		}
 
-		remoteAddr := addr.String()
-		if "127.0.0.1" != remoteAddr &&
-			"::1" != remoteAddr &&
-			"localhost" != remoteAddr {
-			ipAddr := net.ParseIP(remoteAddr)
+		// 192.168.1.100:2345
+		// [::fe12]:2345
+		remoteIP := addr.String()
+		index := strings.LastIndex(remoteIP, ":")
+		if index < 1 {
+			// TODO how to handle unexpected invalid address?
+			wconn.Close()
+			return true
+		}
+		remoteIP = remoteIP[:index]
+
+		fmt.Println("remote addr:", remoteIP)
+
+		if "127.0.0.1" != remoteIP &&
+			"::1" != remoteIP &&
+			"localhost" != remoteIP {
+			ipAddr := net.ParseIP(remoteIP)
 			if nil == ipAddr {
 				wconn.Close()
 				return true
