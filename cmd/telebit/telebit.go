@@ -21,6 +21,7 @@ import (
 	telebit "git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/dbg"
 	tbDns01 "git.rootprojects.org/root/telebit/dns01"
+	"git.rootprojects.org/root/telebit/iplist"
 	"git.rootprojects.org/root/telebit/mgmt"
 	"git.rootprojects.org/root/telebit/mgmt/authstore"
 	"git.rootprojects.org/root/telebit/table"
@@ -81,6 +82,7 @@ func main() {
 	var forwards []Forward
 	var portForwards []Forward
 
+	spfDomain := flag.String("spf-domain", "", "domain with SPF-like list of IP addresses which are allowed to connect to clients")
 	// TODO replace the websocket connection with a mock server
 	vendorID := flag.String("vendor-id", "", "a unique identifier for a deploy target environment")
 	email := flag.String("acme-email", "", "email to use for Let's Encrypt / ACME registration")
@@ -105,6 +107,14 @@ func main() {
 
 	if !dbg.Debug {
 		dbg.Debug = *verbose
+	}
+
+	spfRecords := iplist.Init(*spfDomain)
+	if len(spfRecords) > 0 {
+		fmt.Println(
+			"Allow client connections from:",
+			strings.Join(spfRecords, " "),
+		)
 	}
 
 	if len(os.Args) >= 2 {
@@ -477,8 +487,6 @@ func muxAll(
 		fmt.Println(msg)
 		mux.ForwardTCP(fwd.pattern, "localhost:"+fwd.port, 120*time.Second, msg, "[Port Forward]")
 	}
-	// TODO close connection on invalid hostname
-	mux.HandleTCP("*", telebit.HandlerFunc(routeSubscribersAndClients), "[Tun => Remote Servers]")
 
 	if 0 == len(*apiHostname) {
 		*apiHostname = os.Getenv("API_HOSTNAME")
@@ -505,6 +513,9 @@ func muxAll(
 			return nil
 		}), "[Admin API & Server Relays]")
 	}
+
+	// TODO close connection on invalid hostname
+	mux.HandleTCP("*", telebit.HandlerFunc(routeSubscribersAndClients), "[Tun => Remote Servers]")
 
 	if nil != grants {
 		for i, domainname := range grants.Domains {
@@ -544,7 +555,7 @@ func routeSubscribersAndClients(client net.Conn) error {
 	case *telebit.ConnWrap:
 		wconn = conn
 	default:
-		panic("HandleTun is special in that it must receive &ConnWrap{ Conn: conn }")
+		panic("routeSubscribersAndClients is special in that it must receive &ConnWrap{ Conn: conn }")
 	}
 
 	// We know this to be two parts "ip:port"
@@ -617,6 +628,32 @@ func tryToServeName(servername string, wconn *telebit.ConnWrap) bool {
 			fmt.Println("[debug] no server to server", servername)
 		}
 		return false
+	}
+	// Note: timing can reveal if the client exists
+
+	if allowAll, _ := iplist.IsAllowed(nil); !allowAll {
+		addr := wconn.RemoteAddr()
+		if nil == addr {
+			// handled by denial
+			wconn.Close()
+			return true
+		}
+
+		remoteAddr := addr.String()
+		if "127.0.0.1" != remoteAddr &&
+			"::1" != remoteAddr &&
+			"localhost" != remoteAddr {
+			ipAddr := net.ParseIP(remoteAddr)
+			if nil == ipAddr {
+				wconn.Close()
+				return true
+			}
+
+			if ok, err := iplist.IsAllowed(ipAddr); !ok || nil != err {
+				wconn.Close()
+				return true
+			}
+		}
 	}
 
 	// async so that the call stack can complete and be released

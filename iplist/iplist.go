@@ -92,6 +92,9 @@ func IsAllowed(remoteIP net.IP) (bool, error) {
 	if 0 == len(fields) {
 		return true, nil
 	}
+	if nil == remoteIP {
+		return false, nil
+	}
 
 	for _, section := range fields {
 		parts := strings.Split(section, ":")

@@ -186,14 +186,16 @@ func (wsw *WebsocketTunnel) Close() error {
 func (wsw *WebsocketTunnel) LocalAddr() net.Addr {
 	// TODO do we reverse this since the "local" address is that of the relay?
 	// return wsw.wsconn.RemoteAddr()
-	panic("no LocalAddr() implementation")
+	fmt.Fprintf(os.Stderr, "no LocalAddr() implementation\n")
+	return nil
 }
 
 // RemoteAddr is not implemented and will panic. Additionally, it wouldn't mean anything useful anyway.
 func (wsw *WebsocketTunnel) RemoteAddr() net.Addr {
 	// TODO do we reverse this since the "remote" address means nothing / is that of one of the clients?
 	// return wsw.wsconn.LocalAddr()
-	panic("no RemoteAddr() implementation")
+	fmt.Fprintf(os.Stderr, "no RemoteAddr() implementation\n")
+	return nil
 }
 
 // SetDeadline sets the read and write deadlines associated
