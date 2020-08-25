@@ -16,6 +16,7 @@ telebit-client-macos
 telebit-client-windows-debug.exe
 telebit-client-windows.exe
 
+/cmd/iplist/iplist
 /cmd/machineid/machineid
 /cmd/dnsclient/dnsclient
 /cmd/sqlstore/sqlstore
