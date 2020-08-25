@@ -9,8 +9,8 @@ import (
 )
 
 func help() {
-	fmt.Fprintf(os.Stderr, "Usage: iplist domain.tld 123.45.6.78\n")
-	fmt.Fprintf(os.Stderr, "(`dig TXT +short domain.tld` should return a list like `v=spf1 ip4:123.45.6.78 ip4:123.45.6.1/24`\n")
+	fmt.Fprintf(os.Stderr, "Usage: iplist _allowed.domain.tld 123.45.6.78\n")
+	fmt.Fprintf(os.Stderr, "(`dig TXT +short _allowed.domain.tld` should return a list like `v=spf1 ip4:123.45.6.78 ip4:123.45.6.1/24`\n")
 	os.Exit(1)
 }
 
