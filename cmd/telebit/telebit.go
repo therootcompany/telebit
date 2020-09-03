@@ -98,6 +98,7 @@ func main() {
 	apiHostname := flag.String("api-hostname", "", "the hostname used to manage clients")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "an auth token for the server (instead of generating --secret); use --token=false to ignore any $TOKEN in env")
+	_ = flag.String("leeway", "", "(reserved for future use) allow for time drift / skew (hard-coded to 15 minutes)")
 	bindAddrsStr := flag.String("listen", "", "list of bind addresses on which to listen, such as localhost:80, or :443")
 	tlsLocals := flag.String("tls-locals", "", "like --locals, but TLS will be used to connect to the local port")
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")

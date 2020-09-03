@@ -67,12 +67,13 @@ func HMACToken(secret string, maybeExp ...int) (token string, err error) {
 
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
+	leeway := 15 * time.Minute
 	claims := &jwt.StandardClaims{
 		Id:        base64.RawURLEncoding.EncodeToString(b),
 		Subject:   "", // TODO
 		Issuer:    "", // TODO
-		IssuedAt:  time.Now().Unix(),
-		ExpiresAt: exp,
+		IssuedAt:  time.Now().Add(-leeway).Unix(),
+		ExpiresAt: exp + int64(leeway.Seconds()),
 	}
 
 	jwtToken := &jwt.Token{
