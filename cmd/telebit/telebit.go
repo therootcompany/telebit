@@ -97,7 +97,7 @@ func main() {
 	relay := flag.String("tunnel-relay-url", "", "the websocket url at which to connect to the tunnel relay")
 	apiHostname := flag.String("api-hostname", "", "the hostname used to manage clients")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
-	token := flag.String("token", "", "a pre-generated token to give the server (instead of generating one with --secret)")
+	token := flag.String("token", "", "an auth token for the server (instead of generating --secret); use --token=false to ignore any $TOKEN in env")
 	bindAddrsStr := flag.String("listen", "", "list of bind addresses on which to listen, such as localhost:80, or :443")
 	tlsLocals := flag.String("tls-locals", "", "like --locals, but TLS will be used to connect to the local port")
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
@@ -262,6 +262,9 @@ func main() {
 
 	if 0 == len(*token) {
 		*token = os.Getenv("TOKEN")
+	}
+	if "false" == *token {
+		*token = ""
 	}
 	if 0 == len(*token) {
 		*token, err = authstore.HMACToken(ppid)
