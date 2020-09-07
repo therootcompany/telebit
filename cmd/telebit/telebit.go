@@ -93,6 +93,8 @@ func main() {
 	enableHTTP01 := flag.Bool("acme-http-01", false, "enable HTTP-01 ACME challenges")
 	enableTLSALPN01 := flag.Bool("acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
 	acmeRelay := flag.String("acme-relay-url", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
+	var dnsPropagationDelay time.Duration
+	flag.DurationVar(&dnsPropagationDelay, "dns-01-delay", 5*time.Second, "add an extra delay after dns self-check to allow DNS-01 challenges to propagate")
 	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
 	relay := flag.String("tunnel-relay-url", "", "the websocket url at which to connect to the tunnel relay")
 	apiHostname := flag.String("api-hostname", "", "the hostname used to manage clients")
@@ -390,9 +392,9 @@ func main() {
 		//DNSChallengeOption:     legoDns01.DNSProviderOption,
 		DNSChallengeOption: legoDns01.WrapPreCheck(func(domain, fqdn, value string, orig legoDns01.PreCheckFunc) (bool, error) {
 			ok, err := orig(fqdn, value)
-			if ok {
-				fmt.Println("[Telebit-ACME-DNS] sleeping an additional 5 seconds")
-				time.Sleep(5 * time.Second)
+			if ok && dnsPropagationDelay > 0 {
+				fmt.Printf("[Telebit-ACME-DNS] sleeping an additional %s\n", dnsPropagationDelay)
+				time.Sleep(dnsPropagationDelay)
 			}
 			return ok, err
 		}),
