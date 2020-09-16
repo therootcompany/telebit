@@ -44,6 +44,9 @@ github.com/go-acme/lego/v3/registration
 ## explicit
 github.com/go-chi/chi
 github.com/go-chi/chi/middleware
+# github.com/go-sql-driver/mysql v1.5.0
+## explicit
+github.com/go-sql-driver/mysql
 # github.com/gorilla/websocket v1.4.2
 ## explicit
 github.com/gorilla/websocket

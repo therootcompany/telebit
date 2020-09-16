@@ -15,7 +15,6 @@ func main() {
 	} else {
 		connStr += "?sslmode=required"
 	}
-	initSQL := "./init.sql"
 
 	store, err := authstore.NewStore(connStr, initSQL)
 	if nil != err {

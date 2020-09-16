@@ -15,7 +15,6 @@ func TestStore(t *testing.T) {
 	} else {
 		connStr += "?sslmode=required"
 	}
-	initSQL := "./init.sql"
 
 	// TODO url.Parse
 

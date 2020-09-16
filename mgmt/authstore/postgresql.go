@@ -14,6 +14,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
+var initSQL = "./postgres.init.sql"
+
 func NewStore(pgURL, initSQL string) (Store, error) {
 	// https://godoc.org/github.com/lib/pq
 
