@@ -47,7 +47,9 @@ const (
 	// exitBadConfig is for positive failures from an external service
 	exitBadConfig = 2
 
-	// exitRetry is for potentially false negative failures from temporary conditions such as a DNS resolution or network failure for which it would be reasonable to wait 10 seconds and try again
+	// exitRetry is for potentially false negative failures from temporary
+	// conditions such as a DNS resolution or network failure for which it would
+	// be reasonable to wait 10 seconds and try again
 	exitRetry = 29
 )
 
@@ -81,6 +83,7 @@ func main() {
 	var domains []string
 	var forwards []Forward
 	var portForwards []Forward
+	var resolvers []string
 
 	spfDomain := flag.String("spf-domain", "", "domain with SPF-like list of IP addresses which are allowed to connect to clients")
 	// TODO replace the websocket connection with a mock server
@@ -94,7 +97,8 @@ func main() {
 	enableTLSALPN01 := flag.Bool("acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
 	acmeRelay := flag.String("acme-relay-url", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
 	var dnsPropagationDelay time.Duration
-	flag.DurationVar(&dnsPropagationDelay, "dns-01-delay", 5*time.Second, "add an extra delay after dns self-check to allow DNS-01 challenges to propagate")
+	flag.DurationVar(&dnsPropagationDelay, "dns-01-delay", 0, "add an extra delay after dns self-check to allow DNS-01 challenges to propagate")
+	resolverList := flag.String("dns-resolvers", "", "a list of resolvers in the format 8.8.8.8:53,8.8.4.4:53")
 	authURL := flag.String("auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
 	relay := flag.String("tunnel-relay-url", "", "the websocket url at which to connect to the tunnel relay")
 	apiHostname := flag.String("api-hostname", "", "the hostname used to manage clients")
@@ -201,10 +205,28 @@ func main() {
 		domains = append(domains, domain)
 	}
 
+	var err error
+	if 0 == dnsPropagationDelay {
+		dnsPropagationDelay, err = time.ParseDuration(os.Getenv("DNS_01_DELAY"))
+	}
+	if 0 == dnsPropagationDelay {
+		dnsPropagationDelay = 5 * time.Second
+	}
+
+	if 0 == len(*resolverList) {
+		*resolverList = os.Getenv("DNS_RESOLVERS")
+	}
+	if len(*resolverList) > 0 {
+		for _, resolver := range strings.Fields(strings.ReplaceAll(*resolverList, ",", " ")) {
+			resolvers = append(resolvers, resolver)
+		}
+		legoDns01.AddRecursiveNameservers(resolvers)
+	}
+
 	if 0 == len(*portToPorts) {
 		*portToPorts = os.Getenv("PORT_FORWARDS")
 	}
-	portForwards, err := parsePortForwards(portToPorts)
+	portForwards, err = parsePortForwards(portToPorts)
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "%s", err)
 		os.Exit(exitBadArguments)
