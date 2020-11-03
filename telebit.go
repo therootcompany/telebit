@@ -19,9 +19,8 @@ import (
 	"git.rootprojects.org/root/telebit/dbg"
 	httpshim "git.rootprojects.org/root/telebit/tunnel"
 
-	"github.com/caddyserver/certmagic"
-	"github.com/go-acme/lego/v3/challenge"
-	"github.com/go-acme/lego/v3/challenge/dns01"
+	"github.com/coolaj86/certmagic"
+	"github.com/mholt/acmez"
 )
 
 // Note: 64k is the TCP max, but 1460b is the 100mbit Ethernet max (1500 MTU - overhead),
@@ -306,12 +305,13 @@ ForwardData:
 	return err
 }
 
+// ACME abstracts the certmagic / lego / acmez stuff
 type ACME struct {
 	Agree                  bool
 	Email                  string
 	Directory              string
-	DNSProvider            challenge.Provider
-	DNSChallengeOption     dns01.ChallengeOption
+	DNS01Solver            acmez.Solver
+	HTTP01Solver           acmez.Solver
 	Storage                certmagic.Storage
 	StoragePath            string
 	EnableHTTPChallenge    bool
@@ -444,8 +444,8 @@ func NewCertMagic(acme *ACME) (*certmagic.Config, error) {
 	// yes, a circular reference, passing `magic` to its own Issuer
 	fmt.Printf("ACME Email: %q\n", acme.Email)
 	magic.Issuer = certmagic.NewACMEManager(magic, certmagic.ACMEManager{
-		DNSProvider:             acme.DNSProvider,
-		DNSChallengeOption:      acme.DNSChallengeOption,
+		DNS01Solver:             acme.DNS01Solver,
+		HTTP01Solver:            acme.HTTP01Solver,
 		CA:                      acme.Directory,
 		Email:                   acme.Email,
 		Agreed:                  acme.Agree,

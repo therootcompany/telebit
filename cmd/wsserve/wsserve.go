@@ -18,7 +18,7 @@ import (
 	tbDns01 "git.rootprojects.org/root/telebit/dns01"
 	"git.rootprojects.org/root/telebit/table"
 
-	"github.com/caddyserver/certmagic"
+	"github.com/coolaj86/certmagic"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-acme/lego/v3/challenge"
 	legoDns01 "github.com/go-acme/lego/v3/challenge/dns01"

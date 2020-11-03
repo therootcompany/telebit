@@ -2,9 +2,11 @@ module git.rootprojects.org/root/telebit
 
 go 1.14
 
+replace github.com/caddyserver/certmagic => github.com/coolaj86/certmagic v0.12.1-pre.2
+
 require (
 	git.rootprojects.org/root/go-gitver v1.1.3
-	github.com/caddyserver/certmagic v0.10.12
+	github.com/coolaj86/certmagic v0.12.1-pre.2
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/go-acme/lego/v3 v3.7.0
@@ -14,6 +16,7 @@ require (
 	github.com/joho/godotenv v1.3.0
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.6.0
+	github.com/mholt/acmez v0.1.1
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749 // indirect
 	github.com/shurcooL/vfsgen v0.0.0-20181202132449-6a9ea43bcacd

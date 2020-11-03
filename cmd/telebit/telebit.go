@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -27,8 +28,9 @@ import (
 	"git.rootprojects.org/root/telebit/table"
 	"git.rootprojects.org/root/telebit/tunnel"
 	legoDns01 "github.com/go-acme/lego/v3/challenge/dns01"
+	"github.com/mholt/acmez/acme"
 
-	"github.com/caddyserver/certmagic"
+	"github.com/coolaj86/certmagic"
 	"github.com/denisbrodbeck/machineid"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-acme/lego/v3/challenge"
@@ -78,6 +80,36 @@ var VendorID string
 
 // ClientSecret may be baked in, or supplied via ENVs or --args
 var ClientSecret string
+
+type legoWrapper struct {
+	provider challenge.Provider
+	//option   legoDns01.ChallengeOption
+	dnsSolver certmagic.DNS01Solver
+}
+
+func (lw *legoWrapper) Present(ctx context.Context, ch acme.Challenge) error {
+	return lw.provider.Present(ch.Identifier.Value, ch.Token, ch.KeyAuthorization)
+}
+
+func (lw *legoWrapper) CleanUp(ctx context.Context, ch acme.Challenge) error {
+	c := make(chan error)
+	go func() {
+		c <- lw.provider.CleanUp(ch.Identifier.Value, ch.Token, ch.KeyAuthorization)
+	}()
+	select {
+	case err := <-c:
+		return err
+	case <-ctx.Done():
+		return errors.New("cancelled")
+	}
+}
+
+// Wait blocks until the TXT record created in Present() appears in
+// authoritative lookups, i.e. until it has propagated, or until
+// timeout, whichever is first.
+func (lw *legoWrapper) Wait(ctx context.Context, challenge acme.Challenge) error {
+	return lw.dnsSolver.Wait(ctx, challenge)
+}
 
 func main() {
 	var domains []string
@@ -410,16 +442,21 @@ func main() {
 		StoragePath: *certpath,
 		Agree:       *acmeAgree,
 		Directory:   *acmeDirectory,
-		DNSProvider: provider,
+		DNS01Solver: &legoWrapper{
+			provider: provider,
+			/*
+				options: legoDns01.WrapPreCheck(func(domain, fqdn, value string, orig legoDns01.PreCheckFunc) (bool, error) {
+					ok, err := orig(fqdn, value)
+					if ok && dnsPropagationDelay > 0 {
+						fmt.Printf("[Telebit-ACME-DNS] sleeping an additional %s\n", dnsPropagationDelay)
+						time.Sleep(dnsPropagationDelay)
+					}
+					return ok, err
+				}),
+			*/
+			dnsSolver: certmagic.DNS01Solver{},
+		},
 		//DNSChallengeOption:     legoDns01.DNSProviderOption,
-		DNSChallengeOption: legoDns01.WrapPreCheck(func(domain, fqdn, value string, orig legoDns01.PreCheckFunc) (bool, error) {
-			ok, err := orig(fqdn, value)
-			if ok && dnsPropagationDelay > 0 {
-				fmt.Printf("[Telebit-ACME-DNS] sleeping an additional %s\n", dnsPropagationDelay)
-				time.Sleep(dnsPropagationDelay)
-			}
-			return ok, err
-		}),
 		EnableHTTPChallenge:    *enableHTTP01,
 		EnableTLSALPNChallenge: *enableTLSALPN01,
 	}
