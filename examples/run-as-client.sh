@@ -9,7 +9,7 @@ source .env
 VENDOR_ID="${VENDOR_ID:-"${VENDOR_ID:-"test-id"}"}"
 CLIENT_SECRET="${CLIENT_SECRET:-}"
 #go build -mod=vendor -o ./telebit \
-#    -ldflags="-X 'main.VendorID=$VENDOR_ID' -X 'main.ClientSecret=$CLIENT_SECRET'" \
+#    -ldflags="-X 'main.VendorID=$VENDOR_ID' -X 'main.ClientSecret=$CLIENT_SECRET' -X 'main.serviceName=telebit' -X 'main.serviceDesc=securely tunnel through telebit.io'" \
 #    cmd/telebit/*.go
 go build -mod=vendor -o telebit \
     cmd/telebit/*.go

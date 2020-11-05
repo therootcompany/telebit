@@ -22,6 +22,7 @@ import (
 	"git.rootprojects.org/root/telebit/dbg"
 	tbDns01 "git.rootprojects.org/root/telebit/internal/dns01"
 	"git.rootprojects.org/root/telebit/internal/http01"
+	"git.rootprojects.org/root/telebit/internal/service"
 	"git.rootprojects.org/root/telebit/iplist"
 	"git.rootprojects.org/root/telebit/mgmt"
 	"git.rootprojects.org/root/telebit/mgmt/authstore"
@@ -61,8 +62,15 @@ var (
 	GitVersion = "v0.0.0-pre0+0000000"
 	// GitTimestamp refers to the timestamp of the most recent commit
 	GitTimestamp = "0000-00-00T00:00:00+0000"
+
+	// serviceName is the service name
+	serviceName = "telebit"
+
+	// serviceDesc
+	serviceDesc = "securely relay traffic through telebit.io"
 )
 
+// Forward describes how to route a network connection
 type Forward struct {
 	scheme   string
 	pattern  string
@@ -81,6 +89,23 @@ var VendorID string
 var ClientSecret string
 
 func main() {
+	if len(os.Args) >= 2 {
+		if "version" == strings.TrimLeft(os.Args[1], "-") {
+			fmt.Printf("telebit %s (%s) %s\n", GitVersion, GitRev[:7], GitTimestamp)
+			os.Exit(exitOk)
+			return
+		}
+	}
+
+	if len(os.Args) >= 2 {
+		if "install" == os.Args[1] {
+			if err := service.Install(); nil != err {
+				fmt.Fprintf(os.Stderr, "%v", err)
+			}
+			return
+		}
+	}
+
 	var domains []string
 	var forwards []Forward
 	var portForwards []Forward
@@ -124,13 +149,6 @@ func main() {
 			"Allow client connections from:",
 			strings.Join(spfRecords, " "),
 		)
-	}
-
-	if len(os.Args) >= 2 {
-		if "version" == os.Args[1] {
-			fmt.Printf("telebit %s %s %s\n", GitVersion, GitRev[:7], GitTimestamp)
-			os.Exit(exitOk)
-		}
 	}
 
 	if len(*acmeDirectory) > 0 {
@@ -827,19 +845,6 @@ func getACMEProvider(acmeRelay, token *string) (challenge.Provider, error) {
 	}
 
 	return provider, nil
-}
-
-type ACMEProvider struct {
-	BaseURL  string
-	provider challenge.Provider
-}
-
-func (p *ACMEProvider) Present(domain, token, keyAuth string) error {
-	return p.provider.Present(domain, token, keyAuth)
-}
-
-func (p *ACMEProvider) CleanUp(domain, token, keyAuth string) error {
-	return p.provider.CleanUp(domain, token, keyAuth)
 }
 
 // newDuckDNSProvider is for the sake of demoing the tunnel

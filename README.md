@@ -34,6 +34,7 @@ CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H window
 ```
 
 The binary can be built with `VENDOR_ID` and `CLIENT_SECRET` built into the binary.
+You can also change the `serviceName` and `serviceDescription` at build time.
 See `examples/run-as-client.sh`.
 
 ### Configure
