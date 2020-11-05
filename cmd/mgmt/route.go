@@ -35,8 +35,7 @@ func routeStatic() chi.Router {
 
 	r.Get("/.well-known/acme-challenge/{token}", func(w http.ResponseWriter, r *http.Request) {
 		//token := chi.URLParam(r, "token")
-		host := r.Header.Get("Host")
-
+		host := r.Host
 		if strings.ContainsAny(host, "/:|\\") {
 			host = ""
 		}
