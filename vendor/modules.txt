@@ -111,6 +111,7 @@ github.com/lib/pq/scram
 # github.com/libdns/libdns v0.1.0
 github.com/libdns/libdns
 # github.com/mholt/acmez v0.1.1
+## explicit
 github.com/mholt/acmez
 github.com/mholt/acmez/acme
 # github.com/miekg/dns v1.1.30
