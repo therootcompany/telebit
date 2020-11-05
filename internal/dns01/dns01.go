@@ -5,6 +5,7 @@ package dns01
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,8 +15,11 @@ import (
 	"path"
 	"time"
 
+	"github.com/coolaj86/certmagic"
+	"github.com/go-acme/lego/v3/challenge"
 	"github.com/go-acme/lego/v3/challenge/dns01"
 	"github.com/go-acme/lego/v3/platform/config/env"
+	"github.com/mholt/acmez/acme"
 )
 
 // Environment variables names.
@@ -179,4 +183,45 @@ func (d *DNSProvider) doRequest(method, uri string, msg interface{}) error {
 	}
 
 	return nil
+}
+
+// NewSolver creates a new Solver
+func NewSolver(provider challenge.Provider) (lego *Solver) {
+	return &Solver{
+		provider:   provider,
+		dnsChecker: certmagic.DNS01Solver{},
+	}
+}
+
+// Solver wraps a Lego DNS Provider for CertMagic
+type Solver struct {
+	provider challenge.Provider
+	//option   legoDns01.ChallengeOption
+	dnsChecker certmagic.DNS01Solver
+}
+
+// Present creates a DNS-01 Challenge Token
+func (s *Solver) Present(ctx context.Context, ch acme.Challenge) error {
+	return s.provider.Present(ch.Identifier.Value, ch.Token, ch.KeyAuthorization)
+}
+
+// CleanUp deletes a DNS-01 Challenge Token
+func (s *Solver) CleanUp(ctx context.Context, ch acme.Challenge) error {
+	c := make(chan error)
+	go func() {
+		c <- s.provider.CleanUp(ch.Identifier.Value, ch.Token, ch.KeyAuthorization)
+	}()
+	select {
+	case err := <-c:
+		return err
+	case <-ctx.Done():
+		return errors.New("cancelled")
+	}
+}
+
+// Wait blocks until the TXT record created in Present() appears in
+// authoritative lookups, i.e. until it has propagated, or until
+// timeout, whichever is first.
+func (s *Solver) Wait(ctx context.Context, challenge acme.Challenge) error {
+	return s.dnsChecker.Wait(ctx, challenge)
 }

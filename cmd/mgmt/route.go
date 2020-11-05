@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -24,6 +25,29 @@ type MgmtClaims struct {
 
 var presenters = make(chan *Challenge)
 var cleanups = make(chan *Challenge)
+
+func routeStatic() chi.Router {
+	r := chi.NewRouter()
+
+	r.Use(middleware.Logger)
+	r.Use(middleware.Timeout(15 * time.Second))
+	r.Use(middleware.Recoverer)
+
+	r.Get("/.well-known/acme-challenge/{token}", func(w http.ResponseWriter, r *http.Request) {
+		//token := chi.URLParam(r, "token")
+		host := r.Header.Get("Host")
+
+		if strings.ContainsAny(host, "/:|\\") {
+			host = ""
+		}
+		tokenPath := filepath.Join(tmpBase, host)
+
+		fsrv := http.FileServer(http.Dir(tokenPath))
+		fsrv.ServeHTTP(w, r)
+	})
+
+	return r
+}
 
 func routeAll() chi.Router {
 

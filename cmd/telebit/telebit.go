@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -21,14 +20,14 @@ import (
 
 	telebit "git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/dbg"
-	tbDns01 "git.rootprojects.org/root/telebit/dns01"
+	tbDns01 "git.rootprojects.org/root/telebit/internal/dns01"
+	"git.rootprojects.org/root/telebit/internal/http01"
 	"git.rootprojects.org/root/telebit/iplist"
 	"git.rootprojects.org/root/telebit/mgmt"
 	"git.rootprojects.org/root/telebit/mgmt/authstore"
 	"git.rootprojects.org/root/telebit/table"
 	"git.rootprojects.org/root/telebit/tunnel"
 	legoDns01 "github.com/go-acme/lego/v3/challenge/dns01"
-	"github.com/mholt/acmez/acme"
 
 	"github.com/coolaj86/certmagic"
 	"github.com/denisbrodbeck/machineid"
@@ -81,36 +80,6 @@ var VendorID string
 // ClientSecret may be baked in, or supplied via ENVs or --args
 var ClientSecret string
 
-type legoWrapper struct {
-	provider challenge.Provider
-	//option   legoDns01.ChallengeOption
-	dnsSolver certmagic.DNS01Solver
-}
-
-func (lw *legoWrapper) Present(ctx context.Context, ch acme.Challenge) error {
-	return lw.provider.Present(ch.Identifier.Value, ch.Token, ch.KeyAuthorization)
-}
-
-func (lw *legoWrapper) CleanUp(ctx context.Context, ch acme.Challenge) error {
-	c := make(chan error)
-	go func() {
-		c <- lw.provider.CleanUp(ch.Identifier.Value, ch.Token, ch.KeyAuthorization)
-	}()
-	select {
-	case err := <-c:
-		return err
-	case <-ctx.Done():
-		return errors.New("cancelled")
-	}
-}
-
-// Wait blocks until the TXT record created in Present() appears in
-// authoritative lookups, i.e. until it has propagated, or until
-// timeout, whichever is first.
-func (lw *legoWrapper) Wait(ctx context.Context, challenge acme.Challenge) error {
-	return lw.dnsSolver.Wait(ctx, challenge)
-}
-
 func main() {
 	var domains []string
 	var forwards []Forward
@@ -128,6 +97,7 @@ func main() {
 	enableHTTP01 := flag.Bool("acme-http-01", false, "enable HTTP-01 ACME challenges")
 	enableTLSALPN01 := flag.Bool("acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
 	acmeRelay := flag.String("acme-relay-url", "", "the base url of the ACME DNS-01 relay, if not the same as the tunnel relay")
+	acmeHTTP01Relay := flag.String("acme-http-01-relay-url", "", "the base url of the ACME HTTP-01 relay, if not the same as the DNS-01 relay")
 	var dnsPropagationDelay time.Duration
 	flag.DurationVar(&dnsPropagationDelay, "dns-01-delay", 0, "add an extra delay after dns self-check to allow DNS-01 challenges to propagate")
 	resolverList := flag.String("dns-resolvers", "", "a list of resolvers in the format 8.8.8.8:53,8.8.4.4:53")
@@ -180,6 +150,9 @@ func main() {
 	}
 	if 0 == len(*acmeRelay) {
 		*acmeRelay = os.Getenv("ACME_RELAY_URL")
+	}
+	if 0 == len(*acmeHTTP01Relay) {
+		*acmeHTTP01Relay = os.Getenv("ACME_HTTP_01_RELAY_URL")
 	}
 
 	if 0 == len(*email) {
@@ -428,34 +401,52 @@ func main() {
 	}
 	authorizer = NewAuthorizer(*authURL)
 
-	provider, err := getACMEProvider(acmeRelay, token)
-	if nil != err {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		// it's possible for some providers this could be a failed network request,
-		// but I think in the case of what we specifically support it's bad arguments
-		os.Exit(exitBadArguments)
-		return
+	var dns01Solver *tbDns01.Solver
+	if len(*acmeRelay) > 0 {
+		provider, err := getACMEProvider(acmeRelay, token)
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			// it's possible for some providers this could be a failed network request,
+			// but I think in the case of what we specifically support it's bad arguments
+			os.Exit(exitBadArguments)
+			return
+		}
+		dns01Solver = tbDns01.NewSolver(provider)
 	}
+
+	var http01Solver *http01.Solver
+	if len(*acmeHTTP01Relay) > 0 {
+		endpoint, err := url.Parse(*acmeHTTP01Relay)
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			os.Exit(exitBadArguments)
+			return
+		}
+		http01Solver, err = http01.NewSolver(&http01.Config{
+			Endpoint: endpoint,
+			Token:    *token,
+		})
+	}
+
 	fmt.Printf("Email: %q\n", *email)
+
 	acme := &telebit.ACME{
 		Email:       *email,
 		StoragePath: *certpath,
 		Agree:       *acmeAgree,
 		Directory:   *acmeDirectory,
-		DNS01Solver: &legoWrapper{
-			provider: provider,
-			/*
-				options: legoDns01.WrapPreCheck(func(domain, fqdn, value string, orig legoDns01.PreCheckFunc) (bool, error) {
-					ok, err := orig(fqdn, value)
-					if ok && dnsPropagationDelay > 0 {
-						fmt.Printf("[Telebit-ACME-DNS] sleeping an additional %s\n", dnsPropagationDelay)
-						time.Sleep(dnsPropagationDelay)
-					}
-					return ok, err
-				}),
-			*/
-			dnsSolver: certmagic.DNS01Solver{},
-		},
+		DNS01Solver: dns01Solver,
+		/*
+			options: legoDns01.WrapPreCheck(func(domain, fqdn, value string, orig legoDns01.PreCheckFunc) (bool, error) {
+				ok, err := orig(fqdn, value)
+				if ok && dnsPropagationDelay > 0 {
+					fmt.Printf("[Telebit-ACME-DNS] sleeping an additional %s\n", dnsPropagationDelay)
+					time.Sleep(dnsPropagationDelay)
+				}
+				return ok, err
+			}),
+		*/
+		HTTP01Solver: http01Solver,
 		//DNSChallengeOption:     legoDns01.DNSProviderOption,
 		EnableHTTPChallenge:    *enableHTTP01,
 		EnableTLSALPNChallenge: *enableTLSALPN01,

@@ -14,11 +14,13 @@ import (
 // which will provide the tunnel endpoint. However, for the sake of testing,
 // these things may happen out-of-order.
 type Endpoints struct {
-	ToS          string   `json:"terms_of_service"`
-	APIHost      string   `json:"api_host"`
-	Tunnel       Endpoint `json:"tunnel"`
-	Authenticate Endpoint `json:"authn"`
-	DNS01Proxy   Endpoint `json:"acme_dns_01_proxy"`
+	ToS            string   `json:"terms_of_service"`
+	APIHost        string   `json:"api_host"`
+	Tunnel         Endpoint `json:"tunnel"`
+	Authenticate   Endpoint `json:"authn"`
+	ChallengeProxy Endpoint `json:"acme_challenge_proxy"`
+	DNS01Proxy     Endpoint `json:"acme_dns_01_proxy"`
+	HTTP01Proxy    Endpoint `json:"acme_http_01_proxy"`
 	/*
 		{
 			"terms_of_service": ":hostname/tos/",
@@ -77,7 +79,13 @@ func Discover(relay string) (*Endpoints, error) {
 	}
 
 	directives.Authenticate.URL = endpointToURLString(directives.APIHost, directives.Authenticate)
+	if len(directives.ChallengeProxy.Pathname) > 0 {
+		directives.ChallengeProxy.URL = endpointToURLString(directives.APIHost, directives.ChallengeProxy)
+	}
 	directives.DNS01Proxy.URL = endpointToURLString(directives.APIHost, directives.DNS01Proxy)
+	if len(directives.HTTP01Proxy.Pathname) > 0 {
+		directives.HTTP01Proxy.URL = endpointToURLString(directives.APIHost, directives.HTTP01Proxy)
+	}
 
 	return directives, nil
 }

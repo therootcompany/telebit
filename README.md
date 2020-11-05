@@ -61,6 +61,7 @@ ACME_AGREE=true
 ACME_EMAIL=letsencrypt@example.com
 
 # For Let's Encrypt / ACME challenges
+ACME_HTTP_01_RELAY_URL=http://localhost:3010/api/http
 ACME_RELAY_URL=http://localhost:3010/api/dns
 SECRET=xxxxxxxxxxxxxxxx
 GODADDY_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

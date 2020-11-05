@@ -12,16 +12,14 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	telebit "git.rootprojects.org/root/telebit"
-	tbDns01 "git.rootprojects.org/root/telebit/dns01"
+	tbDns01 "git.rootprojects.org/root/telebit/internal/dns01"
 	"git.rootprojects.org/root/telebit/table"
 
 	"github.com/coolaj86/certmagic"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-acme/lego/v3/challenge"
-	legoDns01 "github.com/go-acme/lego/v3/challenge/dns01"
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 	"github.com/go-acme/lego/v3/providers/dns/godaddy"
 	"github.com/go-chi/chi"
@@ -89,16 +87,18 @@ func main() {
 		StoragePath: *certpath,
 		Agree:       *acmeAgree,
 		Directory:   *acmeDirectory,
-		DNSProvider: provider,
-		//DNSChallengeOption:     legoDns01.DNSProviderOption,
-		DNSChallengeOption: legoDns01.WrapPreCheck(func(domain, fqdn, value string, orig legoDns01.PreCheckFunc) (bool, error) {
-			ok, err := orig(fqdn, value)
-			if ok {
-				fmt.Println("[Telebit-ACME-DNS] sleeping an additional 5 seconds")
-				time.Sleep(5 * time.Second)
-			}
-			return ok, err
-		}),
+		DNS01Solver: tbDns01.NewSolver(provider),
+		/*
+			//DNSChallengeOption:     legoDns01.DNSProviderOption,
+			DNSChallengeOption: legoDns01.WrapPreCheck(func(domain, fqdn, value string, orig legoDns01.PreCheckFunc) (bool, error) {
+				ok, err := orig(fqdn, value)
+				if ok {
+					fmt.Println("[Telebit-ACME-DNS] sleeping an additional 5 seconds")
+					time.Sleep(5 * time.Second)
+				}
+				return ok, err
+			}),
+		*/
 		EnableHTTPChallenge:    *enableHTTP01,
 		EnableTLSALPNChallenge: *enableTLSALPN01,
 	}

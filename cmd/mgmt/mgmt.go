@@ -27,6 +27,7 @@ var (
 	GitTimestamp = "0000-00-00T00:00:00+0000"
 )
 
+// MWKey is a type guard
 type MWKey string
 
 var store authstore.Store
@@ -44,6 +45,7 @@ func main() {
 
 	addr := flag.String("address", "", "IPv4 or IPv6 bind address")
 	port := flag.String("port", "3000", "port to listen to")
+	challengesPort := flag.String("challenges-port", "80", "port to use to respond to .well-known/acme-challenge tokens")
 	dbURL := flag.String(
 		"db-url",
 		"postgres://postgres:postgres@localhost/postgres",
@@ -100,6 +102,10 @@ func main() {
 	}
 	_ = store.SetMaster(secret)
 	defer store.Close()
+
+	go func() {
+		http.ListenAndServe(":"+challengesPort, routeStatic())
+	}()
 
 	bind := *addr + ":" + *port
 	fmt.Println("Listening on", bind)

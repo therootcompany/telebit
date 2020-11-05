@@ -5,8 +5,11 @@
         "method": "GET",
         "pathname": ""
     },
-    "acme_dns_01_proxy": {
+    "_todo_acme_dns_01_proxy": {
         "pathname": "dns"
+    },
+    "acme_http_01_proxy": {
+        "pathname": "http"
     },
     "pair_request": {
         "method": "POST",

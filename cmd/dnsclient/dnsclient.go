@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	dns01 "git.rootprojects.org/root/telebit/dns01"
+	"git.rootprojects.org/root/telebit/internal/dns01"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-acme/lego/v3/challenge"
