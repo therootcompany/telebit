@@ -36,6 +36,7 @@ import (
 	"github.com/go-acme/lego/v3/challenge"
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 	"github.com/go-acme/lego/v3/providers/dns/godaddy"
+	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -114,6 +115,7 @@ func main() {
 	spfDomain := flag.String("spf-domain", "", "domain with SPF-like list of IP addresses which are allowed to connect to clients")
 	// TODO replace the websocket connection with a mock server
 	vendorID := flag.String("vendor-id", "", "a unique identifier for a deploy target environment")
+	envpath := flag.String("env", "", "path to .env file")
 	email := flag.String("acme-email", "", "email to use for Let's Encrypt / ACME registration")
 	certpath := flag.String("acme-storage", "./acme.d/", "path to ACME storage directory")
 	acmeAgree := flag.Bool("acme-agree", false, "agree to the terms of the ACME service provider (required)")
@@ -141,6 +143,14 @@ func main() {
 
 	if !dbg.Debug {
 		dbg.Debug = *verbose
+	}
+
+	if len(*envpath) > 0 {
+		if err := godotenv.Load(*envpath); nil != err {
+			fmt.Fprintf(os.Stderr, "%v", err)
+			os.Exit(exitBadArguments)
+			return
+		}
 	}
 
 	spfRecords := iplist.Init(*spfDomain)

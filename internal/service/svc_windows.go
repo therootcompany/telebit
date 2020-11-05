@@ -75,5 +75,13 @@ func install(name, desc, exepath string) error {
 		return fmt.Errorf("could not install system service: %v", err)
 	}
 
+	/*
+		//err = s.Start("is", "manual-started")
+		err = s.Start("is", "auto-started")
+		if err != nil {
+			return fmt.Errorf("could not start service: %v", err)
+		}
+	*/
+
 	return nil
 }
