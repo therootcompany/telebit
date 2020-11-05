@@ -104,7 +104,11 @@ func main() {
 	defer store.Close()
 
 	go func() {
-		http.ListenAndServe(":"+challengesPort, routeStatic())
+		fmt.Println("Listening for ACME challenges on :" + *challengesPort)
+		if err := http.ListenAndServe(":"+*challengesPort, routeStatic()); nil != err {
+			log.Fatal(err)
+			os.Exit(1)
+		}
 	}()
 
 	bind := *addr + ":" + *port
