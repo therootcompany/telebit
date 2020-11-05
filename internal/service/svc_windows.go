@@ -17,7 +17,7 @@ func Install(name, desc string) error {
 		return err
 	}
 
-	return installService(name, desc, exepath)
+	return install(name, desc, exepath)
 }
 
 func getExecPath(exepath string) (string, error) {
@@ -38,7 +38,7 @@ func getExecPath(exepath string) (string, error) {
 		p += ".exe"
 		fi, err = os.Stat(p)
 		if nil != err {
-			return err
+			return "", err
 		}
 	}
 

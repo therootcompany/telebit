@@ -5,6 +5,6 @@ import (
 )
 
 // Install ensures a systemd service is active
-func Install() error {
-	return errors.New("'install' not supported for system services on this platform")
+func Install(name, desc string) error {
+	return errors.New("not supported for system services on this platform")
 }

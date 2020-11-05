@@ -99,7 +99,7 @@ func main() {
 
 	if len(os.Args) >= 2 {
 		if "install" == os.Args[1] {
-			if err := service.Install(); nil != err {
+			if err := service.Install(serviceName, serviceDesc); nil != err {
 				fmt.Fprintf(os.Stderr, "%v", err)
 			}
 			return
