@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	telebit "git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/dbg"
@@ -30,6 +31,7 @@ var durAbbrs = map[byte]bool{
 func main() {
 	var secret, clientSecret, relaySecret string
 
+	debug := flag.Bool("debug", true, "show more debug output")
 	machinePPID := flag.String("machine-ppid", "", "spoof the machine ppid")
 	machineID := flag.String("machine-id", "", "spoof the raw machine id")
 	vendorID := flag.String("vendor-id", "", "a unique identifier for a deploy target environment")
@@ -38,6 +40,10 @@ func main() {
 	getMachinePPID := flag.Bool("machine-ppid-only", false, "just print the machine ppid, not the token")
 	flag.StringVar(&secret, "secret", "", "either the remote server or the tunnel relay secret (used for JWT authentication)")
 	flag.Parse()
+
+	if *debug {
+		dbg.Debug = *debug
+	}
 
 	if 0 == len(*authURL) {
 		*authURL = os.Getenv("AUTH_URL")
@@ -145,7 +151,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "[debug] pub = %s\n", pub)
 	}
 
-	tok, err := authstore.HMACToken(ppid, expNum)
+	tok, err := authstore.HMACToken(ppid, 15*time.Minute, expNum)
 	if nil != err {
 		fmt.Fprintf(os.Stderr, "signing error: %s\n", err)
 		os.Exit(1)

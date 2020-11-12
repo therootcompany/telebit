@@ -82,7 +82,9 @@ func Discover(relay string) (*Endpoints, error) {
 	if len(directives.ChallengeProxy.Pathname) > 0 {
 		directives.ChallengeProxy.URL = endpointToURLString(directives.APIHost, directives.ChallengeProxy)
 	}
-	directives.DNS01Proxy.URL = endpointToURLString(directives.APIHost, directives.DNS01Proxy)
+	if len(directives.DNS01Proxy.Pathname) > 0 {
+		directives.DNS01Proxy.URL = endpointToURLString(directives.APIHost, directives.DNS01Proxy)
+	}
 	if len(directives.HTTP01Proxy.Pathname) > 0 {
 		directives.HTTP01Proxy.URL = endpointToURLString(directives.APIHost, directives.HTTP01Proxy)
 	}

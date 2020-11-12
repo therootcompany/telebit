@@ -161,7 +161,7 @@ go build -mod=vendor -ldflags "-s -w" -o signjwt cmd/signjwt/*.go
 To generate an `admin` token:
 
 ```bash
-VERDOR_ID="test-id"
+VENDOR_ID="test-id"
 SECRET="xxxxxxxxxxx"
 TOKEN=$(./signjwt \
     --expires-in 15m \

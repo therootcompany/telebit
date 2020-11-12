@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -202,11 +203,13 @@ type Solver struct {
 
 // Present creates a DNS-01 Challenge Token
 func (s *Solver) Present(ctx context.Context, ch acme.Challenge) error {
+	log.Println("Present DNS-01 challenge solution for", ch.Identifier.Value)
 	return s.provider.Present(ch.Identifier.Value, ch.Token, ch.KeyAuthorization)
 }
 
 // CleanUp deletes a DNS-01 Challenge Token
 func (s *Solver) CleanUp(ctx context.Context, ch acme.Challenge) error {
+	log.Println("CleanUp DNS-01 challenge solution for", ch.Identifier.Value)
 	c := make(chan error)
 	go func() {
 		c <- s.provider.CleanUp(ch.Identifier.Value, ch.Token, ch.KeyAuthorization)
@@ -222,6 +225,7 @@ func (s *Solver) CleanUp(ctx context.Context, ch acme.Challenge) error {
 // Wait blocks until the TXT record created in Present() appears in
 // authoritative lookups, i.e. until it has propagated, or until
 // timeout, whichever is first.
-func (s *Solver) Wait(ctx context.Context, challenge acme.Challenge) error {
-	return s.dnsChecker.Wait(ctx, challenge)
+func (s *Solver) Wait(ctx context.Context, ch acme.Challenge) error {
+	log.Println("Wait on DNS-01 challenge self-verification for", ch.Identifier.Value)
+	return s.dnsChecker.Wait(ctx, ch)
 }

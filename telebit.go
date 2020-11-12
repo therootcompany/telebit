@@ -443,7 +443,7 @@ func NewCertMagic(acme *ACME) (*certmagic.Config, error) {
 	})
 	// yes, a circular reference, passing `magic` to its own Issuer
 	fmt.Printf("ACME Email: %q\n", acme.Email)
-	magic.Issuer = certmagic.NewACMEManager(magic, certmagic.ACMEManager{
+	manager := certmagic.ACMEManager{
 		DNS01Solver:             acme.DNS01Solver,
 		HTTP01Solver:            acme.HTTP01Solver,
 		CA:                      acme.Directory,
@@ -452,7 +452,9 @@ func NewCertMagic(acme *ACME) (*certmagic.Config, error) {
 		DisableHTTPChallenge:    !acme.EnableHTTPChallenge,
 		DisableTLSALPNChallenge: !acme.EnableTLSALPNChallenge,
 		// plus any other customizations you need
-	})
+	}
+
+	magic.Issuer = certmagic.NewACMEManager(magic, manager)
 	return magic, nil
 }
 

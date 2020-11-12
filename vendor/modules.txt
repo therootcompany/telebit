@@ -34,6 +34,7 @@ github.com/go-acme/lego/v3/platform/tester
 github.com/go-acme/lego/v3/platform/wait
 github.com/go-acme/lego/v3/providers/dns/duckdns
 github.com/go-acme/lego/v3/providers/dns/godaddy
+github.com/go-acme/lego/v3/providers/dns/namedotcom
 # github.com/go-chi/chi v4.1.1+incompatible
 ## explicit
 github.com/go-chi/chi
@@ -116,8 +117,12 @@ github.com/mholt/acmez
 github.com/mholt/acmez/acme
 # github.com/miekg/dns v1.1.30
 github.com/miekg/dns
+# github.com/namedotcom/go v0.0.0-20180403034216-08470befbe04
+github.com/namedotcom/go/namecom
 # github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e
 ## explicit
+# github.com/pkg/errors v0.9.1
+github.com/pkg/errors
 # github.com/pmezard/go-difflib v1.0.0
 github.com/pmezard/go-difflib/difflib
 # github.com/shurcooL/httpfs v0.0.0-20190707220628-8d4bc4ba7749

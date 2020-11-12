@@ -18,6 +18,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 )
 
+// MgmtClaims includes a Slug, for backwards compatibility
 type MgmtClaims struct {
 	Slug string `json:"slug"`
 	jwt.StandardClaims
@@ -197,7 +198,7 @@ func routeAll() chi.Router {
 					http.Error(w, msg, http.StatusNotFound)
 					return
 				}
-				if "" != original.MachinePPID {
+				if len(original.MachinePPID) > 0 {
 					msg := `{"error":"the presented key has already been used", "code":"E_EXIST"}`
 					log.Printf("/api/register-device/\n")
 					log.Println(err)

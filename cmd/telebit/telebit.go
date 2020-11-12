@@ -18,9 +18,9 @@ import (
 	"strings"
 	"time"
 
-	telebit "git.rootprojects.org/root/telebit"
+	"git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/dbg"
-	tbDns01 "git.rootprojects.org/root/telebit/internal/dns01"
+	"git.rootprojects.org/root/telebit/internal/dns01"
 	"git.rootprojects.org/root/telebit/internal/http01"
 	"git.rootprojects.org/root/telebit/internal/service"
 	"git.rootprojects.org/root/telebit/iplist"
@@ -28,7 +28,7 @@ import (
 	"git.rootprojects.org/root/telebit/mgmt/authstore"
 	"git.rootprojects.org/root/telebit/table"
 	"git.rootprojects.org/root/telebit/tunnel"
-	legoDns01 "github.com/go-acme/lego/v3/challenge/dns01"
+	legoDNS01 "github.com/go-acme/lego/v3/challenge/dns01"
 
 	"github.com/coolaj86/certmagic"
 	"github.com/denisbrodbeck/machineid"
@@ -36,6 +36,7 @@ import (
 	"github.com/go-acme/lego/v3/challenge"
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 	"github.com/go-acme/lego/v3/providers/dns/godaddy"
+	"github.com/go-acme/lego/v3/providers/dns/namedotcom"
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -112,6 +113,7 @@ func main() {
 	var portForwards []Forward
 	var resolvers []string
 
+	debug := flag.Bool("debug", true, "show debug output")
 	spfDomain := flag.String("spf-domain", "", "domain with SPF-like list of IP addresses which are allowed to connect to clients")
 	// TODO replace the websocket connection with a mock server
 	vendorID := flag.String("vendor-id", "", "a unique identifier for a deploy target environment")
@@ -133,7 +135,7 @@ func main() {
 	apiHostname := flag.String("api-hostname", "", "the hostname used to manage clients")
 	secret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	token := flag.String("token", "", "an auth token for the server (instead of generating --secret); use --token=false to ignore any $TOKEN in env")
-	_ = flag.String("leeway", "", "(reserved for future use) allow for time drift / skew (hard-coded to 15 minutes)")
+	leeway := flag.Duration("leeway", 15*time.Minute, "allow for time drift / skew (hard-coded to 15 minutes)")
 	bindAddrsStr := flag.String("listen", "", "list of bind addresses on which to listen, such as localhost:80, or :443")
 	tlsLocals := flag.String("tls-locals", "", "like --locals, but TLS will be used to connect to the local port")
 	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
@@ -142,7 +144,7 @@ func main() {
 	flag.Parse()
 
 	if !dbg.Debug {
-		dbg.Debug = *verbose
+		dbg.Debug = *verbose || *debug
 	}
 
 	if len(*envpath) > 0 {
@@ -253,7 +255,7 @@ func main() {
 		for _, resolver := range strings.Fields(strings.ReplaceAll(*resolverList, ",", " ")) {
 			resolvers = append(resolvers, resolver)
 		}
-		legoDns01.AddRecursiveNameservers(resolvers)
+		legoDNS01.AddRecursiveNameservers(resolvers)
 	}
 
 	if 0 == len(*portToPorts) {
@@ -325,7 +327,7 @@ func main() {
 		*token = ""
 	}
 	if 0 == len(*token) {
-		*token, err = authstore.HMACToken(ppid)
+		*token, err = authstore.HMACToken(ppid, *leeway)
 		if dbg.Debug {
 			fmt.Printf("[debug] app_id: %q\n", VendorID)
 			//fmt.Printf("[debug] client_secret: %q\n", ClientSecret)
@@ -384,19 +386,18 @@ func main() {
 		authorizer = NewAuthorizer(*authURL)
 
 		dns01Base := directory.DNS01Proxy.URL
-		if "" == *acmeRelay {
+		if 0 == len(*acmeRelay) {
 			*acmeRelay = dns01Base
 		} else {
 			fmt.Println("Suggested ACME DNS 01 Proxy URL:", dns01Base)
 			fmt.Println("--acme-relay-url ACME DNS 01 Proxy URL:", *acmeRelay)
 		}
-		if "" == *acmeRelay {
-			fmt.Fprintf(os.Stderr, "Discovered Directory Endpoints: %+v\n", directory)
-			fmt.Fprintf(os.Stderr, "No ACME DNS 01 Proxy URL detected, nor supplied\n")
-			os.Exit(exitBadConfig)
-			return
+		if 0 == len(*acmeHTTP01Relay) {
+			*acmeHTTP01Relay = directory.HTTP01Proxy.URL
+		} else {
+			fmt.Println("Suggested ACME HTTP 01 Proxy URL:", dns01Base)
+			fmt.Println("--acme-http-01-relay-url ACME DNS 01 Proxy URL:", *acmeRelay)
 		}
-		fmt.Println("DNS 01 URL", *acmeRelay)
 
 		grants, err = telebit.Inspect(*authURL, *token)
 		if nil != err {
@@ -429,7 +430,19 @@ func main() {
 	}
 	authorizer = NewAuthorizer(*authURL)
 
-	var dns01Solver *tbDns01.Solver
+	fmt.Printf("Email: %q\n", *email)
+
+	acme := &telebit.ACME{
+		Email:                  *email,
+		StoragePath:            *certpath,
+		Agree:                  *acmeAgree,
+		Directory:              *acmeDirectory,
+		EnableTLSALPNChallenge: *enableTLSALPN01,
+	}
+
+	// TODO
+	// Blog about the stupidity of this typing
+	// var dns01Solver *dns01.Solver = nil
 	if len(*acmeRelay) > 0 {
 		provider, err := getACMEProvider(acmeRelay, token)
 		if nil != err {
@@ -439,33 +452,8 @@ func main() {
 			os.Exit(exitBadArguments)
 			return
 		}
-		dns01Solver = tbDns01.NewSolver(provider)
-	}
-
-	var http01Solver *http01.Solver
-	if len(*acmeHTTP01Relay) > 0 {
-		endpoint, err := url.Parse(*acmeHTTP01Relay)
-		if nil != err {
-			fmt.Fprintf(os.Stderr, "%s\n", err)
-			os.Exit(exitBadArguments)
-			return
-		}
-		http01Solver, err = http01.NewSolver(&http01.Config{
-			Endpoint: endpoint,
-			Token:    *token,
-		})
-	}
-
-	fmt.Printf("Email: %q\n", *email)
-
-	acme := &telebit.ACME{
-		Email:       *email,
-		StoragePath: *certpath,
-		Agree:       *acmeAgree,
-		Directory:   *acmeDirectory,
-		DNS01Solver: dns01Solver,
 		/*
-			options: legoDns01.WrapPreCheck(func(domain, fqdn, value string, orig legoDns01.PreCheckFunc) (bool, error) {
+			options: legoDNS01.WrapPreCheck(func(domain, fqdn, value string, orig legoDNS01.PreCheckFunc) (bool, error) {
 				ok, err := orig(fqdn, value)
 				if ok && dnsPropagationDelay > 0 {
 					fmt.Printf("[Telebit-ACME-DNS] sleeping an additional %s\n", dnsPropagationDelay)
@@ -474,10 +462,35 @@ func main() {
 				return ok, err
 			}),
 		*/
-		HTTP01Solver: http01Solver,
-		//DNSChallengeOption:     legoDns01.DNSProviderOption,
-		EnableHTTPChallenge:    *enableHTTP01,
-		EnableTLSALPNChallenge: *enableTLSALPN01,
+		//DNSChallengeOption:     legoDNS01.DNSProviderOption,
+		acme.DNS01Solver = dns01.NewSolver(provider)
+		fmt.Println("Using DNS-01 solver for ACME Challenges")
+	}
+
+	if *enableHTTP01 {
+		acme.EnableHTTPChallenge = true
+	}
+	if len(*acmeHTTP01Relay) > 0 {
+		acme.EnableHTTPChallenge = true
+		endpoint, err := url.Parse(*acmeHTTP01Relay)
+		if nil != err {
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			os.Exit(exitBadArguments)
+			return
+		}
+		http01Solver, err := http01.NewSolver(&http01.Config{
+			Endpoint: endpoint,
+			Token:    *token,
+		})
+
+		acme.HTTP01Solver = http01Solver
+		fmt.Println("Using HTTP-01 solver for ACME Challenges")
+	}
+
+	if nil == acme.HTTP01Solver && nil == acme.DNS01Solver {
+		fmt.Fprintf(os.Stderr, "Neither ACME HTTP 01 nor DNS 01 proxy URL detected, nor supplied\n")
+		os.Exit(1)
+		return
 	}
 
 	mux := muxAll(portForwards, forwards, acme, apiHostname, authURL, grants)
@@ -533,7 +546,7 @@ func main() {
 				time.Sleep(10 * time.Minute)
 				if "" != ClientSecret {
 					// re-create token unless no secret was supplied
-					*token, err = authstore.HMACToken(ppid)
+					*token, err = authstore.HMACToken(ppid, *leeway)
 				}
 				err = mgmt.Ping(*authURL, *token)
 				if nil != err {
@@ -831,6 +844,13 @@ func getACMEProvider(acmeRelay, token *string) (challenge.Provider, error) {
 		if provider, err = newGoDaddyDNSProvider(id, apiSecret); nil != err {
 			return nil, err
 		}
+	} else if "" != os.Getenv("NAMECOM_API_TOKEN") {
+		if provider, err = newNameDotComDNSProvider(
+			os.Getenv("NAMECOM_USERNAME"),
+			os.Getenv("NAMECOM_API_TOKEN"),
+		); nil != err {
+			return nil, err
+		}
 	} else if "" != os.Getenv("DUCKDNS_TOKEN") {
 		if provider, err = newDuckDNSProvider(os.Getenv("DUCKDNS_TOKEN")); nil != err {
 			return nil, err
@@ -857,6 +877,14 @@ func getACMEProvider(acmeRelay, token *string) (challenge.Provider, error) {
 	return provider, nil
 }
 
+// newNameDotComDNSProvider is for the sake of demoing the tunnel
+func newNameDotComDNSProvider(username, apitoken string) (*namedotcom.DNSProvider, error) {
+	config := namedotcom.NewDefaultConfig()
+	config.Username = username
+	config.APIToken = apitoken
+	return namedotcom.NewDNSProviderConfig(config)
+}
+
 // newDuckDNSProvider is for the sake of demoing the tunnel
 func newDuckDNSProvider(token string) (*duckdns.DNSProvider, error) {
 	config := duckdns.NewDefaultConfig()
@@ -873,15 +901,15 @@ func newGoDaddyDNSProvider(id, secret string) (*godaddy.DNSProvider, error) {
 }
 
 // newAPIDNSProvider is for the sake of demoing the tunnel
-func newAPIDNSProvider(baseURL string, token string) (*tbDns01.DNSProvider, error) {
-	config := tbDns01.NewDefaultConfig()
+func newAPIDNSProvider(baseURL string, token string) (*dns01.DNSProvider, error) {
+	config := dns01.NewDefaultConfig()
 	config.Token = token
 	endpoint, err := url.Parse(baseURL)
 	if nil != err {
 		return nil, err
 	}
 	config.Endpoint = endpoint
-	return tbDns01.NewDNSProviderConfig(config)
+	return dns01.NewDNSProviderConfig(config)
 }
 
 /*

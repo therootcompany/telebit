@@ -15,6 +15,7 @@ import (
 	"github.com/go-acme/lego/v3/challenge"
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 	"github.com/go-acme/lego/v3/providers/dns/godaddy"
+	"github.com/go-acme/lego/v3/providers/dns/namedotcom"
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -43,51 +44,89 @@ func help() {
 func main() {
 	var err error
 
-	addr := flag.String("address", "", "IPv4 or IPv6 bind address")
-	port := flag.String("port", "3000", "port to listen to")
-	challengesPort := flag.String("challenges-port", "80", "port to use to respond to .well-known/acme-challenge tokens")
-	dbURL := flag.String(
-		"db-url",
-		"postgres://postgres:postgres@localhost/postgres",
-		"database (postgres) connection url",
-	)
-	flag.StringVar(&secret, "secret", "", "a >= 16-character random string for JWT key signing")
-	flag.StringVar(&primaryDomain, "domain", "", "the base domain to use for all clients")
-	flag.StringVar(&relayDomain, "tunnel-domain", "", "the domain name of the tunnel relay service, if different from base domain")
+	var port string
+	var lnAddr string
+	var dbURL string
+	var challengesPort string
+
+	flag.StringVar(&port, "port", "",
+		"port to listen to (default localhost 3000)")
+	flag.StringVar(&lnAddr, "listen", "",
+		"IPv4 or IPv6 bind address + port (instead of --port)")
+	flag.StringVar(&challengesPort, "challenges-port", "80",
+		"port to use to respond to .well-known/acme-challenge tokens")
+	flag.StringVar(&dbURL, "db-url", "postgres://postgres:postgres@localhost:5432/postgres",
+		"database (postgres) connection url")
+	flag.StringVar(&secret, "secret", "",
+		"a >= 16-character random string for JWT key signing")
+	flag.StringVar(&primaryDomain, "domain", "",
+		"the base domain to use for all clients")
+	flag.StringVar(&relayDomain, "tunnel-domain", "",
+		"the domain name of the tunnel relay service, if different from base domain")
+
 	flag.Parse()
 
-	if "" == primaryDomain {
-		help()
-		os.Exit(1)
+	if 0 == len(primaryDomain) {
+		primaryDomain = os.Getenv("DOMAIN")
 	}
-	if "" == relayDomain {
+
+	if 0 == len(relayDomain) {
+		relayDomain = os.Getenv("TUNNEL_DOMAIN")
+	}
+	if 0 == len(relayDomain) {
 		relayDomain = primaryDomain
 	}
 
-	if "" != os.Getenv("GODADDY_API_KEY") {
+	if 0 == len(dbURL) {
+		dbURL = os.Getenv("DB_URL")
+	}
+
+	if 0 == len(secret) {
+		secret = os.Getenv("SECRET")
+	}
+
+	// prefer --listen (with address) over --port (localhost only)
+	if 0 == len(lnAddr) {
+		lnAddr = os.Getenv("LISTEN")
+	}
+	if 0 == len(lnAddr) {
+		if 0 == len(port) {
+			port = os.Getenv("PORT")
+		}
+		if 0 == len(port) {
+			port = "3000"
+		}
+		lnAddr = "localhost:" + port
+	}
+
+	if len(os.Getenv("GODADDY_API_KEY")) > 0 {
 		id := os.Getenv("GODADDY_API_KEY")
 		apiSecret := os.Getenv("GODADDY_API_SECRET")
 		if provider, err = newGoDaddyDNSProvider(id, apiSecret); nil != err {
 			panic(err)
 		}
-	} else if "" != os.Getenv("DUCKDNS_TOKEN") {
+	} else if len(os.Getenv("DUCKDNS_TOKEN")) > 0 {
 		if provider, err = newDuckDNSProvider(os.Getenv("DUCKDNS_TOKEN")); nil != err {
 			panic(err)
 		}
+	} else if len(os.Getenv("NAMECOM_API_TOKEN")) > 0 {
+		if provider, err = newNameDotComDNSProvider(
+			os.Getenv("NAMECOM_USERNAME"),
+			os.Getenv("NAMECOM_API_TOKEN"),
+		); nil != err {
+			panic(err)
+		}
 	} else {
-		panic("Must provide either DUCKDNS or GODADDY credentials")
+		fmt.Println("DNS-01 relay disabled")
 	}
 
-	if "" == secret {
-		secret = os.Getenv("SECRET")
-	}
-	if "" == secret {
+	if 0 == len(primaryDomain) || 0 == len(secret) || 0 == len(dbURL) {
 		help()
 		os.Exit(1)
 		return
 	}
 
-	connStr := *dbURL
+	connStr := dbURL
 	// TODO url.Parse
 	if strings.Contains(connStr, "@localhost/") || strings.Contains(connStr, "@localhost:") {
 		connStr += "?sslmode=disable"
@@ -104,16 +143,23 @@ func main() {
 	defer store.Close()
 
 	go func() {
-		fmt.Println("Listening for ACME challenges on :" + *challengesPort)
-		if err := http.ListenAndServe(":"+*challengesPort, routeStatic()); nil != err {
+		fmt.Println("Listening for ACME challenges on :" + challengesPort)
+		if err := http.ListenAndServe(":"+challengesPort, routeStatic()); nil != err {
 			log.Fatal(err)
 			os.Exit(1)
 		}
 	}()
 
-	bind := *addr + ":" + *port
-	fmt.Println("Listening on", bind)
-	fmt.Fprintf(os.Stderr, "failed: %s", http.ListenAndServe(bind, routeAll()))
+	fmt.Println("Listening on", lnAddr)
+	fmt.Fprintf(os.Stderr, "failed: %s", http.ListenAndServe(lnAddr, routeAll()))
+}
+
+// newNameDotComDNSProvider is for the sake of demoing the tunnel
+func newNameDotComDNSProvider(username, apitoken string) (*namedotcom.DNSProvider, error) {
+	config := namedotcom.NewDefaultConfig()
+	config.Username = username
+	config.APIToken = apitoken
+	return namedotcom.NewDNSProviderConfig(config)
 }
 
 // newDuckDNSProvider is for the sake of demoing the tunnel

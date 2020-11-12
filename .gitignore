@@ -24,6 +24,7 @@ telebit-client-windows.exe
 /cmd/wsconnect/wsconnect
 /cmd/mgmt/mgmt
 /cmd/signjwt/signjwt
+/signjwt
 /cmd/telebit/telebit
 
 /telebit

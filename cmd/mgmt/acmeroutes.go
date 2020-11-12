@@ -58,6 +58,9 @@ func handleDNSRoutes(r chi.Router) {
 		r.Delete("/{domain}/{token}/{keyAuth}/{challengeType}", deleteChallenge)
 	}
 
+	// TODO pick one and stick with it
+	r.Route("/acme-relay", handleACMEChallenges)
+	r.Route("/acme-solver", handleACMEChallenges)
 	r.Route("/dns", handleACMEChallenges)
 	r.Route("/http", handleACMEChallenges)
 }

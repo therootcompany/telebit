@@ -52,7 +52,7 @@ func ToPublicKeyString(secret string) string {
 	return pub
 }
 
-func HMACToken(secret string, maybeExp ...int) (token string, err error) {
+func HMACToken(secret string, leeway time.Duration, maybeExp ...int) (token string, err error) {
 	keyID := ToPublicKeyString(secret)
 	if dbg.Debug {
 		fmt.Fprintf(os.Stderr, "[debug] keyID=%s\n", keyID)
@@ -67,7 +67,6 @@ func HMACToken(secret string, maybeExp ...int) (token string, err error) {
 
 	b := make([]byte, 16)
 	_, _ = rand.Read(b)
-	leeway := 15 * time.Minute
 	claims := &jwt.StandardClaims{
 		Id:        base64.RawURLEncoding.EncodeToString(b),
 		Subject:   "", // TODO

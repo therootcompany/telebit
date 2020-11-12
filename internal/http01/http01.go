@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -60,8 +61,9 @@ func NewSolver(config *Config) (*Solver, error) {
 	return &Solver{config: config}, nil
 }
 
-// Present creates a DNS-01 Challenge Token
+// Present creates a HTTP-01 Challenge Token
 func (s *Solver) Present(ctx context.Context, ch acme.Challenge) error {
+	log.Println("Present HTTP-01 challenge solution for", ch.Identifier.Value)
 	msg := &Challenge{
 		Type:             "http-01",
 		Token:            ch.Token,
@@ -81,6 +83,7 @@ func (s *Solver) Present(ctx context.Context, ch acme.Challenge) error {
 
 // CleanUp deletes an HTTP-01 Challenge Token
 func (s *Solver) CleanUp(ctx context.Context, ch acme.Challenge) error {
+	log.Println("CleanUp HTTP-01 challenge solution for", ch.Identifier.Value)
 	msg := &Challenge{
 		Type:             "http-01",
 		Token:            ch.Token,

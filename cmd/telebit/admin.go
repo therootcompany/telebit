@@ -66,6 +66,14 @@ func InitAdmin(authURL string) {
 
 	// Proxy mgmt server ACME DNS 01 Challenges
 	r.Get("/api/dns/*", proxyHandleFunc)
+	r.Post("/api/dns/*", proxyHandleFunc)
+	r.Delete("/api/dns/*", proxyHandleFunc)
+	r.Get("/api/http/*", proxyHandleFunc)
+	r.Post("/api/http/*", proxyHandleFunc)
+	r.Delete("/api/http/*", proxyHandleFunc)
+	r.Get("/api/acme-relay/*", proxyHandleFunc)
+	r.Post("/api/acme-relay/*", proxyHandleFunc)
+	r.Delete("/api/acme-relay/*", proxyHandleFunc)
 
 	r.Route("/api", func(r chi.Router) {
 		// TODO token needs a globally unique subject
