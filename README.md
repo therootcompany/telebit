@@ -1,6 +1,6 @@
 # Telebit
 
-| **Telebit Client** | [Telebit Relay](/tree/master/cmd/telebit) | [Telebit Mgmt](/tree/master/cmd/mgmt) |
+| **Telebit Client** | [Telebit Relay](/cmd/telebit) | [Telebit Mgmt](/cmd/mgmt) |
 
 A secure, end-to-end Encrypted tunnel.
 
@@ -34,7 +34,7 @@ export TLS_LOCALS=https:*:3000
 See `./telebit --help` for all options. \
 See [`examples/client.env`][client-env] for detail explanations.
 
-[client-env]: /tree/master/examples/client.env
+[client-env]: /examples/client.env
 
 ### System Services
 

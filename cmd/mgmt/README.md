@@ -1,6 +1,6 @@
 # Telebit Mgmt
 
-| [Telebit Client](../../) | [Telebit Relay](../telebit) | **Telebit Mgmt** |
+| [Telebit Client](/README.md) | [Telebit Relay](../telebit) | **Telebit Mgmt** |
 
 Device Management, Authorization, and ACME Relay Server.
 
@@ -40,7 +40,7 @@ export PORT=6468
 See `./telebit --help` for all options. \
 See [`examples/mgmt.env`][mgmt-env] for detail explanations.
 
-[mgmt-env]: /../../examples/mgmt.env
+[mgmt-env]: /examples/mgmt.env
 
 ## System Services
 

@@ -1,6 +1,6 @@
 # Telebit Relay
 
-| [Telebit Client](../../) | **Telebit Relay** | [Telebit Mgmt](../mgmt) |
+| [Telebit Client](/README.md) | **Telebit Relay** | [Telebit Mgmt](../mgmt) |
 
 Secure tunnel, relay, and reverse-proxy server.
 
@@ -41,7 +41,7 @@ export ACME_RELAY_URL=http://localhost:6468/api/acme-relay
 See `./telebit-relay --help` for all options. \
 See [`examples/relay.env`][relay-env] for detail explanations.
 
-[relay-env]: /tree/master/examples/relay.env
+[relay-env]: /examples/relay.env
 
 Note: It is not necessary to specify the `--flags` when using the ENVs.
 
