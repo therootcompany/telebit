@@ -37,7 +37,7 @@ See [`examples/client.env`][client-env] for detail explanations.
 # Build
 
 ```bash
-goreleaser --rm-dist --skip-publish
+goreleaser --rm-dist --skip-publish --snapshot
 ```
 
 ## Install Go
