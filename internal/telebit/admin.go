@@ -1,4 +1,4 @@
-package main
+package telebit
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	telebit "git.rootprojects.org/root/telebit"
+	"git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/admin"
 	"git.rootprojects.org/root/telebit/dbg"
 	"git.rootprojects.org/root/telebit/table"
@@ -23,10 +23,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var httpsrv *http.Server
+var authorizer telebit.Authorizer
 
-func InitAdmin(authURL string) {
-	r := chi.NewRouter()
+// RouteAdmin sets up the API, including the Mgmt proxy and ACME relay
+func RouteAdmin(authURL string, r chi.Router) {
+	authorizer = NewAuthorizer(authURL)
 
 	r.Use(middleware.Logger)
 	//r.Use(middleware.Timeout(120 * time.Second))
@@ -113,10 +114,6 @@ func InitAdmin(authURL string) {
 		fmt.Println("Request Path:", r.URL.Path)
 		adminUI.ServeHTTP(w, r)
 	})
-
-	httpsrv = &http.Server{
-		Handler: r,
-	}
 }
 
 var apiPingContent = []byte("{ \"success\": true, \"error\": \"\" }\n")

@@ -1,4 +1,4 @@
-package main
+package mgmt
 
 import (
 	"context"
@@ -12,7 +12,8 @@ import (
 	"time"
 
 	"git.rootprojects.org/root/telebit/dbg"
-	"git.rootprojects.org/root/telebit/mgmt/authstore"
+	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
@@ -27,7 +28,7 @@ type MgmtClaims struct {
 var presenters = make(chan *Challenge)
 var cleanups = make(chan *Challenge)
 
-func routeStatic() chi.Router {
+func RouteStatic() chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
@@ -49,7 +50,7 @@ func routeStatic() chi.Router {
 	return r
 }
 
-func routeAll() chi.Router {
+func RouteAll() chi.Router {
 
 	go func() {
 		for {
@@ -125,8 +126,8 @@ func routeAll() chi.Router {
 							return nil, fmt.Errorf("invalid jwt payload 'sub' (mismatch)")
 						}
 						claims.Subject = claims.Slug
-						claims.Issuer = primaryDomain
-						claims.Audience = fmt.Sprintf("wss://%s/ws", relayDomain)
+						claims.Issuer = DeviceDomain
+						claims.Audience = fmt.Sprintf("wss://%s/ws", RelayDomain)
 
 						/*
 							// a little misdirection there
@@ -181,7 +182,7 @@ func routeAll() chi.Router {
 				claims.Subject,
 				claims.Audience,
 				claims.Slug,
-				primaryDomain,
+				DeviceDomain,
 			)))
 		})
 

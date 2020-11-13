@@ -10,12 +10,14 @@ import (
 	"os"
 	"strings"
 
-	"git.rootprojects.org/root/telebit/mgmt/authstore"
+	"git.rootprojects.org/root/telebit/internal/mgmt"
+	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
 
 	"github.com/go-acme/lego/v3/challenge"
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 	"github.com/go-acme/lego/v3/providers/dns/godaddy"
 	"github.com/go-acme/lego/v3/providers/dns/namedotcom"
+
 	_ "github.com/joho/godotenv/autoload"
 )
 
@@ -28,14 +30,8 @@ var (
 	GitTimestamp = "0000-00-00T00:00:00+0000"
 )
 
-// MWKey is a type guard
-type MWKey string
-
 var store authstore.Store
-var provider challenge.Provider = nil // TODO is this concurrency-safe?
 var secret string
-var primaryDomain string
-var relayDomain string
 
 func help() {
 	fmt.Fprintf(os.Stderr, "Usage: mgmt --domain <devices.example.com> --secret <128-bit secret>\n")
@@ -59,22 +55,22 @@ func main() {
 		"database (postgres) connection url")
 	flag.StringVar(&secret, "secret", "",
 		"a >= 16-character random string for JWT key signing")
-	flag.StringVar(&primaryDomain, "domain", "",
+	flag.StringVar(&mgmt.DeviceDomain, "domain", "",
 		"the base domain to use for all clients")
-	flag.StringVar(&relayDomain, "tunnel-domain", "",
+	flag.StringVar(&mgmt.RelayDomain, "tunnel-domain", "",
 		"the domain name of the tunnel relay service, if different from base domain")
 
 	flag.Parse()
 
-	if 0 == len(primaryDomain) {
-		primaryDomain = os.Getenv("DOMAIN")
+	if 0 == len(mgmt.DeviceDomain) {
+		mgmt.DeviceDomain = os.Getenv("DOMAIN")
 	}
 
-	if 0 == len(relayDomain) {
-		relayDomain = os.Getenv("TUNNEL_DOMAIN")
+	if 0 == len(mgmt.RelayDomain) {
+		mgmt.RelayDomain = os.Getenv("TUNNEL_DOMAIN")
 	}
-	if 0 == len(relayDomain) {
-		relayDomain = primaryDomain
+	if 0 == len(mgmt.RelayDomain) {
+		mgmt.RelayDomain = mgmt.DeviceDomain
 	}
 
 	if 0 == len(dbURL) {
@@ -99,6 +95,8 @@ func main() {
 		lnAddr = "localhost:" + port
 	}
 
+	// TODO are these concurrency-safe?
+	var provider challenge.Provider = nil
 	if len(os.Getenv("GODADDY_API_KEY")) > 0 {
 		id := os.Getenv("GODADDY_API_KEY")
 		apiSecret := os.Getenv("GODADDY_API_SECRET")
@@ -120,7 +118,7 @@ func main() {
 		fmt.Println("DNS-01 relay disabled")
 	}
 
-	if 0 == len(primaryDomain) || 0 == len(secret) || 0 == len(dbURL) {
+	if 0 == len(mgmt.DeviceDomain) || 0 == len(secret) || 0 == len(dbURL) {
 		help()
 		os.Exit(1)
 		return
@@ -134,7 +132,7 @@ func main() {
 		connStr += "?sslmode=required"
 	}
 
-	store, err = authstore.NewStore(connStr, initSQL)
+	store, err = authstore.NewStore(connStr, mgmt.InitSQL)
 	if nil != err {
 		log.Fatal("connection error", err)
 		return
@@ -142,16 +140,18 @@ func main() {
 	_ = store.SetMaster(secret)
 	defer store.Close()
 
+	mgmt.Init(store, provider)
+
 	go func() {
 		fmt.Println("Listening for ACME challenges on :" + challengesPort)
-		if err := http.ListenAndServe(":"+challengesPort, routeStatic()); nil != err {
+		if err := http.ListenAndServe(":"+challengesPort, mgmt.RouteStatic()); nil != err {
 			log.Fatal(err)
 			os.Exit(1)
 		}
 	}()
 
 	fmt.Println("Listening on", lnAddr)
-	fmt.Fprintf(os.Stderr, "failed: %s", http.ListenAndServe(lnAddr, routeAll()))
+	fmt.Fprintf(os.Stderr, "failed: %s", http.ListenAndServe(lnAddr, mgmt.RouteAll()))
 }
 
 // newNameDotComDNSProvider is for the sake of demoing the tunnel

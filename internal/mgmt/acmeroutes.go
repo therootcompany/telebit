@@ -1,4 +1,4 @@
-package main
+package mgmt
 
 import (
 	"encoding/json"

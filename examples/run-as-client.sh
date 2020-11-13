@@ -11,8 +11,9 @@ CLIENT_SECRET="${CLIENT_SECRET:-}"
 #go build -mod=vendor -o ./telebit \
 #    -ldflags="-X 'main.VendorID=$VENDOR_ID' -X 'main.ClientSecret=$CLIENT_SECRET' -X 'main.serviceName=telebit' -X 'main.serviceDesc=securely tunnel through telebit.io'" \
 #    cmd/telebit/*.go
-go build -mod=vendor -o telebit \
-    cmd/telebit/*.go
+pushd cmd/telebit
+    go build -mod=vendor -o telebit .
+popd
 
 # For Device Authorization across services
 #AUTH_URL=${AUTH_URL:-"https://devices.examples.com/api"}

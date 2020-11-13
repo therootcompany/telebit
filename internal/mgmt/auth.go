@@ -9,7 +9,7 @@ import (
 
 	telebit "git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/dbg"
-	"git.rootprojects.org/root/telebit/mgmt/authstore"
+	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
 )
 
 type SuccessResponse struct {

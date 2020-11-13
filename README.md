@@ -1,8 +1,44 @@
 # Telebit
 
+| **Telebit Client** | [Telebit Relay](/tree/master/cmd/telebit) | [Telebit Mgmt](/tree/master/cmd/mgmt) |
+
 A secure, end-to-end Encrypted tunnel.
 
 Because friends don't let friends localhost.
+
+# Usage
+
+```bash
+telebit --env ./.env --verbose
+```
+
+Command-line flags or `.env` may be used.
+
+```bash
+# --acme-agree
+export ACME_AGREE=true
+# --acme-email
+export ACME_EMAIL=johndoe@example.com
+# --vendor-id
+export VENDOR_ID=example.com
+# --secret
+export SECRET=QQgPyfzVdxJTcUc1ceot3pgJFKtWSHMQ
+# --tunnel-relay
+export TUNNEL_RELAY_URL=https://tunnel.example.com/
+# --tls-locals
+export TLS_LOCALS=https:*:3000
+```
+
+See `./telebit --help` for all options. \
+See [`examples/client.env`][client-env] for detail explanations.
+
+[client-env]: /tree/master/examples/client.env
+
+# Build
+
+```bash
+goreleaser --rm-dist --skip-publish
+```
 
 ## Install Go
 
@@ -37,239 +73,6 @@ The binary can be built with `VENDOR_ID` and `CLIENT_SECRET` built into the bina
 You can also change the `serviceName` and `serviceDescription` at build time.
 See `examples/run-as-client.sh`.
 
-### Configure
-
-Command-line flags or `.env` may be used.
-
-See `./telebit --help` for all options, and `examples/relay.env` for their corresponding ENVs.
-
-### Example
-
-Copy `examples/relay.env` as `.env` in the working directory.
-
-```bash
-# For Tunnel Relay Server
-API_HOSTNAME=devices.example.com
-LISTEN=:443
-LOCALS=https:mgmt.devices.example.com:3010
-VERBOSE=false
-
-# For Device Management & Authentication
-AUTH_URL=http://localhost:3010/api
-
-# For Let's Encrypt / ACME registration
-ACME_AGREE=true
-ACME_EMAIL=letsencrypt@example.com
-
-# For Let's Encrypt / ACME challenges
-ACME_HTTP_01_RELAY_URL=http://localhost:3010/api/http
-ACME_RELAY_URL=http://localhost:3010/api/dns
-SECRET=xxxxxxxxxxxxxxxx
-GODADDY_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-GODADDY_API_SECRET=xxxxxxxxxxxxxxxxxxxxxx
-```
-
-Note: It is not necessary to specify the `--flags` when using the ENVs.
-
-```bash
-./telebit \
-    --api-hostname $API_HOSTNAME \
-    --auth-url "$AUTH_URL" \
-    --acme-agree "$ACME_AGREE" \
-    --acme-email "$ACME_EMAIL" \
-    --secret "$SECRET" \
-    --listen "$LISTEN"
-```
-
-### API
-
-List all connected devices
-
-```bash
-bash examples/admin-list-devices.sh
-```
-
-```bash
-curl -L https://devices.example.com/api/subscribers -H "Authorization: Bearer ${TOKEN}"
-```
-
-```json
-{
-    "success": true,
-    "subscribers": [{ "since": "2020-07-22T08:20:40Z", "sub": "ruby", "sockets": ["73.228.72.97:50737"], "clients": 0 }]
-}
-```
-
-Show connectivity, of a single device, if any
-
-```bash
-curl -L https://devices.example.com/api/subscribers -H "Authorization: Bearer ${TOKEN}"
-```
-
-```json
-{
-    "success": true,
-    "subscribers": [{ "since": "2020-07-22T08:20:40Z", "sub": "ruby", "sockets": ["73.228.72.97:50737"], "clients": 0 }]
-}
-```
-
-Force a device to disconnect:
-
-```bash
-bash examples/admin-disconnect-device.sh
-```
-
-```bash
-my_subdomain="ruby"
-curl -X DELETE http://mgmt.example.com:3010/api/subscribers/ruby" -H "Authorization: Bearer ${TOKEN}"
-```
-
-```json
-{ "success": true }
-```
-
-## Management Server
-
-```bash
-go generate ./...
-
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o mgmt-server-linux ./cmd/mgmt/*.go
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o mgmt-server-macos ./cmd/mgmt/*.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o mgmt-server-windows-debug.exe ./cmd/mgmt/*.go
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H windowsgui" -o mgmt-server-windows.exe ./cmd/mgmt/*.go
-```
-
-### Example
-
-```bash
-./telebit-mgmt --domain devices.example.com --port 3010
-```
-
-Copy `examples/mgmt.env` as `.env` in the working directory.
-
-### Device Management API
-
-Create a token with the same `SECRET` used with the `mgmt` server,
-and add a device by its `subdomain`.
-
-To build `signjwt`:
-
-```bash
-go build -mod=vendor -ldflags "-s -w" -o signjwt cmd/signjwt/*.go
-```
-
-To generate an `admin` token:
-
-```bash
-VENDOR_ID="test-id"
-SECRET="xxxxxxxxxxx"
-TOKEN=$(./signjwt \
-    --expires-in 15m \
-    --vendor-id $VENDOR_ID \
-    --secret $SECRET \
-    --machine-ppid $SECRET
-)
-```
-
-Authorize a device:
-
-```bash
-my_subdomain="xxxx"
-my_mgmt_host=http://mgmt.example.com:3010
-curl -X POST $my_mgmt_host/api/devices \
-    -H "Authorization: Bearer ${TOKEN}" \
-    -H "Content-Type: application/json" \
-    -d '{ "slug": "'$my_subdomain'" }'
-```
-
-```json
-{ "shared_key": "ZZZZZZZZ" }
-```
-
-Show data of a single device
-
-```bash
-my_subdomain="xxxx"
-curl -L http://mgmt.example.com:3010/api/devices/${my_subdomain} -H "Authorization: Bearer ${TOKEN}"
-```
-
-```json
-{ "subdomain": "sub1", "updated_at": "2020-05-20T12:00:01Z" }
-```
-
-Get a list of connected devices:
-
-```bash
-curl -L http://mgmt.example.com:3010/api/devices -H "Authorization: Bearer ${TOKEN}"
-```
-
-```json
-[{ "subdomain": "sub1", "updated_at": "2020-05-20T12:00:01Z" }]
-```
-
-Get a list of disconnected devices:
-
-```bash
-curl -L http://mgmt.example.com:3010/api/devices?inactive=true -H "Authorization: Bearer ${TOKEN}"
-```
-
-Deauthorize a device:
-
-```bash
-my_subdomain="xxxx"
-curl -L -X DELETE http://mgmt.example.com:3010/api/devices/${my_subdomain} -H "Authorization: Bearer ${TOKEN}"
-```
-
-## Tunnel Client
-
-The tunnel relay binary is also the client binary.
-
-You do not need to build a separate client binary.
-
-### Configure
-
-Command-line flags or `.env` may be used.
-
-See `./telebit --help` for all options, and `examples/client.env` for their corresponding ENVs.
-
-### Example
-
-Copy `examples/client.env` as `.env` in the working directory.
-
-```bash
-# For Client
-VENDOR_ID=test-id
-CLIENT_SUBJECT=newieb
-CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxx
-AUTH_URL="https://mgmt.devices.example.com/api"
-TUNNEL_RELAY_URL=https://devices.example.com/
-LOCALS=https:newbie.devices.example.com:3000,http:newbie.devices.example.com:3000
-#PORT_FORWARDS=3443:3001,8443:3002
-
-# For Debugging
-VERBOSE=true
-#VERBOSE_BYTES=true
-#VERBOSE_RAW=true
-
-# For Let's Encrypt / ACME registration
-ACME_AGREE=true
-ACME_EMAIL=letsencrypt@example.com
-
-# For Let's Encrypt / ACME challenges
-ACME_RELAY_URL="https://mgmt.devices.example.com/api/dns"
-```
-
-```bash
-./telebit \
-    --vendor-id "$VENDOR_ID" \
-    --secret "$CLIENT_SECRET" \
-    --tunnel-relay-url $TUNNEL_RELAY_URL \
-    --locals "$LOCALS" \
-    --acme-agree="$ACME_AGREE" \
-    --acme-email "$ACME_EMAIL" \
-    --verbose=$VERBOSE
-```
-
 ## Local Web Application
 
 Currently only raw TCP is tunneled.
@@ -288,20 +91,75 @@ EOF
 python3 -m http.server 3000
 ```
 
-## Glossary
+## Help
 
 ```
---vendor-id         $VENDOR_ID          an arbitrary id used as part of authentication
---secret            $SECRET             the secret for creating JWTs
---tunnel-relay-url  $TUNNEL_RELAY_URL   the url of the tunnel server
---auth-url          $AUTH_URL           use to override the server-provided auth url
---acme-relay-url    $ACME_RELAY_URL     use to override the server-provided acme dns 01 proxy
---locals            $LOCALS             a list of `scheme:domainname:port`
-                                        for forwarding incoming `domainname` to local `port`
---port-forwards     $PORT_FORWARDS      a list of `remote:local` tcp port-forwarding
---verbose           $VERBOSE            logs everything, including abbreviated data (as hex)
-                    $VERBOSE_BYTES      logs full data (as hex)
-                    $VERBOSE_RAW        logs full data (as string)
---acme-agree        $ACME_AGREE         agree to the ACME service agreement
---acme-email        $ACME_EMAIL         the webmaster email for ACME notices
+Usage of telebit:
+  ACME_AGREE
+  --acme-agree
+    	agree to the terms of the ACME service provider (required)
+  --acme-directory string
+    	ACME Directory URL
+  ACME_EMAIL
+  --acme-email string
+    	email to use for Let's Encrypt / ACME registration
+  --acme-http-01
+    	enable HTTP-01 ACME challenges
+  ACME_HTTP_01_RELAY_URL
+  --acme-http-01-relay-url string
+    	the base url of the ACME HTTP-01 relay, if not the same as the DNS-01 relay
+  --acme-relay-url string
+    	the base url of the ACME DNS-01 relay, if not the same as the tunnel relay
+  --acme-staging
+    	get fake certificates for testing
+  --acme-storage string
+    	path to ACME storage directory (default "./acme.d/")
+  --acme-tls-alpn-01
+    	enable TLS-ALPN-01 ACME challenges
+  API_HOSTNAME
+  --api-hostname string
+    	the hostname used to manage clients
+  --auth-url string
+    	the base url for authentication, if not the same as the tunnel relay
+  DEBUG
+  --debug
+    	show debug output (default true)
+  --dns-01-delay duration
+    	add an extra delay after dns self-check to allow DNS-01 challenges to propagate
+  --dns-resolvers string
+    	a list of resolvers in the format 8.8.8.8:53,8.8.4.4:53
+  --env string
+    	path to .env file
+  --leeway duration
+    	allow for time drift / skew (hard-coded to 15 minutes) (default 15m0s)
+  LISTEN
+  --listen string
+    	list of bind addresses on which to listen, such as localhost:80, or :443
+  LOCALS
+  --locals string
+    	a list of <from-domain>:<to-port>
+  PORT_FORWARD
+  --port-forward string
+    	a list of <from-port>:<to-port> for raw port-forwarding
+  SECRET
+  --secret string
+    	the same secret used by telebit-relay (used for JWT authentication)
+  --spf-domain string
+    	domain with SPF-like list of IP addresses which are allowed to connect to clients
+  TLS_LOCALS
+  --tls-locals string
+    	like --locals, but TLS will be used to connect to the local port
+  --token string
+    	an auth token for the server (instead of generating --secret); use --token=false to ignore any $TOKEN in env
+  TUNNEL_RELAY_URL
+  --tunnel-relay-url string
+    	the websocket url at which to connect to the tunnel relay
+  VENDOR_ID
+  --vendor-id string
+    	a unique identifier for a deploy target environment
+  VERBOSE
+  VERBOSE_BYTES
+  VERBOSE_RAW
+  --verbose
+    	log excessively
 ```

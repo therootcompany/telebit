@@ -1,11 +1,11 @@
-package main
+package telebit
 
 import (
 	"fmt"
 	"net/http"
 	"strings"
 
-	telebit "git.rootprojects.org/root/telebit"
+	"git.rootprojects.org/root/telebit"
 )
 
 func NewAuthorizer(authURL string) telebit.Authorizer {

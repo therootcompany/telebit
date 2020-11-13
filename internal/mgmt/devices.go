@@ -1,4 +1,4 @@
-package main
+package mgmt
 
 import (
 	"crypto/rand"
@@ -10,7 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"git.rootprojects.org/root/telebit/mgmt/authstore"
+	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
+
 	"github.com/go-chi/chi"
 )
 

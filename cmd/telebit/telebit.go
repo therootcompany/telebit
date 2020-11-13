@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -22,21 +23,23 @@ import (
 	"git.rootprojects.org/root/telebit/dbg"
 	"git.rootprojects.org/root/telebit/internal/dns01"
 	"git.rootprojects.org/root/telebit/internal/http01"
+	"git.rootprojects.org/root/telebit/internal/mgmt"
+	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
 	"git.rootprojects.org/root/telebit/internal/service"
+	telebitX "git.rootprojects.org/root/telebit/internal/telebit"
 	"git.rootprojects.org/root/telebit/iplist"
-	"git.rootprojects.org/root/telebit/mgmt"
-	"git.rootprojects.org/root/telebit/mgmt/authstore"
 	"git.rootprojects.org/root/telebit/table"
 	"git.rootprojects.org/root/telebit/tunnel"
-	legoDNS01 "github.com/go-acme/lego/v3/challenge/dns01"
 
 	"github.com/coolaj86/certmagic"
 	"github.com/denisbrodbeck/machineid"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-acme/lego/v3/challenge"
+	legoDNS01 "github.com/go-acme/lego/v3/challenge/dns01"
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 	"github.com/go-acme/lego/v3/providers/dns/godaddy"
 	"github.com/go-acme/lego/v3/providers/dns/namedotcom"
+	"github.com/go-chi/chi"
 	"github.com/joho/godotenv"
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -79,8 +82,6 @@ type Forward struct {
 	port     string
 	localTLS bool
 }
-
-var authorizer telebit.Authorizer
 
 var isHostname = regexp.MustCompile(`^[A-Za-z0-9_\.\-]+$`).MatchString
 
@@ -383,7 +384,6 @@ func main() {
 			return
 		}
 		fmt.Println("Auth URL", *authURL)
-		authorizer = NewAuthorizer(*authURL)
 
 		dns01Base := directory.DNS01Proxy.URL
 		if 0 == len(*acmeRelay) {
@@ -428,7 +428,6 @@ func main() {
 		fmt.Printf("[Grants]\n\t%#v\n", grants)
 		*relay = grants.Audience
 	}
-	authorizer = NewAuthorizer(*authURL)
 
 	fmt.Printf("Email: %q\n", *email)
 
@@ -590,9 +589,11 @@ func muxAll(
 	}
 	if "" != *apiHostname {
 		// this is a generic net listener
-		InitAdmin(*authURL)
+		r := chi.NewRouter()
+		telebitX.RouteAdmin(*authURL, r)
 		apiListener := tunnel.NewListener()
 		go func() {
+			httpsrv := &http.Server{Handler: r}
 			httpsrv.Serve(apiListener)
 		}()
 		fmt.Printf("Will respond to Websocket and API requests to %q\n", *apiHostname)
