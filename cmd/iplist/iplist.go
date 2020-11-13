@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 
-	"git.rootprojects.org/root/telebit/iplist"
+	"git.rootprojects.org/root/telebit/internal/iplist"
 )
 
 func help() {

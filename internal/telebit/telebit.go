@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"git.rootprojects.org/root/telebit/dbg"
-	httpshim "git.rootprojects.org/root/telebit/tunnel"
+	"git.rootprojects.org/root/telebit/internal/dbg"
+	httpshim "git.rootprojects.org/root/telebit/internal/tunnel"
 
 	"github.com/coolaj86/certmagic"
 	"github.com/mholt/acmez"

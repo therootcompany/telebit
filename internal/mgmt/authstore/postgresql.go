@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"time"
 
-	"git.rootprojects.org/root/telebit/files"
+	"git.rootprojects.org/root/telebit/assets/files"
 
 	"github.com/jmoiron/sqlx"
 	// pq injects itself into sql as 'postgres'

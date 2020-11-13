@@ -4,12 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-
-	"git.rootprojects.org/root/telebit"
 )
 
-func NewAuthorizer(authURL string) telebit.Authorizer {
-	return func(r *http.Request) (*telebit.Grants, error) {
+func NewAuthorizer(authURL string) Authorizer {
+	return func(r *http.Request) (*Grants, error) {
 		// do we have a valid wss_client?
 
 		fmt.Printf("[authz] Authorization = %s\n", r.Header.Get("Authorization"))
@@ -28,7 +26,7 @@ func NewAuthorizer(authURL string) telebit.Authorizer {
 
 		fmt.Printf("[authz] authURL = %s\n", authURL)
 		fmt.Printf("[authz] token = %s\n", tokenString)
-		grants, err := telebit.Inspect(authURL, tokenString)
+		grants, err := Inspect(authURL, tokenString)
 
 		if nil != err {
 			fmt.Printf("[authorizer] error inspecting %q: %s\ntoken: %s\n", authURL, err, tokenString)

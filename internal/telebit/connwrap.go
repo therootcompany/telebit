@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"git.rootprojects.org/root/telebit/dbg"
-	"git.rootprojects.org/root/telebit/sni"
+	"git.rootprojects.org/root/telebit/internal/dbg"
+	"git.rootprojects.org/root/telebit/internal/sni"
 )
 
 // ConnWrap is just a cheap way to DRY up some switch conn.(type) statements to handle special features of Conn

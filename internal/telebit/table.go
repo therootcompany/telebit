@@ -1,18 +1,17 @@
-package table
+package telebit
 
 import (
 	"fmt"
+	"io"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
-	"io"
-	"strconv"
-	"strings"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 
-	telebit "git.rootprojects.org/root/telebit"
-	"git.rootprojects.org/root/telebit/dbg"
 	"github.com/gorilla/websocket"
 )
 
@@ -108,18 +107,18 @@ type SubscriberConn struct {
 	Since      *time.Time
 	RemoteAddr string
 	WSConn     *websocket.Conn
-	WSTun      net.Conn // *telebit.WebsocketTunnel
-	Grants     *telebit.Grants
+	WSTun      net.Conn // *WebsocketTunnel
+	Grants     *Grants
 	Clients    *sync.Map
 
 	// TODO is this the right codec type?
-	MultiEncoder *telebit.Encoder
-	MultiDecoder *telebit.Decoder
+	MultiEncoder *Encoder
+	MultiDecoder *Decoder
 
 	// to fulfill Router interface
 }
 
-func (s *SubscriberConn) RouteBytes(src, dst telebit.Addr, payload []byte) {
+func (s *SubscriberConn) RouteBytes(src, dst Addr, payload []byte) {
 	id := fmt.Sprintf("%s:%d", src.Hostname(), src.Port())
 	if dbg.Debug {
 		fmt.Fprintf(
@@ -163,9 +162,9 @@ func (s *SubscriberConn) RouteBytes(src, dst telebit.Addr, payload []byte) {
 }
 
 func (s *SubscriberConn) Serve(client net.Conn) error {
-	var wconn *telebit.ConnWrap
+	var wconn *ConnWrap
 	switch conn := client.(type) {
-	case *telebit.ConnWrap:
+	case *ConnWrap:
 		wconn = conn
 	default:
 		// this probably isn't strictly necessary
@@ -201,27 +200,27 @@ func (s *SubscriberConn) Serve(client net.Conn) error {
 
 	servername := wconn.Servername()
 
-	termination := telebit.Unknown
-	scheme := telebit.None
+	termination := Unknown
+	scheme := None
 	if "" != servername {
 		dstAddr = servername
-		//scheme = telebit.TLS
-		scheme = telebit.HTTPS
+		//scheme = TLS
+		scheme = HTTPS
 	}
 	if 80 == dstPort {
-		scheme = telebit.HTTPS
+		scheme = HTTPS
 	} else if 443 == dstPort {
 		// TODO dstAddr = wconn.Servername()
-		scheme = telebit.HTTP
+		scheme = HTTP
 	}
 
-	src := telebit.NewAddr(
+	src := NewAddr(
 		scheme,
 		termination,
 		srcAddr,
 		srcPort,
 	)
-	dst := telebit.NewAddr(
+	dst := NewAddr(
 		scheme,
 		termination,
 		dstAddr,

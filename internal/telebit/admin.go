@@ -13,17 +13,15 @@ import (
 	"sync"
 	"time"
 
-	"git.rootprojects.org/root/telebit"
-	"git.rootprojects.org/root/telebit/admin"
-	"git.rootprojects.org/root/telebit/dbg"
-	"git.rootprojects.org/root/telebit/table"
+	"git.rootprojects.org/root/telebit/assets/admin"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/gorilla/websocket"
 )
 
-var authorizer telebit.Authorizer
+var authorizer Authorizer
 
 // RouteAdmin sets up the API, including the Mgmt proxy and ACME relay
 func RouteAdmin(authURL string, r chi.Router) {
@@ -134,7 +132,7 @@ type SubscriberStatus struct {
 
 func getAllSubscribers(w http.ResponseWriter, r *http.Request) {
 	statuses := []*SubscriberStatus{}
-	table.Servers.Range(func(key, value interface{}) bool {
+	Servers.Range(func(key, value interface{}) bool {
 		srvMap := value.(*sync.Map)
 		status := getSubscribersHelper(srvMap)
 		statuses = append(statuses, status)
@@ -160,7 +158,7 @@ func getSubscribers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var srvMap *sync.Map
-	srvMapX, ok := table.Servers.Load(subject)
+	srvMapX, ok := Servers.Load(subject)
 	if ok {
 		srvMap = srvMapX.(*sync.Map)
 		statuses.Subscribers = append(statuses.Subscribers, getSubscribersHelper(srvMap))
@@ -179,7 +177,7 @@ func getSubscribersHelper(srvMap *sync.Map) *SubscriberStatus {
 
 	srvMap.Range(func(k, v interface{}) bool {
 		status.Sockets = append(status.Sockets, k.(string))
-		srv := v.(*table.SubscriberConn)
+		srv := v.(*SubscriberConn)
 		if nil == status.Since || srv.Since.Sub(*status.Since) < 0 {
 			copied := srv.Since.Truncate(time.Second)
 			status.Since = &copied
@@ -199,7 +197,7 @@ func getSubscribersHelper(srvMap *sync.Map) *SubscriberStatus {
 func delSubscribers(w http.ResponseWriter, r *http.Request) {
 	subject := chi.URLParam(r, "subject")
 
-	ok := table.Remove(subject)
+	ok := Remove(subject)
 	if !ok {
 		// TODO should this be an error?
 		_ = json.NewEncoder(w).Encode(&struct {
@@ -243,7 +241,7 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	wsTun := telebit.NewWebsocketTunnel(conn)
+	wsTun := NewWebsocketTunnel(conn)
 	fmt.Printf("New Authenticated WebSocket Remote Server\n")
 	fmt.Printf("\thttp.req.RemoteAddr: %+v\n", r.RemoteAddr)
 	fmt.Printf("\tconn.RemoteAddr(): %+v\n", conn.RemoteAddr())
@@ -255,15 +253,15 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 	// Rather the client's local address (the specific relay server) would be more useful.
 	ctxEncoder, cancelEncoder := context.WithCancel(context.Background())
 	now := time.Now()
-	server := &table.SubscriberConn{
+	server := &SubscriberConn{
 		Since:        &now,
 		RemoteAddr:   r.RemoteAddr,
 		WSConn:       conn,
 		WSTun:        wsTun,
 		Grants:       grants,
 		Clients:      &sync.Map{},
-		MultiEncoder: telebit.NewEncoder(ctxEncoder, wsTun),
-		MultiDecoder: telebit.NewDecoder(wsTun),
+		MultiEncoder: NewEncoder(ctxEncoder, wsTun),
+		MultiDecoder: NewDecoder(wsTun),
 	}
 	// TODO should this happen at NewEncoder()?
 	// (or is it even necessary anymore?)
@@ -283,8 +281,8 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("a subscriber stream is done: %q\n", err)
 		// TODO check what happens when we leave a junk connection
 		//fmt.Println("[debug] [warn] removing server turned off")
-		table.RemoveServer(server)
+		RemoveServer(server)
 	}()
 
-	table.Add(server)
+	Add(server)
 }

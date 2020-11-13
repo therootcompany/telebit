@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/internal/mgmt"
 	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
+	"git.rootprojects.org/root/telebit/internal/telebit"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/gorilla/websocket"

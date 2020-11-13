@@ -5,7 +5,7 @@ import (
 	"io"
 	"os"
 
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 )
 
 // Decoder handles a Reader stream containing mplexy-encoded clients

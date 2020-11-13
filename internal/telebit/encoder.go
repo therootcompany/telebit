@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 )
 
 // TODO: try to be more like encoding/csv, or more like encoding/pem and encoding/json?

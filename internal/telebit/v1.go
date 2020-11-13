@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 )
 
 const (

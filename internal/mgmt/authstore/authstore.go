@@ -9,7 +9,8 @@ import (
 	"os"
 	"time"
 
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
+
 	jwt "github.com/dgrijalva/jwt-go"
 )
 

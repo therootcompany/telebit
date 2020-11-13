@@ -13,9 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	telebit "git.rootprojects.org/root/telebit"
 	tbDns01 "git.rootprojects.org/root/telebit/internal/dns01"
-	"git.rootprojects.org/root/telebit/table"
+	"git.rootprojects.org/root/telebit/internal/telebit"
 
 	"github.com/coolaj86/certmagic"
 	"github.com/dgrijalva/jwt-go"
@@ -219,7 +218,7 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	wsTun := telebit.NewWebsocketTunnel(conn)
-	server := &table.SubscriberConn{
+	server := &telebit.SubscriberConn{
 		RemoteAddr:   r.RemoteAddr,
 		WSConn:       conn,
 		WSTun:        wsTun,
@@ -243,7 +242,7 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("a subscriber stream is done: %q\n", err)
 	}()
 
-	table.Add(server)
+	telebit.Add(server)
 }
 
 func getACMEProvider(acmeRelay, token *string) (challenge.Provider, error) {

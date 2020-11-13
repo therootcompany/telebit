@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 
 	"github.com/gorilla/websocket"
 )

@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 )
 
 // A Listener transforms a multiplexed websocket connection into individual net.Conn-like connections.

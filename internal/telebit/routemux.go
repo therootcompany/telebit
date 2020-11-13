@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 )
 
 // A RouteMux is a net.Conn multiplexer.

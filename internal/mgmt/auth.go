@@ -7,9 +7,9 @@ import (
 	"io/ioutil"
 	"os"
 
-	telebit "git.rootprojects.org/root/telebit"
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
+	"git.rootprojects.org/root/telebit/internal/telebit"
 )
 
 type SuccessResponse struct {

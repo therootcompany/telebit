@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 )
 
 type Parser struct {

@@ -19,17 +19,15 @@ import (
 	"strings"
 	"time"
 
-	"git.rootprojects.org/root/telebit"
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 	"git.rootprojects.org/root/telebit/internal/dns01"
 	"git.rootprojects.org/root/telebit/internal/http01"
+	"git.rootprojects.org/root/telebit/internal/iplist"
 	"git.rootprojects.org/root/telebit/internal/mgmt"
 	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
 	"git.rootprojects.org/root/telebit/internal/service"
-	telebitX "git.rootprojects.org/root/telebit/internal/telebit"
-	"git.rootprojects.org/root/telebit/iplist"
-	"git.rootprojects.org/root/telebit/table"
-	"git.rootprojects.org/root/telebit/tunnel"
+	"git.rootprojects.org/root/telebit/internal/telebit"
+	"git.rootprojects.org/root/telebit/internal/tunnel"
 
 	"github.com/coolaj86/certmagic"
 	"github.com/denisbrodbeck/machineid"
@@ -590,7 +588,7 @@ func muxAll(
 	if "" != *apiHostname {
 		// this is a generic net listener
 		r := chi.NewRouter()
-		telebitX.RouteAdmin(*authURL, r)
+		telebit.RouteAdmin(*authURL, r)
 		apiListener := tunnel.NewListener()
 		go func() {
 			httpsrv := &http.Server{Handler: r}
@@ -716,7 +714,7 @@ func routeSubscribersAndClients(client net.Conn) error {
 
 // tryToServeName picks the server tunnel with the least connections, if any
 func tryToServeName(servername string, wconn *telebit.ConnWrap) bool {
-	srv, ok := table.GetServer(servername)
+	srv, ok := telebit.GetServer(servername)
 	if !ok || nil == srv {
 		if ok {
 			// TODO BUG: Sometimes srv=nil & ok=true, which should not be possible

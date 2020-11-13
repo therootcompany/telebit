@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"git.rootprojects.org/root/telebit/dbg"
+	"git.rootprojects.org/root/telebit/internal/dbg"
 	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
 
 	"github.com/dgrijalva/jwt-go"
