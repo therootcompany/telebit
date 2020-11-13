@@ -187,6 +187,7 @@ curl -L -X DELETE http://mgmt.example.com:6468/api/devices/${my_subdomain} -H "A
 You can build with `go build`:
 
 ```bash
+go generate -mod vendor ./...
 go build -mod vendor -race -o telebit-mgmt cmd/mgmt/*.go
 ```
 
@@ -199,7 +200,7 @@ goreleaser --rm-dist --skip-publish --snapshot
 Or cross-compile:
 
 ```bash
-go generate ./...
+go generate -mod vendor ./...
 
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-mgmt-linux ./cmd/mgmt/*.go
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-mgmt-macos ./cmd/mgmt/*.go

@@ -23,7 +23,7 @@ All of the devices need to be under the same domain. You are limited by Let's En
 ## White Label Builds
 
 ```bash
-go generate ./...
+go generate -mod vendor ./...
 
 VENDOR_ID="example.com"
 

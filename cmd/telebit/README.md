@@ -100,6 +100,7 @@ bash examples/admin-disconnect-device.sh
 You can build with `go build`:
 
 ```bash
+go generate -mod vendor ./...
 go build -mod vendor -race -o telebit-relay cmd/telebit/*.go
 ```
 
@@ -112,7 +113,7 @@ goreleaser --rm-dist --skip-publish --snapshot
 Or cross-compile:
 
 ```bash
-go generate ./...
+go generate -mod vendor ./...
 
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-relay-linux ./cmd/telebit/*.go
 CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-relay-macos ./cmd/telebit/*.go
