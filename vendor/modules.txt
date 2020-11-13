@@ -1,7 +1,7 @@
-# git.rootprojects.org/root/go-gitver v1.1.3
+# git.rootprojects.org/root/go-gitver/v2 v2.0.2
 ## explicit
-git.rootprojects.org/root/go-gitver
-git.rootprojects.org/root/go-gitver/gitver
+git.rootprojects.org/root/go-gitver/v2
+git.rootprojects.org/root/go-gitver/v2/gitver
 # github.com/alexbrainman/sspi v0.0.0-20180613141037-e580b900e9f5
 github.com/alexbrainman/sspi
 github.com/alexbrainman/sspi/negotiate

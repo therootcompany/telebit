@@ -5,7 +5,7 @@ package tools
 
 import (
 	// these are binaries
-	_ "git.rootprojects.org/root/go-gitver"
+	_ "git.rootprojects.org/root/go-gitver/v2"
 	_ "github.com/shurcooL/vfsgen"
 	_ "github.com/shurcooL/vfsgen/cmd/vfsgendev"
 )

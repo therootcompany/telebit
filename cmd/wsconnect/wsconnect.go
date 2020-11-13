@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	telebit "git.rootprojects.org/root/telebit"
-	"git.rootprojects.org/root/telebit/mgmt"
-	"git.rootprojects.org/root/telebit/mgmt/authstore"
+	"git.rootprojects.org/root/telebit"
+	"git.rootprojects.org/root/telebit/internal/mgmt"
+	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
 
 	"github.com/denisbrodbeck/machineid"
 	"github.com/gorilla/websocket"
@@ -50,7 +50,7 @@ func main() {
 	ppid = base64.RawURLEncoding.EncodeToString(ppidBytes)
 	fmt.Println("[debug] vendor-id, secret, ppid", *vendorID, *secret, ppid)
 	if 0 == len(*token) {
-		*token, err = authstore.HMACToken(ppid)
+		*token, err = authstore.HMACToken(ppid, 15*time.Minute)
 		if nil != err {
 			fmt.Fprintf(os.Stderr, "neither secret nor token provided\n")
 			os.Exit(1)

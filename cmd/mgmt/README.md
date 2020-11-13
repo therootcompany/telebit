@@ -77,7 +77,7 @@ The admin token can be used to interact with the server.
 ```bash
 VENDOR_ID="example.com"
 MGMT_SECRET=XxX-mgmt-secret-XxX
-ADMIN_TOKEN=$(go run cmd/signjwt/signjwt.go \
+ADMIN_TOKEN=$(go run cmd/signjwt/*.go \
     --debug \
     --expires-in 15m \
     --vendor-id $VENDOR_ID \
@@ -187,7 +187,7 @@ curl -L -X DELETE http://mgmt.example.com:6468/api/devices/${my_subdomain} -H "A
 You can build with `go build`:
 
 ```bash
-go build -mod vendor -race -o telebit-mgmt cmd/mgmt/mgmt.go
+go build -mod vendor -race -o telebit-mgmt cmd/mgmt/*.go
 ```
 
 Or with `goreleaser`:

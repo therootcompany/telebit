@@ -5,7 +5,7 @@ go 1.14
 replace github.com/caddyserver/certmagic => github.com/coolaj86/certmagic v0.12.1-pre.2
 
 require (
-	git.rootprojects.org/root/go-gitver v1.1.3
+	git.rootprojects.org/root/go-gitver/v2 v2.0.2
 	github.com/coolaj86/certmagic v0.12.1-pre.2
 	github.com/denisbrodbeck/machineid v1.0.1
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible

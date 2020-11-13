@@ -1,4 +1,4 @@
-//go:generate go run -mod=vendor git.rootprojects.org/root/go-gitver
+//go:generate go run -mod=vendor git.rootprojects.org/root/go-gitver/v2
 
 package main
 
@@ -61,12 +61,12 @@ const (
 )
 
 var (
-	// GitRev refers to the abbreviated commit hash
-	GitRev = "0000000"
-	// GitVersion refers to the most recent tag, plus any commits made since then
-	GitVersion = "v0.0.0-pre0+0000000"
+	// commit refers to the abbreviated commit hash
+	commit = "0000000"
+	// version refers to the most recent tag, plus any commits made since then
+	version = "v0.0.0-pre0+0000000"
 	// GitTimestamp refers to the timestamp of the most recent commit
-	GitTimestamp = "0000-00-00T00:00:00+0000"
+	date = "0000-00-00T00:00:00+0000"
 
 	// serviceName is the service name
 	serviceName = "telebit"
@@ -94,7 +94,7 @@ var ClientSecret string
 func main() {
 	if len(os.Args) >= 2 {
 		if "version" == strings.TrimLeft(os.Args[1], "-") {
-			fmt.Printf("telebit %s (%s) %s\n", GitVersion, GitRev[:7], GitTimestamp)
+			fmt.Printf("telebit %s (%s) %s\n", version, commit[:7], date)
 			os.Exit(exitOk)
 			return
 		}

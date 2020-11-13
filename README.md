@@ -87,7 +87,7 @@ pushd telebit/
 You can build with `go build`:
 
 ```bash
-go build -mod vendor -race -o telebit cmd/telebit/telebit.go
+go build -mod vendor -race -o telebit cmd/telebit/*.go
 ```
 
 Or with `goreleaser`:
@@ -95,6 +95,8 @@ Or with `goreleaser`:
 ```bash
 goreleaser --rm-dist --skip-publish --snapshot
 ```
+
+See https://webinstall.dev/goreleaser for cheat sheet.
 
 ## Install Go
 

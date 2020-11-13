@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"git.rootprojects.org/root/telebit/mgmt/authstore"
+	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
 )
 
 func main() {
