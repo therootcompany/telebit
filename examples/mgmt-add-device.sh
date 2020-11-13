@@ -13,7 +13,7 @@ TOKEN=$(go run cmd/signjwt/*.go \
     --machine-ppid "$RELAY_SECRET"
 )
 
-MGMT_URL=${MGMT_URL:-"http://mgmt.example.com:3010/api"}
+MGMT_URL=${MGMT_URL:-"http://mgmt.example.com:6468/api"}
 
 CLIENT_SUBJECT=${CLIENT_SUBJECT:-"newbie"}
 curl -X POST "$MGMT_URL/devices" \

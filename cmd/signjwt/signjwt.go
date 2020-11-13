@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"time"
 
-	telebit "git.rootprojects.org/root/telebit"
+	"git.rootprojects.org/root/telebit"
 	"git.rootprojects.org/root/telebit/dbg"
-	"git.rootprojects.org/root/telebit/mgmt/authstore"
+	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
 
 	"github.com/denisbrodbeck/machineid"
 	_ "github.com/joho/godotenv/autoload"

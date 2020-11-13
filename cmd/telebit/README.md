@@ -2,45 +2,62 @@
 
 | [Telebit Client](../../) | **Telebit Relay** | [Telebit Mgmt](../mgmt) |
 
-### Example
+Secure tunnel, relay, and reverse-proxy server.
+
+# Usage
+
+**Only** port 443 must be public.
+
+```bash
+./telebit-relay --acme-http-01
+```
+
+```bash
+# allow access to privileged ports
+sudo setcap 'cap_net_bind_service=+ep' ./telebit-relay
+```
 
 Copy `examples/relay.env` as `.env` in the working directory.
 
 ```bash
-# For Tunnel Relay Server
-API_HOSTNAME=devices.example.com
-LISTEN=:443
-LOCALS=https:mgmt.devices.example.com:3010
-VERBOSE=false
-
-# For Device Management & Authentication
-AUTH_URL=http://localhost:3010/api
-
-# For Let's Encrypt / ACME registration
-ACME_AGREE=true
-ACME_EMAIL=letsencrypt@example.com
-
-# For Let's Encrypt / ACME challenges
-ACME_HTTP_01_RELAY_URL=http://localhost:3010/api/http
-ACME_RELAY_URL=http://localhost:3010/api/dns
-SECRET=xxxxxxxxxxxxxxxx
-GODADDY_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-GODADDY_API_SECRET=xxxxxxxxxxxxxxxxxxxxxx
+# --secret
+export SECRET=XxX-mgmt-secret-XxX
+# --api-hostname
+export API_HOSTNAME=tunnel.example.com
+# --listen
+export LISTEN=":443"
+# --locals
+export LOCALS=https:mgmt.example.com:6468
+# --auth-url
+export AUTH_URL=http://localhost:6468/api
+# --acme-agree
+export ACME_AGREE=true
+# --acme-email
+export ACME_EMAIL=telebit@example.com
+# --acme-relay
+export ACME_RELAY_URL=http://localhost:6468/api/acme-relay
 ```
+
+See `./telebit-relay --help` for all options. \
+See [`examples/relay.env`][relay-env] for detail explanations.
+
+[relay-env]: /tree/master/examples/relay.env
 
 Note: It is not necessary to specify the `--flags` when using the ENVs.
 
+## System Services
+
+You can use `serviceman` to run `postgres`, `telebit`, and `telebit-mgmt` as system services
+
 ```bash
-./telebit \
-    --api-hostname $API_HOSTNAME \
-    --auth-url "$AUTH_URL" \
-    --acme-agree "$ACME_AGREE" \
-    --acme-email "$ACME_EMAIL" \
-    --secret "$SECRET" \
-    --listen "$LISTEN"
+curl -fsS https://webinstall.dev/serviceman | bash
 ```
 
-### API
+See the Cheat Sheet at https://webinstall.dev/serviceman
+
+You can, of course, configure systemd (or whatever) by hand if you prefer.
+
+# API
 
 List all connected devices
 
@@ -76,4 +93,29 @@ Force a device to disconnect:
 
 ```bash
 bash examples/admin-disconnect-device.sh
+```
+
+# Build
+
+You can build with `go build`:
+
+```bash
+go build -mod vendor -race -o telebit-relay cmd/telebit/telebit.go
+```
+
+Or with `goreleaser`:
+
+```bash
+goreleaser --rm-dist --skip-publish --snapshot
+```
+
+Or cross-compile:
+
+```bash
+go generate ./...
+
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -mod vendor -o telebit-relay-linux ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -mod vendor -o telebit-relay-macos ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -o telebit-relay-windows-debug.exe ./cmd/telebit/*.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -mod vendor -ldflags "-H windowsgui" -o telebit-relay-windows.exe ./cmd/telebit/*.go
 ```

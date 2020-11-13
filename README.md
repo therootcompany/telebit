@@ -22,9 +22,11 @@ export ACME_EMAIL=johndoe@example.com
 # --vendor-id
 export VENDOR_ID=example.com
 # --secret
-export SECRET=QQgPyfzVdxJTcUc1ceot3pgJFKtWSHMQ
+export SECRET=YY-device-shared-secret-YY
 # --tunnel-relay
 export TUNNEL_RELAY_URL=https://tunnel.example.com/
+# --locals
+export LOCALS=https:*:3000
 # --tls-locals
 export TLS_LOCALS=https:*:3000
 ```
@@ -34,7 +36,61 @@ See [`examples/client.env`][client-env] for detail explanations.
 
 [client-env]: /tree/master/examples/client.env
 
+### System Services
+
+You can use `serviceman` to run `postgres`, `telebit`, and `telebit-mgmt` as system services
+
+```bash
+curl -fsS https://webinstall.dev/serviceman | bash
+```
+
+See the Cheat Sheet at https://webinstall.dev/serviceman
+
+You can, of course, configure systemd (or whatever) by hand if you prefer.
+
+## Example Local Web Application
+
+The simplest way to test the tunnel is with a local web server.
+
+```bash
+mkdir -p tmp-app
+pushd tmp-app/
+
+cat << EOF > index.html
+Hello, World!
+EOF
+```
+
+### Ex: Caddy
+
+```bash
+curl -sS https://webinstall.dev/caddy | bash
+```
+
+```bash
+caddy file-server --browse --listen :3000
+```
+
+### Ex: Python 3
+
+```bash
+python3 -m http.server 3000
+```
+
 # Build
+
+```bash
+git clone ssh://git@git.rootprojects.org:root/telebit.git
+pushd telebit/
+```
+
+You can build with `go build`:
+
+```bash
+go build -mod vendor -race -o telebit cmd/telebit/telebit.go
+```
+
+Or with `goreleaser`:
 
 ```bash
 goreleaser --rm-dist --skip-publish --snapshot
@@ -42,13 +98,17 @@ goreleaser --rm-dist --skip-publish --snapshot
 
 ## Install Go
 
-Installs Go to `~/.local/opt/go` for MacOS and Linux:
+To install Go (on any of Windows, Mac, or Linux), see <https://webinstall.dev/golang>.
+
+Installs Go to `~/.local/opt/go`.
+
+**Mac, Linux**:
 
 ```bash
 curl -fsS https://webinstall.dev/golang | bash
 ```
 
-Windows 10:
+**Windows 10**:
 
 ```bash
 curl.exe -fsSA "MS" https://webinstall.dev/golang | powershell
@@ -73,25 +133,27 @@ The binary can be built with `VENDOR_ID` and `CLIENT_SECRET` built into the bina
 You can also change the `serviceName` and `serviceDescription` at build time.
 See `examples/run-as-client.sh`.
 
-## Local Web Application
-
-Currently only raw TCP is tunneled.
-
-This means that either the application must handle and terminate encrypted TLS connections, or use HTTP (instead of HTTPS).
-This will be available in the next release.
+## White Label Builds
 
 ```bash
-mkdir -p tmp-app
-pushd tmp-app/
+go generate ./...
 
-cat << EOF > index.html
-Hello, World!
-EOF
+VENDOR_ID="example.com"
 
-python3 -m http.server 3000
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
+    -mod=vendor \
+    -ldflags="-X 'main.VendorID=$VENDOR_ID'" \
+    -o telebit-debug.exe \
+    ./cmd/telebit/telebit.go
+
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
+    -mod=vendor \
+    -ldflags "-H windowsgui -X 'main.VendorID=$VENDOR_ID'" \
+    -o telebit-windows.exe \
+    ./cmd/telebit/telebit.go
 ```
 
-## Help
+# Help
 
 ```
 Usage of telebit:

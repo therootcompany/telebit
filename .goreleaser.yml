@@ -38,6 +38,8 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+env_files:
+  github_token: ~/.config/goreleaser/github_token.txt
 checksum:
   name_template: 'checksums.txt'
 snapshot:
