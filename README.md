@@ -133,26 +133,6 @@ The binary can be built with `VENDOR_ID` and `CLIENT_SECRET` built into the bina
 You can also change the `serviceName` and `serviceDescription` at build time.
 See `examples/run-as-client.sh`.
 
-## White Label Builds
-
-```bash
-go generate ./...
-
-VENDOR_ID="example.com"
-
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
-    -mod=vendor \
-    -ldflags="-X 'main.VendorID=$VENDOR_ID'" \
-    -o telebit-debug.exe \
-    ./cmd/telebit/telebit.go
-
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build \
-    -mod=vendor \
-    -ldflags "-H windowsgui -X 'main.VendorID=$VENDOR_ID'" \
-    -o telebit-windows.exe \
-    ./cmd/telebit/telebit.go
-```
-
 # Help
 
 ```
