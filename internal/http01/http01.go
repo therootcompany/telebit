@@ -19,7 +19,7 @@ import (
 // Config is used to configure the creation of the HTTP-01 Solver.
 type Config struct {
 	Endpoint   *url.URL
-	Token      string
+	Tokener    func() string
 	HTTPClient *http.Client
 }
 
@@ -122,8 +122,9 @@ func (s *Solver) doRequest(method, uri string, msg interface{}) error {
 
 	req.Header.Set("Content-Type", "application/json")
 
-	if len(s.config.Token) > 0 {
-		req.Header.Set("Authorization", "Bearer "+s.config.Token)
+	apiToken := s.config.Tokener()
+	if len(apiToken) > 0 {
+		req.Header.Set("Authorization", "Bearer "+apiToken)
 	}
 
 	resp, err := s.config.HTTPClient.Do(req)

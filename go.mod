@@ -14,6 +14,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5
 	github.com/joho/godotenv v1.3.0
+	github.com/judwhite/go-svc v1.1.2
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.6.0
 	github.com/mholt/acmez v0.1.1

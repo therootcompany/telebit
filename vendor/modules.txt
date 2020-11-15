@@ -39,9 +39,6 @@ github.com/go-acme/lego/v3/providers/dns/namedotcom
 ## explicit
 github.com/go-chi/chi
 github.com/go-chi/chi/middleware
-# github.com/go-sql-driver/mysql v1.5.0
-## explicit
-github.com/go-sql-driver/mysql
 # github.com/gorilla/websocket v1.4.2
 ## explicit
 github.com/gorilla/websocket
@@ -100,6 +97,9 @@ github.com/jmoiron/sqlx/reflectx
 ## explicit
 github.com/joho/godotenv
 github.com/joho/godotenv/autoload
+# github.com/judwhite/go-svc v1.1.2
+## explicit
+github.com/judwhite/go-svc/svc
 # github.com/klauspost/cpuid v1.2.5
 github.com/klauspost/cpuid
 # github.com/kr/text v0.2.0

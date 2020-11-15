@@ -43,10 +43,13 @@ type dnsChallenge struct {
 	KeyAuthDigest string `json:"key_authorization_digest"`
 }
 
+// Tokener returns a fresh, valid token
+//type Tokener func() string
+
 // Config is used to configure the creation of the DNSProvider.
 type Config struct {
 	Endpoint           *url.URL
-	Token              string
+	Tokener            func() string
 	PropagationTimeout time.Duration
 	PollingInterval    time.Duration
 	HTTPClient         *http.Client
@@ -81,7 +84,7 @@ func NewDNSProvider() (*DNSProvider, error) {
 	}
 
 	config := NewDefaultConfig()
-	config.Token = env.GetOrFile(EnvToken)
+	//config.Token = env.GetOrFile(EnvToken)
 	config.Endpoint = endpoint
 	return NewDNSProviderConfig(config)
 }
@@ -164,8 +167,9 @@ func (d *DNSProvider) doRequest(method, uri string, msg interface{}) error {
 
 	req.Header.Set("Content-Type", "application/json")
 
-	if len(d.config.Token) > 0 {
-		req.Header.Set("Authorization", "Bearer "+d.config.Token)
+	apiToken := d.config.Tokener()
+	if len(apiToken) > 0 {
+		req.Header.Set("Authorization", "Bearer "+apiToken)
 	}
 
 	resp, err := d.config.HTTPClient.Do(req)
@@ -187,7 +191,7 @@ func (d *DNSProvider) doRequest(method, uri string, msg interface{}) error {
 }
 
 // NewSolver creates a new Solver
-func NewSolver(provider challenge.Provider) (lego *Solver) {
+func NewSolver(provider challenge.Provider) *Solver {
 	return &Solver{
 		provider:   provider,
 		dnsChecker: certmagic.DNS01Solver{},

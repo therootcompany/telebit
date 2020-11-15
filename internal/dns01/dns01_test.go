@@ -162,7 +162,7 @@ func TestNewDNSProvider_Present(t *testing.T) {
 
 			config := NewDefaultConfig()
 			config.Endpoint = mustParse(server.URL + test.pathPrefix)
-			config.Token = test.token
+			config.Tokener = func() string { return "" }
 
 			p, err := NewDNSProviderConfig(config)
 			require.NoError(t, err)
@@ -236,7 +236,7 @@ func TestNewDNSProvider_Cleanup(t *testing.T) {
 
 			config := NewDefaultConfig()
 			config.Endpoint = mustParse(server.URL)
-			config.Token = test.token
+			config.Tokener = func() string { return "" }
 
 			p, err := NewDNSProviderConfig(config)
 			require.NoError(t, err)
