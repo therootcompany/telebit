@@ -310,7 +310,9 @@ func newGoDaddyDNSProvider(id, secret string) (*godaddy.DNSProvider, error) {
 // newAPIDNSProvider is for the sake of demoing the tunnel
 func newAPIDNSProvider(baseURL string, token string) (*tbDns01.DNSProvider, error) {
 	config := tbDns01.NewDefaultConfig()
-	config.Token = token
+	config.Tokener = func() string {
+		return token
+	}
 	endpoint, err := url.Parse(baseURL)
 	if nil != err {
 		return nil, err

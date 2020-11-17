@@ -91,7 +91,9 @@ func main() {
 // newAPIDNSProvider is for the sake of demoing the tunnel
 func newAPIDNSProvider(baseURL string, token string) (*dns01.DNSProvider, error) {
 	config := dns01.NewDefaultConfig()
-	config.Token = token
+	config.Tokener = func() string {
+		return token
+	}
 	endpoint, err := url.Parse(baseURL)
 	if nil != err {
 		return nil, err
