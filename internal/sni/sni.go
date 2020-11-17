@@ -69,7 +69,6 @@ func GetHostname(b []byte) (hostname string, err error) {
 		current += 2
 
 		if extensionType == 0 {
-
 			// Skip over number of names as we're assuming there's just one
 			current += 2
 
@@ -81,6 +80,9 @@ func GetHostname(b []byte) (hostname string, err error) {
 			nameLen := (int(rest[current]) << 8) + int(rest[current+1])
 			current += 2
 			hostname = string(rest[current : current+nameLen])
+			if len(hostname) > 0 {
+				break
+			}
 		}
 
 		current += extensionDataLength
