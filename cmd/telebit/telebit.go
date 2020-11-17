@@ -162,21 +162,27 @@ func (p *program) Init(env svc.Environment) error {
 
 		os.Stdout = f
 		os.Stderr = f
+		dbg.OutFile = f
+		dbg.ErrFile = f
 		log.SetOutput(f)
 	}
 
 	return nil
 }
 
+var started bool
+
 func (p *program) Start() error {
 	log.Printf("Starting...\n")
-	go fetchDirectivesAndRun()
+	if !started {
+		started = true
+		go fetchDirectivesAndRun()
+	}
 	return nil
 }
 
 func (p *program) Stop() error {
-	log.Printf("Can't stop. Exiting instead.\n")
-	os.Exit(exitOk)
+	log.Printf("Can't stop. Doing nothing instead.\n")
 	return nil
 }
 
@@ -202,7 +208,7 @@ func parseFlagsAndENVs() {
 	var resolvers []string
 	var dnsPropagationDelay time.Duration
 
-	debug := flag.Bool("debug", true, "show debug output")
+	debug := flag.Bool("debug", false, "show debug output")
 	verbose := flag.Bool("verbose", false, "log excessively")
 
 	spfDomain := flag.String("spf-domain", "", "domain with SPF-like list of IP addresses which are allowed to connect to clients")
@@ -237,15 +243,26 @@ func parseFlagsAndENVs() {
 
 	flag.Parse()
 
-	if !dbg.Debug {
-		dbg.Debug = *verbose || *debug
-	}
-
 	if len(*envpath) > 0 {
 		if err := godotenv.Load(*envpath); nil != err {
 			fmt.Fprintf(os.Stderr, "%v", err)
 			os.Exit(exitBadArguments)
 			return
+		}
+	}
+	dbg.Init()
+
+	if !dbg.Verbose {
+		if *verbose {
+			dbg.Verbose = true
+			dbg.Printf("--verbose: extra output enabled")
+		}
+	}
+	if !dbg.Debug {
+		if *debug {
+			dbg.Verbose = true
+			dbg.Debug = true
+			dbg.Printf("--debug: byte output will be printed in full as hex")
 		}
 	}
 

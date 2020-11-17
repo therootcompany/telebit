@@ -2,9 +2,8 @@ package telebit
 
 import (
 	"bufio"
-	"fmt"
+	"encoding/hex"
 	"net"
-	"os"
 	"time"
 
 	"git.rootprojects.org/root/telebit/internal/dbg"
@@ -139,14 +138,14 @@ func (c *ConnWrap) isEncrypted() bool {
 	c.SetDeadline(time.Now().Add(5 * time.Second))
 	n := 6
 	b, err := c.Peek(n)
+	defer c.SetDeadline(time.Time{})
 	if dbg.Debug {
-		fmt.Fprintf(os.Stderr, "[debug] [wrap] Peek(%d): %s %v\n", n, string(b), err)
+		dbg.Debugf("[wrap] Peek(%d): %q %v\n", n, hex.EncodeToString(b), err)
 	}
 	if nil != err {
 		// TODO return error on error?
 		return encrypted
 	}
-	defer c.SetDeadline(time.Time{})
 	if len(b) >= n {
 		// SSL v3.x / TLS v1.x
 		// 0: TLS Byte

@@ -6,14 +6,33 @@ import (
 	"errors"
 )
 
+// ErrNotClientHello happens when the TLS packet is not a ClientHello
+var ErrNotClientHello = errors.New("Not a ClientHello")
+
+// ErrMalformedHello is a failure to parse the ClientHello
+var ErrMalformedHello = errors.New("malformed TLS ClientHello")
+
+// ErrNoExtensions means that SNI is missing from the ClientHello
+var ErrNoExtensions = errors.New("no TLS extensions")
+
 // GetHostname uses SNI to determine the intended target of a new TLS connection.
-func GetHostname(b []byte) (string, error) {
+func GetHostname(b []byte) (hostname string, err error) {
+	// Since this is a hot piece of code (runs frequently)
+	// we protect against out-of-bounds reads with recover
+	// rather than adding additional out-of-bounds checks
+	// in addition to the ones that Go already provides
+	defer func() {
+		if r := recover(); nil != r {
+			err = ErrMalformedHello
+		}
+	}()
 	rest := b[5:]
+	n := len(rest)
 	current := 0
 	handshakeType := rest[0]
 	current++
 	if handshakeType != 0x1 {
-		return "", errors.New("Not a ClientHello")
+		return "", ErrNotClientHello
 	}
 
 	// Skip over another length
@@ -35,14 +54,14 @@ func GetHostname(b []byte) (string, error) {
 	current++
 	current += compressionMethodLength
 
-	if current > len(rest) {
-		return "", errors.New("no extensions")
+	// TODO shouldn't this be current >= n ??
+	if current > n {
+		return "", ErrNoExtensions
 	}
 
 	current += 2
 
-	hostname := ""
-	for current < len(rest) && hostname == "" {
+	for current < n {
 		extensionType := (int(rest[current]) << 8) + int(rest[current+1])
 		current += 2
 

@@ -120,7 +120,7 @@ func (m *RouteMux) Serve(client net.Conn) error {
 		}
 	}
 
-	fmt.Printf("No match found for %q %q\n", wconn.Scheme(), wconn.Servername())
+	fmt.Printf("No match found for scheme=%q servername=%q\n", wconn.Scheme(), wconn.Servername())
 	return client.Close()
 
 	// TODO Chi-style route handling
