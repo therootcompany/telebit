@@ -17,6 +17,7 @@ import (
 	"github.com/go-acme/lego/v3/providers/dns/duckdns"
 	"github.com/go-acme/lego/v3/providers/dns/godaddy"
 	"github.com/go-acme/lego/v3/providers/dns/namedotcom"
+	"github.com/go-chi/chi"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -28,7 +29,17 @@ var (
 	version = "v0.0.0-pre0+0000000"
 	// GitTimestamp refers to the timestamp of the most recent commit
 	date = "0000-00-00T00:00:00+0000"
+
+	// serviceName is the service name
+	serviceName = "telebit-mgmt"
+
+	// serviceDesc
+	serviceDesc = "Telebit Device Management"
 )
+
+func ver() string {
+	return fmt.Sprintf("%s v%s (%s) %s", serviceName, version, commit[:7], date)
+}
 
 var store authstore.Store
 var secret string
@@ -152,7 +163,14 @@ func main() {
 
 	go func() {
 		fmt.Println("Listening for ACME challenges on :" + challengesPort)
-		if err := http.ListenAndServe(":"+challengesPort, mgmt.RouteStatic()); nil != err {
+		r := chi.NewRouter()
+		r.Get("/version", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(ver() + "\n"))
+		})
+		r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte("TODO (json): " + ver() + "\n"))
+		})
+		if err := http.ListenAndServe(":"+challengesPort, mgmt.RouteStatic(r)); nil != err {
 			log.Fatal(err)
 			os.Exit(1)
 		}

@@ -25,6 +25,8 @@ var authorizer Authorizer
 
 // RouteAdmin sets up the API, including the Mgmt proxy and ACME relay
 func RouteAdmin(authURL string, r chi.Router) {
+	var apiPingContent = []byte("{ \"success\": true, \"error\": \"\" }\n")
+
 	authorizer = NewAuthorizer(authURL)
 
 	r.Use(middleware.Logger)
@@ -114,7 +116,6 @@ func RouteAdmin(authURL string, r chi.Router) {
 	})
 }
 
-var apiPingContent = []byte("{ \"success\": true, \"error\": \"\" }\n")
 var apiNotFoundContent = []byte("{ \"error\": \"not found\" }\n")
 var apiNotAuthorizedContent = []byte("{ \"error\": \"not authorized\" }\n")
 

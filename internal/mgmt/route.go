@@ -28,9 +28,7 @@ type MgmtClaims struct {
 var presenters = make(chan *Challenge)
 var cleanups = make(chan *Challenge)
 
-func RouteStatic() chi.Router {
-	r := chi.NewRouter()
-
+func RouteStatic(r chi.Router) chi.Router {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Timeout(15 * time.Second))
 	r.Use(middleware.Recoverer)

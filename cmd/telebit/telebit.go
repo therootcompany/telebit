@@ -73,7 +73,7 @@ var (
 	serviceName = "telebit"
 
 	// serviceDesc
-	serviceDesc = "securely relay traffic through telebit.io"
+	serviceDesc = "Telebit Secure Proxy"
 
 	// defaultRelay should be set when compiled for the client
 	defaultRelay = "" //"https://telebit.app"
@@ -118,6 +118,10 @@ type Config struct {
 }
 
 var config Config
+
+func ver() string {
+	return fmt.Sprintf("%s v%s (%s) %s", serviceName, version, commit[:7], date)
+}
 
 func main() {
 	parseFlagsAndENVs()
@@ -189,7 +193,7 @@ func (p *program) Stop() error {
 func parseFlagsAndENVs() {
 	if len(os.Args) >= 2 {
 		if "version" == strings.TrimLeft(os.Args[1], "-") {
-			fmt.Printf("telebit %s (%s) %s\n", version, commit[:7], date)
+			fmt.Printf("%s\n", ver())
 			os.Exit(exitOk)
 			return
 		}
@@ -740,6 +744,10 @@ func muxAll(
 	if len(config.apiHostname) > 0 {
 		// this is a generic net listener
 		r := chi.NewRouter()
+		r.Get("/version", func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(ver() + "\n"))
+		})
+
 		telebit.RouteAdmin(config.authURL, r)
 		apiListener := tunnel.NewListener()
 		go func() {
