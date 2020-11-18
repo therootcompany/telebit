@@ -24,6 +24,7 @@ import (
 	"git.rootprojects.org/root/telebit/internal/dbg"
 	"git.rootprojects.org/root/telebit/internal/dns01"
 	"git.rootprojects.org/root/telebit/internal/http01"
+	"git.rootprojects.org/root/telebit/internal/http01proxy"
 	"git.rootprojects.org/root/telebit/internal/iplist"
 	"git.rootprojects.org/root/telebit/internal/mgmt"
 	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
@@ -225,9 +226,9 @@ func parseFlagsAndENVs() {
 	acmeDirectory := flag.String("acme-directory", "", "ACME Directory URL")
 	clientSecret := flag.String("secret", "", "the same secret used by telebit-relay (used for JWT authentication)")
 	resolverList := flag.String("dns-resolvers", "", "a list of resolvers in the format 8.8.8.8:53,8.8.4.4:53")
+	proxyHTTP01 := flag.String("proxy-http-01", "", "listen on port 80 and forward .well-known/acme-challenge traffic to this url")
 
 	flag.DurationVar(&dnsPropagationDelay, "dns-01-delay", 0, "add an extra delay after dns self-check to allow DNS-01 challenges to propagate")
-
 	flag.BoolVar(&config.enableHTTP01, "acme-http-01", false, "enable HTTP-01 ACME challenges")
 	flag.BoolVar(&config.enableTLSALPN01, "acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
 	flag.StringVar(&config.logPath, "outfile", "", "where to direct output (default system logger or OS stdout)")
@@ -454,6 +455,10 @@ func parseFlagsAndENVs() {
 		config.token = ""
 	}
 
+	if 0 == len(*proxyHTTP01) {
+		*proxyHTTP01 = os.Getenv("PROXY_HTTP_01")
+	}
+
 	if 0 == len(config.tunnelRelay) {
 		config.tunnelRelay = os.Getenv("TUNNEL_RELAY_URL") // "wss://example.com:443"
 	}
@@ -489,6 +494,15 @@ func parseFlagsAndENVs() {
 	//
 	if 0 == len(config.apiHostname) {
 		config.apiHostname = os.Getenv("API_HOSTNAME")
+	}
+
+	// Proxy for HTTP-01 requests
+	// TODO needs to be limited to .well-known/acme-challenges
+	if len(*proxyHTTP01) > 0 {
+		go func() {
+			fmt.Printf("Proxying HTTP-01 on port 80 to %s\n", *proxyHTTP01)
+			log.Fatalf("%v", http01proxy.ListenAndServe(*proxyHTTP01, 10*time.Second))
+		}()
 	}
 }
 

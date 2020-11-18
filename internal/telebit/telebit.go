@@ -98,6 +98,7 @@ func newReverseProxier(target string, timeout time.Duration, theatre bool) Handl
 			targetQuery := targetURL.RawQuery
 			req.URL.Scheme = targetURL.Scheme
 			req.URL.Host = targetURL.Host
+			req.Host = targetURL.Host
 			req.URL.Path, req.URL.RawPath = joinURLPath(targetURL, req.URL)
 			if targetQuery == "" || req.URL.RawQuery == "" {
 				req.URL.RawQuery = targetQuery + req.URL.RawQuery

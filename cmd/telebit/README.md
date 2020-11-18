@@ -30,6 +30,8 @@ export LISTEN=":443"
 export LOCALS=https:mgmt.example.com:6468
 # --auth-url
 export AUTH_URL=http://localhost:6468/api
+# --proxy-http-01
+export PROXY_HTTP_01=http://mgmt.example.com:6468
 # --acme-agree
 export ACME_AGREE=true
 # --acme-email
