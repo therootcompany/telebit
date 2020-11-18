@@ -33,19 +33,21 @@ func RouteStatic(r chi.Router) chi.Router {
 	r.Use(middleware.Timeout(15 * time.Second))
 	r.Use(middleware.Recoverer)
 
-	r.Get("/.well-known/acme-challenge/{token}", func(w http.ResponseWriter, r *http.Request) {
-		//token := chi.URLParam(r, "token")
-		host := r.Host
-		if strings.ContainsAny(host, "/:|\\") {
-			host = ""
-		}
-		tokenPath := filepath.Join(tmpBase, host)
-
-		fsrv := http.FileServer(http.Dir(tokenPath))
-		fsrv.ServeHTTP(w, r)
-	})
+	r.Get("/.well-known/acme-challenge/{token}", getACMEChallenges)
 
 	return r
+}
+
+func getACMEChallenges(w http.ResponseWriter, r *http.Request) {
+	//token := chi.URLParam(r, "token")
+	host := r.Host
+	if strings.ContainsAny(host, "/:|\\") {
+		host = ""
+	}
+	tokenPath := filepath.Join(tmpBase, host)
+
+	fsrv := http.FileServer(http.Dir(tokenPath))
+	fsrv.ServeHTTP(w, r)
 }
 
 func RouteAll() chi.Router {
@@ -73,6 +75,8 @@ func RouteAll() chi.Router {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Timeout(15 * time.Second))
 	r.Use(middleware.Recoverer)
+
+	r.Get("/.well-known/acme-challenge/{token}", getACMEChallenges)
 
 	r.Route("/api", func(r chi.Router) {
 		r.Use(func(next http.Handler) http.Handler {
