@@ -29,90 +29,94 @@ func RouteAdmin(authURL string, r chi.Router) {
 
 	authorizer = NewAuthorizer(authURL)
 
-	r.Use(middleware.Logger)
-	//r.Use(middleware.Timeout(120 * time.Second))
-	r.Use(middleware.Recoverer)
+	r.Route("/", func(r chi.Router) {
+		r.Use(middleware.Logger)
+		//r.Use(middleware.Timeout(120 * time.Second))
+		r.Use(middleware.Recoverer)
 
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			next.ServeHTTP(w, r)
-		})
-	})
-
-	r.Mount("/ws", http.HandlerFunc(upgradeWebsocket))
-
-	r.HandleFunc("/api/ping", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if dbg.Debug {
-			fmt.Fprintf(os.Stderr, "[debug] hit /api/ping and replying\n")
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(apiPingContent)
-	}))
-
-	parsedAuthURL, err := url.Parse(authURL)
-	if nil != err {
-		panic(err)
-	}
-
-	proxyHandler := httputil.NewSingleHostReverseProxy(parsedAuthURL)
-	proxyHandleFunc := func(w http.ResponseWriter, r *http.Request) {
-		r.URL.Path = strings.TrimPrefix(r.URL.Path, "/api")
-		proxyHandler.ServeHTTP(w, r)
-	}
-
-	// Proxy mgmt server Registration & Authentication
-	r.Get("/api/inspect", proxyHandleFunc)
-	r.Post("/api/register-device", proxyHandleFunc)
-	r.Post("/api/register-device/*", proxyHandleFunc)
-
-	// Proxy mgmt server ACME DNS 01 Challenges
-	r.Get("/api/dns/*", proxyHandleFunc)
-	r.Post("/api/dns/*", proxyHandleFunc)
-	r.Delete("/api/dns/*", proxyHandleFunc)
-	r.Get("/api/http/*", proxyHandleFunc)
-	r.Post("/api/http/*", proxyHandleFunc)
-	r.Delete("/api/http/*", proxyHandleFunc)
-	r.Get("/api/acme-relay/*", proxyHandleFunc)
-	r.Post("/api/acme-relay/*", proxyHandleFunc)
-	r.Delete("/api/acme-relay/*", proxyHandleFunc)
-
-	r.Route("/api", func(r chi.Router) {
-		// TODO token needs a globally unique subject
-
-		r.Use(func(next http.Handler) http.Handler {
-			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				grants, err := authorizer(r)
-				if nil != err {
-					log.Println("authorization failed", err)
-					w.Write(apiNotAuthorizedContent)
-					return
-				}
-
-				// TODO define Admins in a better way
-				if "*" != grants.Subject {
-					log.Println("only admins allowed", err)
-					w.Write(apiNotAuthorizedContent)
-					return
-				}
-
-				next.ServeHTTP(w, r)
+		/*
+			r.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					next.ServeHTTP(w, r)
+				})
 			})
+		*/
+
+		r.Mount("/ws", http.HandlerFunc(upgradeWebsocket))
+
+		r.HandleFunc("/api/ping", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if dbg.Debug {
+				fmt.Fprintf(os.Stderr, "[debug] hit /api/ping and replying\n")
+			}
+			w.Header().Set("Content-Type", "application/json")
+			w.Write(apiPingContent)
+		}))
+
+		parsedAuthURL, err := url.Parse(authURL)
+		if nil != err {
+			panic(err)
+		}
+
+		proxyHandler := httputil.NewSingleHostReverseProxy(parsedAuthURL)
+		proxyHandleFunc := func(w http.ResponseWriter, r *http.Request) {
+			r.URL.Path = strings.TrimPrefix(r.URL.Path, "/api")
+			proxyHandler.ServeHTTP(w, r)
+		}
+
+		// Proxy mgmt server Registration & Authentication
+		r.Get("/api/inspect", proxyHandleFunc)
+		r.Post("/api/register-device", proxyHandleFunc)
+		r.Post("/api/register-device/*", proxyHandleFunc)
+
+		// Proxy mgmt server ACME DNS 01 Challenges
+		r.Get("/api/dns/*", proxyHandleFunc)
+		r.Post("/api/dns/*", proxyHandleFunc)
+		r.Delete("/api/dns/*", proxyHandleFunc)
+		r.Get("/api/http/*", proxyHandleFunc)
+		r.Post("/api/http/*", proxyHandleFunc)
+		r.Delete("/api/http/*", proxyHandleFunc)
+		r.Get("/api/acme-relay/*", proxyHandleFunc)
+		r.Post("/api/acme-relay/*", proxyHandleFunc)
+		r.Delete("/api/acme-relay/*", proxyHandleFunc)
+
+		r.Route("/api", func(r chi.Router) {
+			// TODO token needs a globally unique subject
+
+			r.Use(func(next http.Handler) http.Handler {
+				return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					grants, err := authorizer(r)
+					if nil != err {
+						log.Println("authorization failed", err)
+						w.Write(apiNotAuthorizedContent)
+						return
+					}
+
+					// TODO define Admins in a better way
+					if "*" != grants.Subject {
+						log.Println("only admins allowed", err)
+						w.Write(apiNotAuthorizedContent)
+						return
+					}
+
+					next.ServeHTTP(w, r)
+				})
+			})
+
+			r.Get("/subscribers", getAllSubscribers)
+			r.Get("/subscribers/{subject}", getSubscribers)
+			r.Delete("/subscribers/{subject}", delSubscribers)
+			r.NotFound(apiNotFoundHandler)
 		})
 
-		r.Get("/subscribers", getAllSubscribers)
-		r.Get("/subscribers/{subject}", getSubscribers)
-		r.Delete("/subscribers/{subject}", delSubscribers)
-		r.NotFound(apiNotFoundHandler)
-	})
-
-	adminUI := http.FileServer(admin.AdminFS)
-	r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-		//rctx := chi.RouteContext(r.Context())
-		//pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
-		//fs := http.StripPrefix(pathPrefix, http.FileServer(root))
-		fmt.Println("Request Path:", r.URL.Path)
-		adminUI.ServeHTTP(w, r)
+		adminUI := http.FileServer(admin.AdminFS)
+		r.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+			//rctx := chi.RouteContext(r.Context())
+			//pathPrefix := strings.TrimSuffix(rctx.RoutePattern(), "/*")
+			//fs := http.StripPrefix(pathPrefix, http.FileServer(root))
+			fmt.Println("Request Path:", r.URL.Path)
+			adminUI.ServeHTTP(w, r)
+		})
 	})
 }
 

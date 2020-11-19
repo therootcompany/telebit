@@ -29,11 +29,14 @@ var presenters = make(chan *Challenge)
 var cleanups = make(chan *Challenge)
 
 func RouteStatic(r chi.Router) chi.Router {
-	r.Use(middleware.Logger)
-	r.Use(middleware.Timeout(15 * time.Second))
-	r.Use(middleware.Recoverer)
+	r.Route("/", func(r chi.Router) {
 
-	r.Get("/.well-known/acme-challenge/{token}", getACMEChallenges)
+		r.Use(middleware.Logger)
+		r.Use(middleware.Timeout(15 * time.Second))
+		r.Use(middleware.Recoverer)
+
+		r.Get("/.well-known/acme-challenge/{token}", getACMEChallenges)
+	})
 
 	return r
 }
