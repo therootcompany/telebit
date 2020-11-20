@@ -68,8 +68,8 @@ func main() {
 		"port to listen to (default localhost 3000)")
 	flag.StringVar(&lnAddr, "listen", "",
 		"IPv4 or IPv6 bind address + port (instead of --port)")
-	flag.StringVar(&challengesPort, "challenges-port", "80",
-		"port to use to respond to .well-known/acme-challenge tokens")
+	flag.StringVar(&challengesPort, "challenges-port", "",
+		"port to use to respond to .well-known/acme-challenge tokens (should be 80, if used)")
 	flag.StringVar(&dbURL, "db-url", "postgres://postgres:postgres@localhost:5432/postgres",
 		"database (postgres) connection url")
 	flag.StringVar(&secret, "secret", "",
@@ -161,23 +161,33 @@ func main() {
 
 	mgmt.Init(store, provider)
 
-	go func() {
-		fmt.Println("Listening for ACME challenges on :" + challengesPort)
-		r := chi.NewRouter()
-		r.Get("/version", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(ver() + "\n"))
-		})
-		r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte("TODO (json): " + ver() + "\n"))
-		})
-		if err := http.ListenAndServe(":"+challengesPort, mgmt.RouteStatic(r)); nil != err {
-			log.Fatal(err)
-			os.Exit(1)
-		}
-	}()
+	if len(challengesPort) > 0 {
+		go func() {
+			fmt.Println("Listening for ACME challenges on :" + challengesPort)
+			r := chi.NewRouter()
+			r.Get("/version", func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte(ver() + "\n"))
+			})
+			r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
+				w.Write([]byte("TODO (json): " + ver() + "\n"))
+			})
+			if err := http.ListenAndServe(":"+challengesPort, mgmt.RouteStatic(r)); nil != err {
+				log.Fatal(err)
+				os.Exit(1)
+			}
+		}()
+	}
 
 	fmt.Println("Listening on", lnAddr)
-	fmt.Fprintf(os.Stderr, "failed: %s", http.ListenAndServe(lnAddr, mgmt.RouteAll()))
+	r := chi.NewRouter()
+	r.Get("/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(ver() + "\n"))
+	})
+	r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("TODO (json): " + ver() + "\n"))
+	})
+	mgmt.RouteAll(r)
+	fmt.Fprintf(os.Stderr, "failed: %s", http.ListenAndServe(lnAddr, r))
 }
 
 // newNameDotComDNSProvider is for the sake of demoing the tunnel
