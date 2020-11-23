@@ -497,7 +497,7 @@ func parseFlagsAndENVs() {
 	}
 
 	// Proxy for HTTP-01 requests
-	// TODO needs to be limited to .well-known/acme-challenges
+	// TODO needs to be limited to .well-known/acme-challenge
 	if len(*proxyHTTP01) > 0 {
 		go func() {
 			fmt.Printf("Proxying HTTP-01 on port 80 to %s\n", *proxyHTTP01)

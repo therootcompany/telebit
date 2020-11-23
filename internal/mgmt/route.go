@@ -44,12 +44,15 @@ func RouteStatic(r chi.Router) chi.Router {
 func getACMEChallenges(w http.ResponseWriter, r *http.Request) {
 	//token := chi.URLParam(r, "token")
 	host := r.Host
-	xHost := r.Header.Get("X-Forwarded-Host")
-	log.Printf("[debug] Host: %q\n[debug] X-Host: %q", host, xHost)
-	if len(xHost) > 0 {
+	/*
 		// TODO TrustProxy option?
-		host = xHost
-	}
+		xHost := r.Header.Get("X-Forwarded-Host")
+		//log.Printf("[debug] Host: %q\n[debug] X-Host: %q", host, xHost)
+		if len(xHost) > 0 {
+			host = xHost
+		}
+	*/
+
 	if strings.ContainsAny(host, "/:|\\") {
 		host = ""
 	}

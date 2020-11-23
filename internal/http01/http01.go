@@ -127,6 +127,7 @@ func (s *Solver) doRequest(method, uri string, msg interface{}) error {
 		req.Header.Set("Authorization", "Bearer "+apiToken)
 	}
 
+	//fmt.Printf("curl -X %s %s \\\n    -H 'Authorization: Bearer %s' \\\n    -d '%s'\n\n", method, endpoint.String(), apiToken, string(data))
 	resp, err := s.config.HTTPClient.Do(req)
 	if err != nil {
 		return err

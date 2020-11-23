@@ -1,7 +1,6 @@
 package http01proxy
 
 import (
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -29,21 +28,31 @@ func ListenAndServe(target string, timeout time.Duration) error {
 
 			// We want the incoming host header to remain unchanged,
 			// which is the domain name that is being challenged
-			log.Printf("[debug] Incoming Host: %q", req.Host)
-			log.Printf("[debug] Incoming URL.Host: %q", req.URL.Host)
-			log.Printf("[debug] Incoming Header.Host: %q", req.Header.Get("Host"))
+			// This is the ORIGINAL req.Header.Host
+			//log.Printf("[debug] Incoming Host: %q", req.Host)
+			// This will always be an empty string ""
+			//log.Printf("[debug] Incoming URL.Host: %q", req.URL.Host)
+			// This will always be an empty string ""
+			//log.Printf("[debug] Incoming Header.Host: %q", req.Header.Get("Host"))
+
+			// This will become the HTTP Host header
+			//req.Host
 
 			targetQuery := targetURL.RawQuery
-			req.URL.Scheme = targetURL.Scheme
-			// But we want the proxy target to be updated to the new target
-			//req.Host = targetURL.Host
-			req.URL.Host = targetURL.Host
-			req.URL.Path, req.URL.RawPath = joinURLPath(targetURL, req.URL)
 
-			//log.Printf("[debug] Target Host: %q", req.Host)
-			log.Printf("[debug] Target URL.Host: %q", req.URL.Host)
-			log.Printf("[debug] Target URL.Path: %q", req.URL.Path)
-			log.Printf("[debug] Target URL.RawPath: %q", req.URL.Path)
+			// This will change the scheme (http/s) used to connect to the target
+			req.URL.Scheme = targetURL.Scheme
+			//log.Printf("[debug] Target URL.Scheme: %q", req.URL.Scheme)
+
+			// This will change the network host target
+			// but will NOT change the HTTP Host header
+			req.URL.Host = targetURL.Host
+			//log.Printf("[debug] Target URL.Host: %q", req.URL.Host)
+
+			// This will add the target prefix to the original url
+			req.URL.Path, req.URL.RawPath = joinURLPath(targetURL, req.URL)
+			//log.Printf("[debug] Target URL.Path: %q", req.URL.Path)
+			//log.Printf("[debug] Target URL.RawPath: %q", req.URL.Path)
 
 			if targetQuery == "" || req.URL.RawQuery == "" {
 				req.URL.RawQuery = targetQuery + req.URL.RawQuery
