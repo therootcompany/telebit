@@ -45,7 +45,7 @@ func getACMEChallenges(w http.ResponseWriter, r *http.Request) {
 	//token := chi.URLParam(r, "token")
 	host := r.Host
 	xHost := r.Header.Get("X-Forwarded-Host")
-	fmt.Printf("[debug] Host: %q\n[debug] X-Host: %q", host, xHost)
+	log.Printf("[debug] Host: %q\n[debug] X-Host: %q", host, xHost)
 	if len(xHost) > 0 {
 		// TODO TrustProxy option?
 		host = xHost
