@@ -1,6 +1,7 @@
 package http01proxy
 
 import (
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -24,13 +25,23 @@ func ListenAndServe(target string, timeout time.Duration) error {
 			req.Header.Del("X-Forwarded-For")
 			req.Header.Del("X-Forwarded-Proto")
 			req.Header.Del("X-Forwarded-Port")
+			req.Header.Del("X-Forwarded-Host")
+
+			// We want the incoming host header to remain unchanged,
+			// which is the domain name that is being challenged
+			log.Printf("[debug] Incoming Host: %q", req.Header.Get("Host"))
+			req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
 
 			targetQuery := targetURL.RawQuery
 			req.URL.Scheme = targetURL.Scheme
+			// But we want the proxy target to be updated to the new target
 			req.URL.Host = targetURL.Host
-			req.Host = targetURL.Host
-			//req.Header.Set("Host", targetURL.Host)
+			//req.Host = targetURL.Host
 			req.URL.Path, req.URL.RawPath = joinURLPath(targetURL, req.URL)
+
+			log.Printf("[debug] Target Host: %q", req.URL.Host)
+			log.Printf("[debug] Target Path: %q", req.URL.Path)
+			log.Printf("[debug] Target RawPath: %q", req.URL.Path)
 
 			if targetQuery == "" || req.URL.RawQuery == "" {
 				req.URL.RawQuery = targetQuery + req.URL.RawQuery
