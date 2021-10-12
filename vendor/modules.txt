@@ -89,7 +89,7 @@ github.com/jcmturner/gokrb5/v8/types
 # github.com/jcmturner/rpc/v2 v2.0.2
 github.com/jcmturner/rpc/v2/mstypes
 github.com/jcmturner/rpc/v2/ndr
-# github.com/jmoiron/sqlx v1.2.1-0.20190826204134-d7d95172beb5
+# github.com/jmoiron/sqlx v1.3.4
 ## explicit
 github.com/jmoiron/sqlx
 github.com/jmoiron/sqlx/reflectx
