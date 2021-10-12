@@ -87,8 +87,8 @@ pushd telebit/
 You can build with `go build`:
 
 ```bash
-go generate -mod=vendor ./...
-go build -mod vendor -race -o telebit cmd/telebit/*.go
+go generate -mod=vendor -tags postgres ./...
+go build -mod vendor -tags postgres -race -o telebit cmd/telebit/*.go
 ```
 
 Or with `goreleaser`:
