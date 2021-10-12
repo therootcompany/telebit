@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	"git.rootprojects.org/root/telebit/assets/files"
@@ -16,8 +17,21 @@ import (
 
 var initSQL = "./postgres.init.sql"
 
-func NewStore(pgURL, initSQL string) (Store, error) {
+func NewStore(dbURL, initSQL string) (Store, error) {
 	// https://godoc.org/github.com/lib/pq
+
+	// TODO url.Parse
+	if !strings.Contains(dbURL, "sslmode=") {
+		sep := "?"
+		if strings.Contains(connStr, sep) {
+			sep = "&"
+		}
+		if strings.Contains(connStr, "@localhost/") || strings.Contains(connStr, "@localhost:") {
+			connStr += sep + "sslmode=disable"
+		} else {
+			connStr += sep + "sslmode=required"
+		}
+	}
 
 	f, err := files.Open(initSQL)
 	if nil != err {

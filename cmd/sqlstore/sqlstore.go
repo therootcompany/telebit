@@ -10,10 +10,18 @@ import (
 
 func main() {
 	connStr := "postgres://postgres:postgres@localhost:5432/postgres"
-	if strings.Contains(connStr, "@localhost/") || strings.Contains(connStr, "@localhost:") {
-		connStr += "?sslmode=disable"
-	} else {
-		connStr += "?sslmode=required"
+
+	if !strings.Contains(connStr, "sslmode=") {
+		sep := "?"
+		if strings.Contains(connStr, sep) {
+			sep = "&"
+		}
+		if strings.Contains(connStr, "@localhost/") ||
+			strings.Contains(connStr, "@localhost:") {
+			connStr += sep + "sslmode=disable"
+		} else {
+			connStr += sep + "sslmode=required"
+		}
 	}
 
 	store, err := authstore.NewStore(connStr, initSQL)

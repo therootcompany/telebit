@@ -143,15 +143,7 @@ func main() {
 		return
 	}
 
-	connStr := dbURL
-	// TODO url.Parse
-	if strings.Contains(connStr, "@localhost/") || strings.Contains(connStr, "@localhost:") {
-		connStr += "?sslmode=disable"
-	} else {
-		connStr += "?sslmode=required"
-	}
-
-	store, err = authstore.NewStore(connStr, mgmt.InitSQL)
+	store, err = authstore.NewStore(dbURL, mgmt.InitSQL)
 	if nil != err {
 		log.Fatal("connection error", err)
 		return
