@@ -78,6 +78,12 @@ var (
 
 	// defaultRelay should be set when compiled for the client
 	defaultRelay = "" //"https://telebit.app"
+
+	// exitAfter will cause the program to forcefully exit after the given duration
+	exitAfter time.Duration
+
+	// exitAt will cause the program to forcefully exit at the given time
+	exitAt string
 )
 
 var bindAddrs []string
@@ -136,11 +142,86 @@ func main() {
 		}
 	}()
 
+	if len(exitAt) > 0 || exitAfter > 0 {
+		go func() {
+			// ex: "Nov 1st, 2021 11:30pm"
+			start := time.Now()
+			end, d, err := getEnd(start, exitAt, exitAfter)
+			if nil != err {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(exitBadArguments)
+				return
+			}
+
+			for {
+				time.Sleep(1 * time.Minute)
+				now := time.Now()
+				// check monotonic time (duration)
+				if now.Sub(start) > d || now.Sub(end) > 0 {
+					break
+				}
+				// check wall clock time
+				if now.UTC().Format(time.RFC3339) > end.UTC().Format(time.RFC3339) {
+					break
+				}
+			}
+
+			// TODO does this restart automatically?
+			prg.Stop()
+			os.Exit(exitRetry)
+		}()
+	}
+
 	// call svc.Run to start your program/service
 	// svc.Run will call Init, Start, and Stop
 	if err := svc.Run(&prg); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func getEnd(start time.Time, exitAt string, exitAfter time.Duration) (time.Time, time.Duration, error) {
+	var end time.Time
+
+	if exitAfter > 0 {
+		if 0 == len(exitAt) {
+			end = start.Add(exitAfter)
+		}
+	}
+
+	if len(exitAt) > 0 {
+		// ex: "2:30am"
+		clock, err := time.Parse(exitAt, time.Kitchen)
+		if nil != err {
+			clock, err = time.Parse(exitAt, "15:04")
+			if nil != err {
+				return time.Time{}, 0, fmt.Errorf("could not parse --exit-at='%v'", exitAt)
+			}
+		}
+		// ex: "Nov 1st, 2021 2:30am"
+		end = time.Date(
+			start.Year(), start.Month(), start.Day(),
+			clock.Hour(), clock.Minute(), 0, 0,
+			start.Location(),
+		)
+		// ex: "-21h"
+		diff := end.Sub(start)
+		if diff < 0 {
+			// ex: "Nov 2nd, 2021 2:30am"
+			end = end.Add(24 * time.Hour)
+			end = time.Date(
+				end.Year(), end.Month(), end.Day(),
+				clock.Hour(), clock.Minute(), 0, 0,
+				end.Location(),
+			)
+			// ex: "3h"
+			diff = end.Sub(start)
+		}
+		if 0 == exitAfter {
+			exitAfter = diff
+		}
+	}
+
+	return end, exitAfter, nil
 }
 
 // implements svc.Service
@@ -188,6 +269,7 @@ func (p *program) Start() error {
 
 func (p *program) Stop() error {
 	log.Printf("Can't stop. Doing nothing instead.\n")
+	// TODO telebit.Shutdown()
 	return nil
 }
 
@@ -241,10 +323,13 @@ func parseFlagsAndENVs() {
 	flag.StringVar(&config.token, "token", "", "an auth token for the server (instead of generating --secret); use --token=false to ignore any $TOKEN in env")
 	flag.DurationVar(&config.leeway, "leeway", 15*time.Minute, "allow for time drift / skew (hard-coded to 15 minutes)")
 
-	bindAddrsStr := flag.String("listen", "", "list of bind addresses on which to listen, such as localhost:80, or :443")
+	bindAddrsStr := flag.String("listen", "", "list of bind addresses on which to listenfor relay clients, such as localhost:80, or :443")
 	tlsLocals := flag.String("tls-locals", "", "like --locals, but TLS will be used to connect to the local port")
-	locals := flag.String("locals", "", "a list of <from-domain>:<to-port>")
+	locals := flag.String("locals", "", "a list of <from-domain>:<to-port> to use as reverse proxy")
 	portToPorts := flag.String("port-forward", "", "a list of <from-port>:<to-port> for raw port-forwarding")
+
+	flag.DurationVar(&exitAfter, "exit-after", 0, "force quite after the specified duration")
+	flag.StringVar(&exitAt, "exit-at", "", "force quite after the specified time (ex: 15:04)")
 
 	flag.Parse()
 

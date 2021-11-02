@@ -175,6 +175,10 @@ Usage of telebit:
     	a list of resolvers in the format 8.8.8.8:53,8.8.4.4:53
   --env string
     	path to .env file
+  --exit-after string (such as "12h")
+      forcefully exit after the given duration
+  --exit-at string (such as "15:04")
+      forcefully exit at the given wall clock time
   --leeway duration
     	allow for time drift / skew (hard-coded to 15 minutes) (default 15m0s)
   LISTEN
