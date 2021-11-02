@@ -23,13 +23,13 @@ func NewStore(dbURL, initSQL string) (Store, error) {
 	// TODO url.Parse
 	if !strings.Contains(dbURL, "sslmode=") {
 		sep := "?"
-		if strings.Contains(connStr, sep) {
+		if strings.Contains(dbURL, sep) {
 			sep = "&"
 		}
-		if strings.Contains(connStr, "@localhost/") || strings.Contains(connStr, "@localhost:") {
-			connStr += sep + "sslmode=disable"
+		if strings.Contains(dbURL, "@localhost/") || strings.Contains(dbURL, "@localhost:") {
+			dbURL += sep + "sslmode=disable"
 		} else {
-			connStr += sep + "sslmode=required"
+			dbURL += sep + "sslmode=required"
 		}
 	}
 
@@ -46,7 +46,7 @@ func NewStore(dbURL, initSQL string) (Store, error) {
 
 	ctx, done := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 	defer done()
-	db, err := sql.Open(dbtype, pgURL)
+	db, err := sql.Open(dbtype, dbURL)
 	if err := db.PingContext(ctx); nil != err {
 		return nil, err
 	}
