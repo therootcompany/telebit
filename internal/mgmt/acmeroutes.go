@@ -1,17 +1,18 @@
 package mgmt
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
+
+	"git.rootprojects.org/root/telebit/internal/http01fs"
 
 	"github.com/go-acme/lego/v3/challenge"
 	"github.com/go-chi/chi"
+	"github.com/mholt/acmez/acme"
 )
 
 const (
@@ -65,12 +66,20 @@ func handleDNSRoutes(r chi.Router) {
 	r.Route("/http", handleACMEChallenges)
 }
 
+func isSlugAllowed(domain, slug string) bool {
+	if "*" == slug {
+		return true
+	}
+	// ex: "abc.devices.example.com" has prefix "abc."
+	return strings.HasPrefix(domain, slug+".")
+}
+
 func createChallenge(w http.ResponseWriter, r *http.Request) {
 	domain := chi.URLParam(r, "domain")
 
 	ctx := r.Context()
 	claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
-	if !ok || !strings.HasPrefix(domain+".", claims.Slug) {
+	if !ok || !isSlugAllowed(domain, claims.Slug) {
 		msg := `{ "error": "invalid domain", "code":"E_BAD_REQUEST"}`
 		http.Error(w, msg+"\n", http.StatusUnprocessableEntity)
 		return
@@ -94,10 +103,15 @@ func createChallenge(w http.ResponseWriter, r *http.Request) {
 	if "" == ch.Token || "" == ch.KeyAuth {
 		err = errors.New("missing token and/or key auth")
 	} else if strings.Contains(ch.Type, "http") {
-		challengeBase := filepath.Join(tmpBase, ch.Domain, ".well-known/acme-challenge")
-		_ = os.MkdirAll(challengeBase, 0700)
-		tokenPath := filepath.Join(challengeBase, ch.Token)
-		err = ioutil.WriteFile(tokenPath, []byte(ch.KeyAuth), 0600)
+		provider := &http01fs.Provider
+		provider.Present(context.Background(), acme.Challenge{
+			Token:            ch.Token,
+			KeyAuthorization: ch.KeyAuth,
+			Identifier: acme.Identifier{
+				Value: ch.Domain,
+				Type:  "dns", // TODO is this correct??
+			},
+		})
 	} else {
 		// TODO some additional error checking before the handoff
 		//ch.error = make(chan error, 1)
@@ -120,6 +134,7 @@ func deleteChallenge(w http.ResponseWriter, r *http.Request) {
 	// TODO authenticate
 
 	ch := Challenge{
+		Type:    chi.URLParam(r, "challengeType"),
 		Domain:  chi.URLParam(r, "domain"),
 		Token:   chi.URLParam(r, "token"),
 		KeyAuth: chi.URLParam(r, "keyAuth"),
@@ -131,10 +146,17 @@ func deleteChallenge(w http.ResponseWriter, r *http.Request) {
 	if "" == ch.Token || "" == ch.KeyAuth {
 		err = errors.New("missing token and/or key auth")
 	} else if strings.Contains(ch.Type, "http") {
-		// always try to remove, as there's no harm
-		tokenPath := filepath.Join(tmpBase, ch.Domain, challengeDir, ch.Token)
-		_ = os.Remove(tokenPath)
+		provider := &http01fs.Provider
+		provider.CleanUp(context.Background(), acme.Challenge{
+			Token:            ch.Token,
+			KeyAuthorization: ch.KeyAuth,
+			Identifier: acme.Identifier{
+				Value: ch.Domain,
+				Type:  "dns", // TODO is this correct??
+			},
+		})
 	} else {
+		// TODO what if DNS-01 is not enabled?
 		cleanups <- &ch
 		err = <-ch.error
 	}

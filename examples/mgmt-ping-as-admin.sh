@@ -4,13 +4,15 @@ set -e
 set -u
 
 source .env
-MGMT_URL="${MGMT_URL:-"http://localhost:3000/api"}"
+MGMT_PORT="${MGMT_PORT:-3000}"
+MGMT_URL="${MGMT_URL:-"http://localhost:${MGMT_PORT}/api"}"
 
-TOKEN=$(go run cmd/signjwt/*.go \
-    --expires-in 1m \
-    --vendor-id "$VENDOR_ID" \
-    --secret "$RELAY_SECRET" \
-    --machine-ppid "$RELAY_SECRET"
+TOKEN=$(
+    go run cmd/signjwt/*.go \
+        --expires-in 1m \
+        --vendor-id "$VENDOR_ID" \
+        --secret "$RELAY_SECRET" \
+        --machine-ppid "$RELAY_SECRET"
 )
 
 echo "MGMT URL: $MGMT_URL"

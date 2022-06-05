@@ -83,7 +83,7 @@ func (s *PGStore) SetMaster(secret string) error {
 			machine_ppid=$1,
 			shared_key=$1,
 			public_key=$2,
-      deleted_at='1970-01-01 00:00:00'
+			deleted_at='1970-01-01 00:00:00'
 		WHERE slug = '*'
 	`
 	_, err = s.dbx.ExecContext(ctx, query, auth.MachinePPID, auth.PublicKey)
@@ -223,6 +223,7 @@ func (s *PGStore) Get(id string) (*Authorization, error) {
 	`
 	// if the id is actually the secret, we want the public form
 	// (we do this to protect against a timing attack)
+	kid := id
 	pubby := ToPublicKeyString(id)
 	if len(id) > 24 {
 		id = id[:24]

@@ -69,8 +69,12 @@ func RouteAll(r chi.Router) {
 			// TODO make parallel?
 			// TODO make cancellable?
 			ch := <-presenters
-			err := provider.Present(ch.Domain, ch.Token, ch.KeyAuth)
-			ch.error <- err
+			if nil != provider {
+				err := provider.Present(ch.Domain, ch.Token, ch.KeyAuth)
+				ch.error <- err
+			} else {
+				ch.error <- fmt.Errorf("missing acme challenge provider for present")
+			}
 		}
 	}()
 
@@ -79,7 +83,11 @@ func RouteAll(r chi.Router) {
 			// TODO make parallel?
 			// TODO make cancellable?
 			ch := <-cleanups
-			ch.error <- provider.CleanUp(ch.Domain, ch.Token, ch.KeyAuth)
+			if nil != provider {
+				ch.error <- provider.CleanUp(ch.Domain, ch.Token, ch.KeyAuth)
+			} else {
+				ch.error <- fmt.Errorf("missing acme challenge provider for cleanup")
+			}
 		}
 	}()
 

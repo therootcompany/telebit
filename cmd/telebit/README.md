@@ -47,6 +47,19 @@ See [`examples/relay.env`][relay-env] for detail explanations.
 
 Note: It is not necessary to specify the `--flags` when using the ENVs.
 
+## API
+
+### Discovery
+
+Each telebit relay with expose its discovery endpoint at
+
+- `.well-known/telebit.app/index.json`
+
+The response will look something like
+
+```json
+```
+
 ## System Services
 
 You can use `serviceman` to run `postgres`, `telebit`, and `telebit-mgmt` as system services

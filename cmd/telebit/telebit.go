@@ -314,7 +314,7 @@ func parseFlagsAndENVs() {
 	flag.BoolVar(&config.enableHTTP01, "acme-http-01", false, "enable HTTP-01 ACME challenges")
 	flag.BoolVar(&config.enableTLSALPN01, "acme-tls-alpn-01", false, "enable TLS-ALPN-01 ACME challenges")
 	flag.StringVar(&config.logPath, "outfile", "", "where to direct output (default system logger or OS stdout)")
-	flag.StringVar(&config.acmeRelay, "acme-relay-url", "", "the base url of the ACME relay, if different from relay's directives")
+	flag.StringVar(&config.acmeRelay, "acme-relay-url", "", "the base url of the ACME relay, if different from telebit relay's directives")
 	flag.StringVar(&config.acmeDNS01Relay, "acme-dns-01-relay-url", "", "the base url of the ACME DNS-01 relay, if different from ACME relay")
 	flag.StringVar(&config.acmeHTTP01Relay, "acme-http-01-relay-url", "", "the base url of the ACME HTTP-01 relay, if different from ACME relay")
 	flag.StringVar(&config.authURL, "auth-url", "", "the base url for authentication, if not the same as the tunnel relay")
@@ -592,10 +592,15 @@ func parseFlagsAndENVs() {
 }
 
 func tokener() string {
+	secret := config.pairwiseSecret
+	if 0 == len(config.tunnelRelay) {
+		secret = ClientSecret
+	}
+
 	token := config.token
 	if 0 == len(token) {
 		var err error
-		token, err = authstore.HMACToken(config.pairwiseSecret, config.leeway)
+		token, err = authstore.HMACToken(secret, config.leeway)
 		if dbg.Debug {
 			fmt.Printf("[debug] app_id: %q\n", VendorID)
 			//fmt.Printf("[debug] client_secret: %q\n", ClientSecret)
