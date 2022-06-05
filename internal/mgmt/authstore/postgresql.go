@@ -223,7 +223,6 @@ func (s *PGStore) Get(id string) (*Authorization, error) {
 	`
 	// if the id is actually the secret, we want the public form
 	// (we do this to protect against a timing attack)
-	kid := id
 	pubby := ToPublicKeyString(id)
 	if len(id) > 24 {
 		id = id[:24]
