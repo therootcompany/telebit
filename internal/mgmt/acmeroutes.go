@@ -50,7 +50,7 @@ func (p *acmeProvider) CleanUp(domain, token, keyAuth string) error {
 	return p.provider.CleanUp(domain, token, keyAuth)
 }
 
-func handleDNSRoutes(r chi.Router) {
+func handleACMEChallengeRoutes(r chi.Router) {
 	handleACMEChallenges := func(r chi.Router) {
 		r.Post("/{domain}", createChallenge)
 

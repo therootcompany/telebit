@@ -53,6 +53,7 @@ func getACMEChallenges(w http.ResponseWriter, r *http.Request) {
 		}
 	*/
 
+	// disallow FS characters
 	if strings.ContainsAny(host, "/:|\\") {
 		host = ""
 	}
@@ -186,7 +187,7 @@ func RouteAll(r chi.Router) {
 				})
 			})
 
-			handleDNSRoutes(r)
+			handleACMEChallengeRoutes(r)
 			handleDeviceRoutes(r)
 
 			r.Get("/inspect", func(w http.ResponseWriter, r *http.Request) {
