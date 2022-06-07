@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"git.rootprojects.org/root/telebit/internal/authutil"
 	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
 
 	"github.com/go-chi/chi"
@@ -21,7 +22,7 @@ func handleDeviceRoutes(r chi.Router) {
 		r.Use(func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				ctx := r.Context()
-				claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
+				claims, ok := ctx.Value(authutil.MWKey("claims")).(*authutil.Claims)
 				if !ok || "*" != claims.Slug {
 					msg := `{"error":"missing or invalid authorization token", "code":"E_TOKEN"}`
 					http.Error(w, msg+"\n", http.StatusUnprocessableEntity)

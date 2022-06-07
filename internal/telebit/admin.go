@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"git.rootprojects.org/root/telebit/assets/admin"
+	"git.rootprojects.org/root/telebit/internal/authutil"
 	"git.rootprojects.org/root/telebit/internal/dbg"
 
 	"github.com/go-chi/chi"
@@ -88,14 +89,14 @@ func RouteAdmin(authURL string, r chi.Router) {
 					grants, err := authorizer(r)
 					if nil != err {
 						log.Println("authorization failed", err)
-						w.Write(apiNotAuthorizedContent)
+						w.Write(authutil.NotAuthorizedContent)
 						return
 					}
 
 					// TODO define Admins in a better way
 					if "*" != grants.Subject {
 						log.Println("only admins allowed", err)
-						w.Write(apiNotAuthorizedContent)
+						w.Write(authutil.NotAuthorizedContent)
 						return
 					}
 
@@ -121,7 +122,6 @@ func RouteAdmin(authURL string, r chi.Router) {
 }
 
 var apiNotFoundContent = []byte("{ \"error\": \"not found\" }\n")
-var apiNotAuthorizedContent = []byte("{ \"error\": \"not authorized\" }\n")
 
 func apiNotFoundHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(apiNotFoundContent)
@@ -232,7 +232,7 @@ func upgradeWebsocket(w http.ResponseWriter, r *http.Request) {
 	grants, err := authorizer(r)
 	if nil != err {
 		log.Println("WebSocket authorization failed", err)
-		w.Write(apiNotAuthorizedContent)
+		w.Write(authutil.NotAuthorizedContent)
 		return
 	}
 

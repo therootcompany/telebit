@@ -709,7 +709,7 @@ func fetchDirectivesAndRun() {
 			return
 		}
 
-		err = mgmt.Ping(config.authURL, token)
+		err = authutil.Ping(config.authURL, token)
 		if nil != err {
 			fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s\n", err)
 			//os.Exit(exitRetry)
@@ -722,7 +722,7 @@ func fetchDirectivesAndRun() {
 					// re-create token unless no secret was supplied
 					token, err = authstore.HMACToken(config.pairwiseSecret, config.leeway)
 				}
-				err = mgmt.Ping(config.authURL, token)
+				err = authutil.Ping(config.authURL, token)
 				if nil != err {
 					fmt.Fprintf(os.Stderr, "failed to ping mgmt server: %s\n", err)
 					//os.Exit(exitRetry)

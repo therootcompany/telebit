@@ -1,13 +1,10 @@
 package telebit
 
 import (
-	"bytes"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -16,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"git.rootprojects.org/root/telebit/internal/dbg"
 	httpshim "git.rootprojects.org/root/telebit/internal/tunnel"
 
 	"github.com/coolaj86/certmagic"
@@ -47,9 +43,6 @@ type Handler interface {
 
 // HandlerFunc should handle, proxy, or terminate the connection
 type HandlerFunc func(net.Conn) error
-
-// Authorizer is called when a new client connects and we need to know something about it
-type Authorizer func(*http.Request) (*Grants, error)
 
 // Serve calls f(conn).
 func (f HandlerFunc) Serve(conn net.Conn) error {
@@ -415,6 +408,7 @@ func TerminateTLS(client net.Conn, acme *ACME) net.Conn {
 	}
 }
 
+// NewCertMagic creates our flavor of a CertMagic instance
 func NewCertMagic(acme *ACME) (*certmagic.Config, error) {
 	if !acme.Agree {
 		fmt.Fprintf(
@@ -457,69 +451,4 @@ func NewCertMagic(acme *ACME) (*certmagic.Config, error) {
 
 	magic.Issuer = certmagic.NewACMEManager(magic, manager)
 	return magic, nil
-}
-
-type Grants struct {
-	Subject  string   `json:"sub"`
-	Audience string   `json:"aud"`
-	Domains  []string `json:"domains"`
-	Ports    []int    `json:"ports"`
-}
-
-func Inspect(authURL, token string) (*Grants, error) {
-	inspectURL := strings.TrimSuffix(authURL, "/inspect") + "/inspect"
-	if dbg.Debug {
-		fmt.Fprintf(os.Stderr, "[debug] telebit.Inspect(\n\tinspectURL = %s,\n\ttoken = %s,\n)\n", inspectURL, token)
-	}
-	msg, err := Request("GET", inspectURL, token, nil)
-	if nil != err {
-		return nil, err
-	}
-	if nil == msg {
-		return nil, fmt.Errorf("invalid response")
-	}
-
-	grants := &Grants{}
-	err = json.NewDecoder(msg).Decode(grants)
-	if err != nil {
-		return nil, err
-	}
-	if "" == grants.Subject {
-		fmt.Fprintf(os.Stderr, "TODO update mgmt server to show Subject: %q\n", msg)
-		grants.Subject = strings.Split(grants.Domains[0], ".")[0]
-	}
-	return grants, nil
-}
-
-func Request(method, fullurl, token string, payload io.Reader) (io.Reader, error) {
-	HTTPClient := &http.Client{
-		Timeout: 15 * time.Second,
-	}
-	req, err := http.NewRequest(method, fullurl, payload)
-	if err != nil {
-		return nil, err
-	}
-	if len(token) > 0 {
-		req.Header.Set("Authorization", "Bearer "+token)
-	}
-	if nil != payload {
-		req.Header.Set("Content-Type", "application/json")
-	}
-
-	resp, err := HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("%d: failed to read response body: %w", resp.StatusCode, err)
-	}
-
-	if resp.StatusCode >= http.StatusBadRequest {
-		return nil, fmt.Errorf("%d: request failed: %v", resp.StatusCode, string(body))
-	}
-
-	return bytes.NewBuffer(body), nil
 }

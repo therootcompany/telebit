@@ -1,4 +1,4 @@
-package mgmt
+package acmeroutes
 
 import (
 	"context"
@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 
+	"git.rootprojects.org/root/telebit/internal/authutil"
 	"git.rootprojects.org/root/telebit/internal/http01fs"
 
 	"github.com/go-acme/lego/v3/challenge"
@@ -37,11 +39,50 @@ type Identifier struct {
 	Value string `json:"value"`
 }
 
+/*
 type acmeProvider struct {
 	BaseURL  string
 	provider challenge.Provider
 }
+*/
 
+var provider challenge.Provider = nil
+var presenters = make(chan *Challenge)
+var cleanups = make(chan *Challenge)
+
+// Init initializes some package variables
+func Init(p challenge.Provider) {
+	provider = p
+
+	go func() {
+		for {
+			// TODO make parallel?
+			// TODO make cancellable?
+			ch := <-presenters
+			if nil != provider {
+				err := provider.Present(ch.Domain, ch.Token, ch.KeyAuth)
+				ch.error <- err
+			} else {
+				ch.error <- fmt.Errorf("missing acme challenge provider for present")
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			// TODO make parallel?
+			// TODO make cancellable?
+			ch := <-cleanups
+			if nil != provider {
+				ch.error <- provider.CleanUp(ch.Domain, ch.Token, ch.KeyAuth)
+			} else {
+				ch.error <- fmt.Errorf("missing acme challenge provider for cleanup")
+			}
+		}
+	}()
+}
+
+/*
 func (p *acmeProvider) Present(domain, token, keyAuth string) error {
 	return p.provider.Present(domain, token, keyAuth)
 }
@@ -49,8 +90,33 @@ func (p *acmeProvider) Present(domain, token, keyAuth string) error {
 func (p *acmeProvider) CleanUp(domain, token, keyAuth string) error {
 	return p.provider.CleanUp(domain, token, keyAuth)
 }
+*/
 
-func handleACMEChallengeRoutes(r chi.Router) {
+// GetACMEChallenges fetches stored HTTP-01 challenges
+func GetACMEChallenges(w http.ResponseWriter, r *http.Request) {
+	//token := chi.URLParam(r, "token")
+	host := r.Host
+	/*
+		// TODO TrustProxy option?
+		xHost := r.Header.Get("X-Forwarded-Host")
+		//log.Printf("[debug] Host: %q\n[debug] X-Host: %q", host, xHost)
+		if len(xHost) > 0 {
+			host = xHost
+		}
+	*/
+
+	// disallow FS characters
+	if strings.ContainsAny(host, "/:|\\") {
+		host = ""
+	}
+	tokenPath := filepath.Join(tmpBase, host)
+
+	fsrv := http.FileServer(http.Dir(tokenPath))
+	fsrv.ServeHTTP(w, r)
+}
+
+// HandleACMEChallengeRoutes allows storing ACME challenges for relay
+func HandleACMEChallengeRoutes(r chi.Router) {
 	handleACMEChallenges := func(r chi.Router) {
 		r.Post("/{domain}", createChallenge)
 
@@ -78,7 +144,7 @@ func createChallenge(w http.ResponseWriter, r *http.Request) {
 	domain := chi.URLParam(r, "domain")
 
 	ctx := r.Context()
-	claims, ok := ctx.Value(MWKey("claims")).(*MgmtClaims)
+	claims, ok := ctx.Value(authutil.MWKey("claims")).(*authutil.Claims)
 	if !ok || !isSlugAllowed(domain, claims.Slug) {
 		msg := `{ "error": "invalid domain", "code":"E_BAD_REQUEST"}`
 		http.Error(w, msg+"\n", http.StatusUnprocessableEntity)
@@ -103,8 +169,8 @@ func createChallenge(w http.ResponseWriter, r *http.Request) {
 	if "" == ch.Token || "" == ch.KeyAuth {
 		err = errors.New("missing token and/or key auth")
 	} else if strings.Contains(ch.Type, "http") {
-		provider := &http01fs.Provider
-		provider.Present(context.Background(), acme.Challenge{
+		http01Provider := &http01fs.Provider
+		http01Provider.Present(context.Background(), acme.Challenge{
 			Token:            ch.Token,
 			KeyAuthorization: ch.KeyAuth,
 			Identifier: acme.Identifier{
@@ -146,8 +212,8 @@ func deleteChallenge(w http.ResponseWriter, r *http.Request) {
 	if "" == ch.Token || "" == ch.KeyAuth {
 		err = errors.New("missing token and/or key auth")
 	} else if strings.Contains(ch.Type, "http") {
-		provider := &http01fs.Provider
-		provider.CleanUp(context.Background(), acme.Challenge{
+		http01Provider := &http01fs.Provider
+		http01Provider.CleanUp(context.Background(), acme.Challenge{
 			Token:            ch.Token,
 			KeyAuthorization: ch.KeyAuth,
 			Identifier: acme.Identifier{

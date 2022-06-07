@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"git.rootprojects.org/root/telebit/internal/acmeroutes"
 	"git.rootprojects.org/root/telebit/internal/mgmt"
 	"git.rootprojects.org/root/telebit/internal/mgmt/authstore"
 
@@ -34,7 +35,7 @@ var (
 	serviceName = "telebit-mgmt"
 
 	// serviceDesc
-	serviceDesc = "Telebit Device Management"
+	//serviceDesc = "Telebit Device Management"
 )
 
 func ver() string {
@@ -151,7 +152,12 @@ func main() {
 	_ = store.SetMaster(secret)
 	defer store.Close()
 
-	mgmt.Init(store, provider)
+	var authURL string
+	if 0 == len(authURL) {
+		authURL = os.Getenv("AUTH_URL")
+	}
+	mgmt.Init(store)
+	acmeroutes.Init(provider)
 
 	if len(challengesPort) > 0 {
 		go func() {
@@ -178,7 +184,7 @@ func main() {
 	r.Get("/api/version", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("TODO (json): " + ver() + "\n"))
 	})
-	mgmt.RouteAll(r)
+	mgmt.RouteAll(r, authURL)
 	fmt.Fprintf(os.Stderr, "failed: %s", http.ListenAndServe(lnAddr, r))
 }
 
